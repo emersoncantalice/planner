@@ -663,7 +663,7 @@ button.sec {
   box-shadow: 0 16px 40px rgba(8,30,70,.38), 0 2px 8px rgba(0,0,0,.18);
   pointer-events: all;
   animation: toast-in .22s ease;
-  overflow: hidden;
+  overflow: visible;
 }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(16px) scale(.97); }
@@ -2630,7 +2630,7 @@ button.sec {
   grid-template-rows: auto auto 1fr auto;
   gap: 8px;
   transition: width .2s ease;
-  overflow: visible;
+  overflow: hidden;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -2747,8 +2747,8 @@ button.sec {
   height: 32px;
   position: absolute;
   top: 14px;
-  right:-10px;
-  z-index: 3;
+  right: 8px;
+  z-index: 12;
   border-radius: 50%;
   background: #ffffff;
   color: #0f4cb8;
@@ -2765,7 +2765,38 @@ button.sec {
   height: 16px;
   fill: currentColor;
 }
-.sb-nav { display:grid; gap:5px; overflow:visible; }
+.sb-nav {
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(173, 204, 255, .55) transparent;
+}
+
+.sb-nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sb-nav::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.sb-nav::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(173, 204, 255, .72), rgba(120, 165, 235, .62));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.sb-nav:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(206, 225, 255, .9), rgba(152, 188, 244, .82));
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
 .sb-nav a {
   display: flex;
   align-items: center;
@@ -2834,6 +2865,7 @@ button.sec {
 .sb-text strong { font-size: .92rem; font-weight: 600; }
 .sidebar.collapsed .sb-nav {
   justify-items: center;
+  overflow: visible;
 }
 .sidebar.collapsed .sb-nav a {
   justify-content: center;

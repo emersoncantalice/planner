@@ -213,7 +213,7 @@ export class App {
   toggleCadastrosMenu(event?: MouseEvent) {
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.flyoutTop.set(el.getBoundingClientRect().top);
+      this.setFlyoutTop(el, 520);
     }
     this.cadastrosExpanded.update(v => !v);
   }
@@ -221,7 +221,7 @@ export class App {
   toggleAlocacoesMenu(event?: MouseEvent) {
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.flyoutTop.set(el.getBoundingClientRect().top);
+      this.setFlyoutTop(el, 260);
     }
     this.alocacoesExpanded.update(v => !v);
   }
@@ -254,9 +254,18 @@ export class App {
   toggleRiscosMenu(event?: MouseEvent) {
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.flyoutTop.set(el.getBoundingClientRect().top);
+      this.setFlyoutTop(el, 280);
     }
     this.riscosExpanded.update(v => !v);
+  }
+
+  private setFlyoutTop(anchorEl: HTMLElement, estimatedHeight: number) {
+    const viewportH = window.innerHeight || 900;
+    const margin = 12;
+    const desiredTop = anchorEl.getBoundingClientRect().top;
+    const maxTop = Math.max(margin, viewportH - estimatedHeight - margin);
+    const clampedTop = Math.min(Math.max(desiredTop, margin), maxTop);
+    this.flyoutTop.set(clampedTop);
   }
 
   private confirmAction: (() => void) | null = null;
