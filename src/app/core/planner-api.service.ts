@@ -3,9 +3,27 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 @Injectable({ providedIn: 'root' })
 export class PlannerApiService {
-  private readonly api = ((window as any)?.__env?.API_URL || 'http://localhost:8080/api').replace(/\/+$/, '');
+  private readonly api = this.resolveApiBase();
 
   constructor(private http: HttpClient) {}
+
+  private resolveApiBase(): string {
+    const raw = ((window as any)?.__env?.API_URL || 'http://localhost:8080/api').trim();
+    const normalized = raw.replace(/^['"]|['"]$/g, '');
+    try {
+      const pageProtocol = window?.location?.protocol;
+      // If protocol is missing (e.g. planner-backend.../api), force absolute URL.
+      if (!/^https?:\/\//i.test(normalized) && /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(normalized)) {
+        return `https://${normalized}`.replace(/\/+$/, '');
+      }
+      if (pageProtocol === 'https:' && normalized.startsWith('http://')) {
+        return (`https://${normalized.slice('http://'.length)}`).replace(/\/+$/, '');
+      }
+    } catch {
+      // no-op, keeps raw fallback
+    }
+    return normalized.replace(/\/+$/, '');
+  }
 
   headers(token: string) {
     return new HttpHeaders({ 'X-Auth-Token': token });
