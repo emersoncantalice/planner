@@ -6,7 +6,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.29-alpine
-COPY --from=build /app/dist/planner-frontend /usr/share/nginx/html
+COPY --from=build /app/dist/planner-frontend/browser /usr/share/nginx/html
 ENV PLANNER_API_URL=http://localhost:8080/api
 ENV PORT=8080
 EXPOSE 8080
