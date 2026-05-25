@@ -1,0 +1,598 @@
+<planner-card><article class="card">
+  <section class="lo-overview">
+    <div class="lo-overview-header">
+      <h3 class="lo-overview-title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+        Visão Geral das LOs — {{ anoSelecionado }}
+      </h3>
+    </div>
+    <div class="lo-overview-grid">
+
+      <div class="lo-card lo-card-blue">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Total Orçamento</span>
+          <strong class="lo-card-value">{{ currency(totalOrcamentoGeralLos()) }}</strong>
+          <span class="lo-card-sub">{{ numLosAno() }} LO{{ numLosAno() !== 1 ? 's' : '' }} em {{ anoSelecionado }}</span>
+        </div>
+      </div>
+
+      <div class="lo-card lo-card-amber">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zM16 13h2.8v6H16v-6z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Total Comprometido</span>
+          <strong class="lo-card-value">{{ currency(totalComprometidoGeralLos()) }}</strong>
+          <span class="lo-card-sub">{{ numAlocacoesAno() }} alocaç{{ numAlocacoesAno() !== 1 ? 'ões' : 'ão' }} no período</span>
+        </div>
+      </div>
+
+      <div class="lo-card" [class]="saldoGeralLos() >= 0 ? 'lo-card-green' : 'lo-card-red'">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.34 8-7 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-2h2v2zm0-4h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2h-2c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Saldo Disponível</span>
+          <strong class="lo-card-value">{{ currency(saldoGeralLos()) }}</strong>
+          <span class="lo-card-sub">{{ saldoGeralLos() >= 0 ? 'Dentro do orçamento' : 'Orçamento extrapolado' }}</span>
+        </div>
+      </div>
+
+      <div class="lo-card lo-card-purple">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Orçamento Utilizado</span>
+          <strong class="lo-card-value">{{ percentualUtilizadoGeral() | number:'1.1-1' }}%</strong>
+          <div class="lo-progress">
+            <div class="lo-progress-bar" [style.width.%]="clampPct(percentualUtilizadoGeral())"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lo-card lo-card-teal">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 5v14h19V5H3zm7 12H5v-5h5v5zm0-7H5V7h5v3zm7 7h-5v-5h5v5zm0-7h-5V7h5v3z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Linhas Orçamentárias</span>
+          <strong class="lo-card-value lo-card-value-count">{{ numLosAno() }}</strong>
+          <span class="lo-card-sub">LOs ativas em {{ anoSelecionado }}</span>
+        </div>
+      </div>
+
+      <div class="lo-card lo-card-sky">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Total de Pessoas Alocadas</span>
+          <strong class="lo-card-value lo-card-value-count">{{ numPessoasAlocadasAno() }}</strong>
+          <span class="lo-card-sub">Pessoas alocadas em {{ anoSelecionado }}</span>
+        </div>
+      </div>
+
+      <div class="lo-card lo-card-slate">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Média Comprometida/LO</span>
+          <strong class="lo-card-value">{{ currency(mediaComprometidoPorLo()) }}</strong>
+          <span class="lo-card-sub">Comprometimento médio por LO</span>
+        </div>
+      </div>
+
+      <div class="lo-card lo-card-emerald">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Total Pago (Realizado)</span>
+          <strong class="lo-card-value">{{ currency(totalPagoGeralLos()) }}</strong>
+          <span class="lo-card-sub">Soma dos meses marcados como pagos</span>
+        </div>
+      </div>
+
+      <div class="lo-card" [class]="saldoAtualGeralLos() >= 0 ? 'lo-card-teal' : 'lo-card-red'">
+        <div class="lo-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3zm1 0v8h8A8 8 0 0 0 13 3z"/></svg>
+        </div>
+        <div class="lo-card-body">
+          <span class="lo-card-label">Saldo Atual Geral</span>
+          <strong class="lo-card-value">{{ currency(saldoAtualGeralLos()) }}</strong>
+          <span class="lo-card-sub">Orcamento ajustado - pagos</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <h2>Painel de alocacoes por LO</h2>
+  <div class="toolbar-row">
+    <label for="anoAlocacao">Ano</label>
+    <select id="anoAlocacao" [ngModel]="anoSelecionado" (ngModelChange)="selecionarAno($event)">
+      @for (ano of anosDisponiveis(); track ano) {
+        <option [value]="ano">{{ ano }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="lo-tabs">
+    @for (lo of linhasDoAnoSelecionado(); track lo.id) {
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="lo.id === loSelecionadaId"
+        (click)="selectLoTab(lo.id)">
+        <span class="tab-codigo">{{ lo.codigo }}</span>
+        @if (lo.nome) {
+          <span class="tab-nome">{{ lo.nome }}</span>
+        }
+        @if (lo.tipo) {
+          <span class="tab-tipo">{{ lo.tipo }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  @if (loSelecionada()) {
+    <div class="lo-summary-card">
+      <div class="lo-summary-header">
+        <div class="lo-summary-title-block">
+          <div class="lo-summary-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            <span class="lo-summary-codigo">{{ loSelecionada()?.codigo }}</span>
+            @if (loSelecionada()?.nome) {
+              <span class="lo-summary-nome">{{ loSelecionada()?.nome }}</span>
+            }
+          </div>
+          <div class="lo-summary-meta">
+            @if (loSelecionada()?.tipo) {
+              <span class="lo-meta-pill lo-meta-pill-blue">Tipo: {{ loSelecionada()?.tipo }}</span>
+            }
+            @if (loSelecionada()?.centroCusto) {
+              <span class="lo-meta-pill lo-meta-pill-gray">CC: {{ loSelecionada()?.centroCusto }}</span>
+            }
+            <span class="lo-meta-pill lo-meta-pill-gray">Ano: {{ anoSelecionado }}</span>
+          </div>
+        </div>
+        <span class="lo-summary-badge">{{ numAlocacoesNaLoSelecionada() }} alocaç{{ numAlocacoesNaLoSelecionada() !== 1 ? 'ões' : 'ão' }}</span>
+      </div>
+
+      <div class="lo-summary-kpis">
+        <div class="lo-summary-kpi lo-summary-kpi-blue">
+          <span class="lo-summary-kpi-label">Orçamento</span>
+          <strong class="lo-summary-kpi-value">{{ currency(orcamentoLoSelecionada()) }}</strong>
+        </div>
+        <div class="lo-summary-kpi lo-summary-kpi-amber">
+          <span class="lo-summary-kpi-label">Comprometido</span>
+          <strong class="lo-summary-kpi-value">{{ currency(totalComprometidoClm()) }}</strong>
+          <span class="lo-summary-kpi-sub">
+            Folha: {{ currency(totalComprometidoClmPorCategoria('FOLHA')) }}<br>
+            Prest.: {{ currency(totalComprometidoClmPorCategoria('TERCEIRO')) }}
+          </span>
+        </div>
+        <div class="lo-summary-kpi" [class]="saldoLo() >= 0 ? 'lo-summary-kpi-green' : 'lo-summary-kpi-red'">
+          <span class="lo-summary-kpi-label">Saldo</span>
+          <strong class="lo-summary-kpi-value">{{ currency(saldoLo()) }}</strong>
+          <span class="lo-summary-kpi-sub">{{ saldoLo() >= 0 ? 'Dentro do orçamento' : 'Orçamento extrapolado' }}</span>
+        </div>
+        <div class="lo-summary-kpi lo-summary-kpi-teal">
+          <span class="lo-summary-kpi-label">Pago (Realizado)</span>
+          <strong class="lo-summary-kpi-value">{{ currency(totalPagoNaLoSelecionada()) }}</strong>
+          <span class="lo-summary-kpi-sub">Meses marcados como pagos</span>
+        </div>
+        <div class="lo-summary-kpi" [class]="saldoAtualLoSelecionada() >= 0 ? 'lo-summary-kpi-blue' : 'lo-summary-kpi-red'">
+          <span class="lo-summary-kpi-label">Saldo Atual LO</span>
+          <strong class="lo-summary-kpi-value">{{ currency(saldoAtualLoSelecionada()) }}</strong>
+          <span class="lo-summary-kpi-sub">Orcamento ajustado - pagos</span>
+        </div>
+      </div>
+
+      <div class="lo-summary-progress-wrap">
+        <div class="lo-summary-progress-labels">
+          <span>Utilização do orçamento</span>
+          <span><strong>{{ percentualUtilizadoLo() | number:'1.1-1' }}%</strong></span>
+        </div>
+        <div class="lo-summary-progress-bar-track">
+          <div class="lo-summary-progress-bar-fill" [style.width.%]="clampPct(percentualUtilizadoLo())" [class.over]="percentualUtilizadoLo() > 100"></div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (percentualAviso) {
+    <p class="warn">{{ percentualAviso }}</p>
+  }
+
+  <div class="toolbar-row">
+    <input [(ngModel)]="searchTerm" placeholder="Pesquisar alocacoes por pessoa ou perfil..." />
+    <button class="sec" type="button" (click)="abrirPessoaModal()">Nova pessoa</button>
+  </div>
+
+  <section class="alloc-table-wrap">
+    <div class="table-toolbar">
+      <p class="table-hint">Calculo mensal: Valor/hora x Horas do cadastro do mes x Alocacao (%).</p>
+      <!-- Botão colunas -->
+      <div class="col-picker-wrap">
+        <button type="button" class="col-picker-btn" (click)="toggleColPicker()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
+          Colunas
+          <svg class="col-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+        @if (colPickerOpen) {
+          <div class="col-picker-dropdown">
+            <div class="col-picker-header">
+              <span>Mostrar colunas</span>
+              <div class="col-picker-actions">
+                <button type="button" (click)="toggleAllCols(true)">Todas</button>
+                <button type="button" (click)="toggleAllCols(false)">Nenhuma</button>
+              </div>
+            </div>
+            <div class="col-picker-list">
+              @for (c of colDefs; track c.key) {
+                <label class="col-picker-item" [class.active]="col(c.key)">
+                  <input type="checkbox" [checked]="col(c.key)" (change)="toggleCol(c.key)" />
+                  {{ c.label }}
+                </label>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+    <table class="modern-table alloc-table">
+      <thead>
+        <tr>
+          <th>Pessoa</th>
+          @if (col('vaga'))      { <th>Vaga</th> }
+          @if (col('perfil'))    { <th>Perfil</th> }
+          @if (col('categoria')) { <th>Categoria</th> }
+          @if (col('pct'))       { <th>Alocacao (%)</th> }
+          @if (col('valorH'))    { <th>Valor/h</th> }
+          @for (m of meses; track m; let monthIndex = $index) {
+            @if (col(mesKey(monthIndex))) {
+              <th class="month-head">
+                <span>{{ m }}</span>
+                <small>{{ horasDoCadastro(monthIndex) }}h</small>
+              </th>
+            }
+          }
+          @if (col('total'))     { <th>Total anual</th> }
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!editingId) {
+          <tr class="new-row">
+            <td>
+              <input
+                list="pessoas-nova-list"
+                class="pessoa-combo"
+                [ngModel]="pessoaNovaNome"
+                (ngModelChange)="onPessoaNovaNomeChange($event)"
+                placeholder="Buscar pessoa..."
+                autocomplete="off" />
+              <datalist id="pessoas-nova-list">
+                @for (p of pessoas; track p.id) {
+                  <option [value]="p.nome"></option>
+                }
+              </datalist>
+            </td>
+            @if (col('vaga')) {
+              <td class="vaga-cell">
+                @if (isTerceiroNovaPessoa() && vagaUrlDaPessoaId(novaPessoaSelecionadaId)) {
+                  <a class="readonly-cell vaga-link-cell" [href]="vagaUrlDaPessoaId(novaPessoaSelecionadaId)!" target="_blank" rel="noopener noreferrer">{{ vagaAliasDaPessoaId(novaPessoaSelecionadaId) }}</a>
+                } @else {
+                  <span class="readonly-cell">-</span>
+                }
+              </td>
+            }
+            @if (col('perfil'))    { <td><span class="readonly-cell">{{ perfilNomePessoaSelecionadaNova() }}</span></td> }
+            @if (col('categoria')) { <td><span class="readonly-cell">{{ categoriaPessoaSelecionadaNova() }}</span></td> }
+            @if (col('pct')) {
+              <td>
+                <input
+                  class="percent-input"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="0,00"
+                  [ngModel]="novaPctMasked"
+                  (ngModelChange)="onNovaPctMaskedChange($event)" />
+              </td>
+            }
+            @if (col('valorH')) {
+              <td>
+                @if (novaPessoaSemCustoLo()) {
+                  <span class="sem-custo-lo">Não cobra da LO</span>
+                } @else {
+                  {{ currency(valorHoraPessoaSelecionadaNova()) }}
+                }
+              </td>
+            }
+            @for (m of meses; track m) {
+              @if (col(mesKey($index))) {
+                <td class="month-col"
+                    [class.bloqueado]="mesIndisponivelNovaPessoa($index)"
+                    [class.parcial]="mesParcialmenteDisponivelNovaPessoa($index)">
+                  @if (mesIndisponivelNovaPessoa($index)) {
+                    <span class="month-unavailable">Indisponivel ({{ meses[$index] }})</span>
+                    <button
+                      type="button"
+                      class="month-unavailable-reason"
+                      [class.month-unavailable-link]="bloqueantePorOutraLo(loIdBloqueanteMesNovaPessoa($index))"
+                      [title]="bloqueantePorOutraLo(loIdBloqueanteMesNovaPessoa($index)) ? 'Ir para ' + motivoMesIndisponivelNovaPessoa($index) : motivoMesIndisponivelNovaPessoa($index)"
+                      (click)="navegarParaLo(loIdBloqueanteMesNovaPessoa($index))">
+                      {{ motivoMesIndisponivelNovaPessoa($index) }}
+                    </button>
+                  } @else if (mesParcialmenteDisponivelNovaPessoa($index)) {
+                    <span class="month-partial-pct">{{ percentualDisponivelNovaPessoa($index) | number:'1.0-1' }}% disp.</span>
+                    @if (novaPessoaSemCustoLo()) {
+                      <span class="sem-custo-lo">Não cobra da LO</span>
+                    } @else {
+                      <s class="month-partial-full">{{ currency(custoMensalNovaPessoa($index)) }}</s>
+                      <strong class="month-partial-efetivo">{{ currency(custoMensalNovaPessoaDisponivel($index)) }}</strong>
+                    }
+                  } @else if (novaPessoaSemCustoLo()) {
+                    <span class="sem-custo-lo">Não cobra da LO</span>
+                  } @else {
+                    <strong>{{ currency(custoMensalNovaPessoa($index)) }}</strong>
+                  }
+                </td>
+              }
+            }
+            @if (col('total'))     { <td><strong>{{ currency(custoAnualNovaPessoa()) }}</strong></td> }
+            <td class="actions">
+              <button type="button" (click)="adicionarAlocacao()">Adicionar</button>
+            </td>
+          </tr>
+        }
+
+        @for (a of alocacoesFiltradas(); track a.id) {
+          <tr>
+            <td>
+              @if (editingId === a.id) {
+                <input
+                  list="pessoas-edicao-list"
+                  class="pessoa-combo"
+                  [ngModel]="pessoaEdicaoNome"
+                  (ngModelChange)="onPessoaEdicaoNomeChange($event)"
+                  placeholder="Buscar pessoa..."
+                  autocomplete="off" />
+                <datalist id="pessoas-edicao-list">
+                  @for (p of pessoas; track p.id) {
+                    <option [value]="p.nome"></option>
+                  }
+                </datalist>
+              } @else {
+                <strong>{{ a.nomePessoa }}</strong>
+              }
+            </td>
+            @if (col('vaga')) {
+              <td class="vaga-cell">
+                @if (getCategoriaDaPessoa(a) === 'TERCEIRO' && vagaUrlDaPessoa(a.nomePessoa)) {
+                  <a class="readonly-cell vaga-link-cell" [href]="vagaUrlDaPessoa(a.nomePessoa)!" target="_blank" rel="noopener noreferrer" [title]="vagaUrlDaPessoa(a.nomePessoa)!">{{ vagaAliasDaPessoa(a.nomePessoa) }}</a>
+                } @else {
+                  <span class="readonly-cell">-</span>
+                }
+              </td>
+            }
+            @if (col('perfil')) {
+              <td>
+                @if (editingId === a.id) {
+                  <span class="readonly-cell">{{ perfilNomePessoaSelecionadaEdicao() }}</span>
+                } @else {
+                  {{ perfilSemDepartamento(a.perfilNome) }}
+                }
+              </td>
+            }
+            @if (col('categoria')) {
+              <td>
+                @if (editingId === a.id) {
+                  <span class="readonly-cell">{{ categoriaPessoaSelecionadaEdicao() }}</span>
+                } @else {
+                  @if (getCategoriaDaPessoa(a) === 'TERCEIRO') { Prestador de servico } @else { Folha }
+                }
+              </td>
+            }
+            @if (col('pct')) {
+              <td>
+                <input
+                  class="percent-input"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="0,00"
+                  [ngModel]="getPctMasked(a.id)"
+                  (ngModelChange)="onPctMaskedChange($event, a.id)" />
+              </td>
+            }
+            @if (col('valorH')) {
+              <td>
+                @if (pessoaSemCustoLo(a)) {
+                  <span class="sem-custo-lo">Não cobra da LO</span>
+                } @else if (editingId === a.id) {
+                  {{ currency(valorHoraPessoaSelecionadaEdicao()) }}
+                } @else {
+                  {{ currency(getValorHoraDaAlocacao(a)) }}
+                }
+              </td>
+            }
+            @for (m of meses; track m; let monthIndex = $index) {
+              @if (col(mesKey(monthIndex))) {
+              <td
+                class="month-col"
+                [class.pago]="isPago(a.id, monthIndex)"
+                [class.cancelado]="isCancelado(a.id, monthIndex)"
+                [class.bloqueado]="mesIndisponivelParaAlocacao(a.id, monthIndex)">
+                @if (mesIndisponivelParaAlocacao(a.id, monthIndex)) {
+                  <!-- Bloqueado por outra linha da mesma pessoa que tem lançamento/pagamento -->
+                  <button
+                    type="button"
+                    class="month-unavailable"
+                    [class.month-unavailable-link]="bloqueantePorOutraLo(loIdBloqueanteMes(a.id, monthIndex))"
+                    [title]="bloqueantePorOutraLo(loIdBloqueanteMes(a.id, monthIndex)) ? 'Ir para ' + motivoMesIndisponivelAlocacao(a.id, monthIndex) : motivoMesIndisponivelAlocacao(a.id, monthIndex)"
+                    (click)="navegarParaLo(loIdBloqueanteMes(a.id, monthIndex))">
+                    {{ motivoMesIndisponivelAlocacao(a.id, monthIndex) }}
+                  </button>
+                } @else {
+                  <div class="month-editor">
+                    @if (percentualLivreMesAlocacao(a.id, monthIndex) > 0) {
+                      <small class="month-percent-info">+{{ percentualLivreMesAlocacao(a.id, monthIndex) | number:'1.0-2' }}% livre</small>
+                    }
+                    <!-- % do mês (sobrescreve o padrão da linha) — bloqueado quando pago -->
+                    <input
+                      class="month-percent-input"
+                      type="text"
+                      inputmode="numeric"
+                      placeholder="0,00"
+                      [disabled]="isCancelado(a.id, monthIndex) || isPago(a.id, monthIndex)"
+                      [ngModel]="getPctMensalMasked(a.id, monthIndex)"
+                      (ngModelChange)="onPctMensalMaskedChange($event, a.id, monthIndex)"
+                      title="Alocação (%) do mês" />
+                    @if (isPercentualMesSobrescrito(a.id, monthIndex)) {
+                      <small class="month-percent-override">Mês {{ getPercentualMensalDigitavel(a.id, monthIndex) | number:'1.0-2' }}%</small>
+                    }
+                    <!-- Valor do mês — badge quando sem custo, readonly quando pago/lançado -->
+                    @if (pessoaSemCustoLo(a)) {
+                      <span class="sem-custo-lo sem-custo-lo-mes">Não cobra da LO</span>
+                    } @else {
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        lang="en"
+                        [disabled]="isCancelado(a.id, monthIndex)"
+                        [readonly]="isPago(a.id, monthIndex)"
+                        [ngModel]="getValorMensalDigitavel(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))"
+                        (ngModelChange)="setValorMensalDigitavel(a.id, monthIndex, $event)"
+                        (blur)="setValorMensalDigitavel(a.id, monthIndex, getValorMensalDigitavel(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a)))" />
+                      @if (!isCancelado(a.id, monthIndex) && valorMaximoMes(a, monthIndex) > 0) {
+                        <small class="month-max-hint">máx {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
+                      }
+                    }
+                    @if (!pessoaSemCustoLo(a)) {
+                      <!-- Pago / Lançado: marca o mês como comprometido (futuro ou confirmado) -->
+                      <label class="paid-check">
+                        <input
+                          type="checkbox"
+                          [checked]="isPago(a.id, monthIndex)"
+                          [disabled]="isCancelado(a.id, monthIndex)"
+                          (change)="setPago(a.id, monthIndex, $any($event.target).checked)" />
+                        Pago
+                      </label>
+                    }
+                    <!-- Cancelado: zera o custo e libera o mês para outras linhas -->
+                    <label class="paid-check cancel-check">
+                      <input
+                        type="checkbox"
+                        [checked]="isCancelado(a.id, monthIndex)"
+                        (change)="setCancelado(a.id, monthIndex, $any($event.target).checked)" />
+                      Canc.
+                    </label>
+                    @if (!pessoaSemCustoLo(a)) {
+                      @if (isPago(a.id, monthIndex)) {
+                        <button class="sec" type="button" (click)="reabrirMes(a.id, monthIndex)">
+                          Reabrir
+                        </button>
+                      } @else if (!isCancelado(a.id, monthIndex)) {
+                        <button
+                          class="sec"
+                          type="button"
+                          (click)="limparValorMensalManual(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))">
+                          Recalc
+                        </button>
+                      }
+                    }
+                  </div>
+                }
+              </td>
+              } <!-- /col(mesKey) -->
+            } <!-- /@for meses -->
+            @if (col('total')) {
+              <td>
+                <strong>
+                  @if (editingId === a.id) {
+                    {{ currency(custoAnualEdicaoPessoa(a.id)) }}
+                  } @else {
+                    {{ currency(
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 0) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 1) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 2) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 3) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 4) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 5) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 6) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 7) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 8) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 9) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 10) +
+                      custoMensal(a.id, getValorHoraDaAlocacao(a), 11)
+                    ) }}
+                  }
+                </strong>
+              </td>
+            }
+            <td class="actions">
+              @if (editingId === a.id) {
+                <button class="sec" type="button" (click)="saveEdit()">Salvar</button>
+                <button type="button" (click)="cancelEdit()">Cancelar</button>
+              } @else {
+                <button class="sec" type="button" (click)="startEdit(a)">Editar</button>
+                <button type="button" (click)="remove.emit(a.id)">Excluir</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+</article></planner-card>
+
+@if (pessoaModalAberto) {
+  <div class="modal-backdrop" (click)="fecharPessoaModal()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>Cadastro rapido de pessoa</h3>
+      <button class="sec" type="button" (click)="fecharPessoaModal()">Fechar</button>
+    </div>
+    <input [(ngModel)]="pessoaRapida.nome" placeholder="Nome da pessoa" />
+    <select [(ngModel)]="pessoaRapida.perfilId">
+      <option value="">Selecione o perfil</option>
+      @for (p of perfis; track p.id) {
+        <option [value]="p.id">{{ p.nomePerfil }}</option>
+      }
+    </select>
+    <select [(ngModel)]="pessoaRapida.tipoVinculo">
+      <option value="BV">Folha</option>
+      <option value="TERCEIRO">Prestador de servico</option>
+    </select>
+    @if (pessoaRapida.tipoVinculo === 'TERCEIRO') {
+      <select [(ngModel)]="pessoaRapida.consultoria">
+        <option value="">Selecione o prestador de servico</option>
+        @for (c of consultorias; track c.id) {
+          <option [value]="c.nome">{{ c.nome }}</option>
+        }
+      </select>
+      <input
+        [ngModel]="pessoaValorHoraMasked"
+        (ngModelChange)="onPessoaValorHoraChange($event)"
+        inputmode="numeric"
+        placeholder="R$ 0,00" />
+      <input [(ngModel)]="pessoaRapida.vagaUrl" type="url" placeholder="URL da vaga (opcional)" />
+    } @else {
+      <input
+        [ngModel]="pessoaValorMensalMasked"
+        (ngModelChange)="onPessoaValorMensalChange($event)"
+        inputmode="numeric"
+        placeholder="R$ 0,00" />
+    }
+    <button type="button" (click)="salvarPessoaRapida()">Cadastrar pessoa</button>
+  </div>
+}
+
+

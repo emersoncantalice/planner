@@ -1,0 +1,737 @@
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Modals rendered at component root (OUTSIDE .gp-wrap) so they are in the
+     viewport stacking context and never clipped by .gp-gantt-outer's overflow.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ── Nova atividade modal ──────────────────────────────────────────────── -->
+@if (formVisible && projetoSelecionado) {
+  <div class="gp-modal-backdrop" (click)="toggleForm()"></div>
+  <div class="gp-modal" (click)="toggleForm()">
+    <div class="gp-modal-card gp-form-card" (click)="$event.stopPropagation()">
+
+      <div class="gp-modal-header">
+        <div class="gp-modal-header-info">
+          <span class="gp-modal-header-label">Cronograma</span>
+          <span class="gp-modal-header-title">Nova atividade</span>
+        </div>
+        <button class="gp-close-btn" (click)="toggleForm()" title="Fechar">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <div class="gp-modal-body">
+        <div class="gp-form-grid">
+          <div class="gp-field gp-field-wide">
+            <label>Título *</label>
+            <input [(ngModel)]="novaAtividade.titulo" placeholder="Ex: Levantamento de requisitos" autocomplete="off" />
+          </div>
+          <div class="gp-field">
+            <label>Início</label>
+            <input type="date" [(ngModel)]="novaAtividade.inicioPlanejado"
+                   (change)="validateDate(novaAtividade, 'inicioPlanejado')" />
+          </div>
+          <div class="gp-field">
+            <label>Fim</label>
+            <input type="date" [(ngModel)]="novaAtividade.fimPlanejado"
+                   (change)="validateDate(novaAtividade, 'fimPlanejado')" />
+          </div>
+          <div class="gp-field">
+            <label>Predecessora</label>
+            <select [(ngModel)]="novaAtividade.predecessorId" (ngModelChange)="onPredecessorChange('nova')">
+              <option value="">Sem predecessora</option>
+              @for (pred of predecessorasDisponiveis(); track pred.id) {
+                <option [value]="pred.id">{{ pred.titulo }}</option>
+              }
+            </select>
+          </div>
+          <div class="gp-field">
+            <label>Perfil</label>
+            <select [(ngModel)]="novaAtividade.perfilId">
+              <option value="">Sem perfil</option>
+              @for (p of perfis; track p.id) {
+                <option [value]="p.id">{{ p.nomePerfil }}</option>
+              }
+            </select>
+          </div>
+          <div class="gp-field gp-field-wide">
+            <label>Descrição</label>
+            <input [(ngModel)]="novaAtividade.descricao" placeholder="Descrição opcional" autocomplete="off" />
+          </div>
+          <div class="gp-field">
+            <label>Responsável</label>
+            <select [(ngModel)]="novaAtividade.responsavel">
+              <option value="">— Sem responsável —</option>
+              @for (p of pessoasAtivas(); track p.id) {
+                <option [value]="p.nome">{{ p.nome }}</option>
+              }
+            </select>
+          </div>
+          <!-- Color picker -->
+          <div class="gp-field gp-field-wide">
+            <label>Cor da barra</label>
+            <div class="gp-color-row">
+              @for (c of barColors; track c.value) {
+                <button class="gp-color-swatch"
+                        [style.background]="c.value"
+                        [class.gp-color-swatch-active]="novaAtividade.cor === c.value"
+                        (click)="novaAtividade.cor = novaAtividade.cor === c.value ? '' : c.value"
+                        [title]="c.label"></button>
+              }
+              <button class="gp-color-swatch gp-color-swatch-none"
+                      [class.gp-color-swatch-active]="!novaAtividade.cor"
+                      (click)="novaAtividade.cor = ''"
+                      title="Padrão (cor do status)">
+                <svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.59 10.59A2 2 0 0 0 10 12a2 2 0 0 0 4 0 2 2 0 0 0-.59-1.41M7.76 7.76A6 6 0 0 0 6 12a6 6 0 0 0 6 6 6 6 0 0 0 4.24-1.76M12 6a6 6 0 0 1 4.24 1.76" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="gp-field gp-field-check">
+            <label class="gp-check-label">
+              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" [disabled]="!!novaAtividade.predecessorId" />
+              Paralela (pode rodar junto com outras)
+            </label>
+          </div>
+        </div>
+        @if (formError) { <p class="gp-form-error">{{ formError }}</p> }
+      </div>
+
+      <div class="gp-modal-footer">
+        <button class="gp-btn-primary" (click)="submitNova()" [disabled]="!novaAtividade.titulo.trim()">Adicionar atividade</button>
+        <button class="gp-btn-sec" (click)="toggleForm()">Cancelar</button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ── Editar atividade modal ─────────────────────────────────────────────── -->
+@if (editingItem) {
+  <div class="gp-modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="gp-modal" (click)="cancelEdit()">
+    <div class="gp-modal-card gp-edit-card" (click)="$event.stopPropagation()">
+
+      <!-- Header colorido com título + status -->
+      <div class="gp-modal-header">
+        <div class="gp-modal-header-info">
+          <span class="gp-modal-header-label">Editar atividade</span>
+          <span class="gp-modal-header-title" [title]="editForm.titulo || editingItem.titulo">
+            {{ editForm.titulo || editingItem.titulo }}
+          </span>
+        </div>
+        <span class="gp-modal-status-badge" [class]="'msb-' + statusColor(effectiveStatus(editingItem))">
+          {{ statusLabel(effectiveStatus(editingItem)) }}
+        </span>
+        <button class="gp-close-btn" (click)="cancelEdit()" title="Fechar">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <!-- Body rolável -->
+      <div class="gp-modal-body">
+
+        <div class="gp-form-grid">
+          <div class="gp-field gp-field-wide">
+            <label>Título</label>
+            <input [(ngModel)]="editForm.titulo" autocomplete="off" />
+          </div>
+          <div class="gp-field">
+            <label>Início</label>
+            <input type="date" [(ngModel)]="editForm.inicioPlanejado"
+                   (change)="validateDate(editForm, 'inicioPlanejado')" />
+          </div>
+          <div class="gp-field">
+            <label>Fim</label>
+            <input type="date" [(ngModel)]="editForm.fimPlanejado"
+                   (change)="validateDate(editForm, 'fimPlanejado')" />
+          </div>
+          <div class="gp-field">
+            <label>Status</label>
+            <select [(ngModel)]="editForm.status">
+              @for (s of allStatuses; track s) {
+                <option [value]="s">{{ statusLabel(s) }}</option>
+              }
+            </select>
+          </div>
+          <div class="gp-field">
+            <label>Responsável</label>
+            <select [(ngModel)]="editForm.responsavel">
+              <option value="">— Sem responsável —</option>
+              @for (p of pessoasAtivas(); track p.id) {
+                <option [value]="p.nome">{{ p.nome }}</option>
+              }
+            </select>
+          </div>
+          <div class="gp-field">
+            <label>Predecessora</label>
+            <select [(ngModel)]="editForm.predecessorId" (ngModelChange)="onPredecessorChange('edit')">
+              <option value="">Sem predecessora</option>
+              @for (pred of predecessorasDisponiveis(editingItem.id); track pred.id) {
+                <option [value]="pred.id">{{ pred.titulo }}</option>
+              }
+            </select>
+          </div>
+          <div class="gp-field">
+            <label>Perfil</label>
+            <select [(ngModel)]="editForm.perfilId">
+              <option value="">Sem perfil</option>
+              @for (p of perfis; track p.id) {
+                <option [value]="p.id">{{ p.nomePerfil }}</option>
+              }
+            </select>
+          </div>
+          <div class="gp-field gp-field-wide">
+            <label>% Conclusão — {{ editForm.pct }}%</label>
+            <div class="gp-pct-wrap">
+              <input type="range" min="0" max="100" step="5" [(ngModel)]="editForm.pct" class="gp-range" />
+              <div class="gp-pct-bar">
+                <div class="gp-pct-bar-fill" [style.width.%]="editForm.pct"></div>
+              </div>
+            </div>
+          </div>
+          <div class="gp-field gp-field-wide">
+            <label>Descrição</label>
+            <input [(ngModel)]="editForm.descricao" autocomplete="off" />
+          </div>
+          <!-- Color picker -->
+          <div class="gp-field gp-field-wide">
+            <label>Cor da barra</label>
+            <div class="gp-color-row">
+              @for (c of barColors; track c.value) {
+                <button class="gp-color-swatch"
+                        [style.background]="c.value"
+                        [class.gp-color-swatch-active]="editForm.cor === c.value"
+                        (click)="editForm.cor = editForm.cor === c.value ? '' : c.value"
+                        [title]="c.label"></button>
+              }
+              <button class="gp-color-swatch gp-color-swatch-none"
+                      [class.gp-color-swatch-active]="!editForm.cor"
+                      (click)="editForm.cor = ''"
+                      title="Padrão (cor do status)">
+                <svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.59 10.59A2 2 0 0 0 10 12a2 2 0 0 0 4 0 2 2 0 0 0-.59-1.41M7.76 7.76A6 6 0 0 0 6 12a6 6 0 0 0 6 6 6 6 0 0 0 4.24-1.76M12 6a6 6 0 0 1 4.24 1.76" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="gp-field gp-field-check">
+            <label class="gp-check-label">
+              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" [disabled]="!!editForm.predecessorId" />
+              Paralela (pode rodar junto com outras)
+            </label>
+          </div>
+        </div>
+
+        <!-- ── Etapas ─────────────────────────────────────────────────────── -->
+        <div class="gp-etapas-section">
+          <div class="gp-etapas-header">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span>Etapas</span>
+            @if (editForm.etapas.length) {
+              <span class="gp-etapas-tally">
+                {{ etapasDoneCount(editForm.etapas) }}/{{ editForm.etapas.length }} concluídas
+              </span>
+              <div class="gp-etapas-progress-bar">
+                <div class="gp-etapas-progress-fill"
+                     [style.width.%]="(etapasDoneCount(editForm.etapas) / editForm.etapas.length) * 100"></div>
+              </div>
+            }
+          </div>
+
+          @if (editForm.etapas.length === 0) {
+            <p class="gp-etapas-empty">Nenhuma etapa definida. Adicione abaixo.</p>
+          }
+
+          <ul class="gp-etapas-list">
+            @for (etapa of editForm.etapas; track etapa.id) {
+              <li class="gp-etapa-item" [class.gp-etapa-done]="etapa.done">
+                <label class="gp-etapa-check-label">
+                  <input type="checkbox" [checked]="etapa.done" (change)="toggleEtapa(etapa)" />
+                  <span class="gp-etapa-label">{{ etapa.label }}</span>
+                </label>
+                <button class="gp-etapa-remove-btn" (click)="removeEtapa(etapa)" title="Remover etapa">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+              </li>
+            }
+          </ul>
+
+          <div class="gp-etapa-add-row">
+            <input class="gp-etapa-add-input"
+                   [(ngModel)]="editForm.newEtapaLabel"
+                   placeholder="Nova etapa…"
+                   (keydown.enter)="addNewEtapa()"
+                   autocomplete="off" />
+            <button class="gp-etapa-add-btn" (click)="addNewEtapa()" [disabled]="!editForm.newEtapaLabel.trim()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+              Adicionar
+            </button>
+          </div>
+        </div>
+
+        @if (formError) { <p class="gp-form-error">{{ formError }}</p> }
+
+      </div><!-- /gp-modal-body -->
+
+      <!-- Rodapé fixo -->
+      <div class="gp-modal-footer">
+        <button class="gp-btn-primary" (click)="saveEdit()">Salvar alterações</button>
+        <button class="gp-btn-sec" (click)="cancelEdit()">Cancelar</button>
+        <span class="gp-footer-spacer"></span>
+        @if (confirmDeleteId === editingItem.id) {
+          <span class="gp-del-confirm">
+            Excluir esta atividade?
+            <button class="gp-btn-danger" (click)="confirmDelete(editingItem)">Sim, excluir</button>
+            <button class="gp-btn-sec" (click)="cancelDelete()">Não</button>
+          </span>
+        } @else {
+          <button class="gp-btn-delete" (click)="askDelete(editingItem)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Excluir atividade
+          </button>
+        }
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ── Day-action popup ──────────────────────────────────────────────────── -->
+<!-- Rendered at component root so it's never clipped by overflow/stacking   -->
+@if (dayActionOpen) {
+  <!-- Invisible backdrop — click anywhere outside to dismiss -->
+  <div class="gp-day-action-backdrop" (click)="closeDayAction()"></div>
+
+  <div class="gp-day-action-pop"
+       [style.left.px]="dayActionFixedLeft"
+       [style.top.px]="dayActionFixedTop"
+       (click)="$event.stopPropagation()">
+
+    <div class="gp-day-action-header">
+      <span class="gp-day-action-title">{{ dayActionDate | date:'EEEE, dd/MM/yyyy':'':'pt' }}</span>
+      <button class="gp-day-action-close-x" (click)="closeDayAction()" title="Fechar">
+        ×
+      </button>
+    </div>
+
+    <div class="gp-day-action-section">
+      <button class="gp-day-action-btn gp-day-action-btn-primary" (click)="openCreateActivityFromDay()">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+        Criar atividade nesta data
+      </button>
+    </div>
+
+    <div class="gp-day-action-sep">
+      <span>ou adicionar marcador</span>
+    </div>
+
+    <div class="gp-day-action-section gp-day-action-marker">
+      <input class="gp-day-action-input" type="text" [(ngModel)]="markerLabel"
+             placeholder="Nome do marcador" autocomplete="off" maxlength="50" />
+      <button class="gp-day-action-btn" (click)="addMarkerFromDayAction()" [disabled]="!markerLabel.trim()">
+        <svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>
+        Adicionar marcador
+      </button>
+    </div>
+
+  </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="gp-wrap" [class.gp-embedded]="embedded" (window:keydown)="onWindowKeydown($event)">
+
+  <!-- ── Toolbar – Full ────────────────────────────────────────────────────── -->
+  @if (!embedded) {
+    <div class="gp-toolbar">
+
+      <!-- ─ Row 1: brand + project + main actions ──────────────────────────── -->
+      <div class="gp-tb-row gp-tb-main">
+        <div class="gp-tb-brand">
+          <svg class="gp-icon-title" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 3 4 4H8zm-4 8h8v2H8zm0-3h5v2H8z"/></svg>
+          <h2 class="gp-title">Cronograma</h2>
+        </div>
+
+        <select class="gp-project-select" [ngModel]="projetoId" (ngModelChange)="onProjetoChange($event)">
+          <option value="">— Selecione o projeto —</option>
+          @for (p of resumo; track p.id) {
+            <option [value]="p.id">{{ p.nome }}</option>
+          }
+        </select>
+
+        <span class="gp-tb-spacer"></span>
+
+        @if (projetoSelecionado) {
+          <!-- Export PNG -->
+          <button class="gp-export-btn"
+                  (click)="exportarImagem()"
+                  [disabled]="exportandoImagem || atividades().length === 0"
+                  [title]="exportandoImagem ? 'Gerando imagem…' : 'Exportar cronograma completo como PNG'">
+            @if (exportandoImagem) {
+              <span class="gp-export-spinner"></span>
+              Gerando…
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              Exportar PNG
+            }
+          </button>
+
+          <!-- Nova atividade -->
+          <button class="gp-add-btn" (click)="toggleForm()">
+            @if (formVisible) {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              Cancelar
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+              Nova atividade
+            }
+          </button>
+        }
+      </div>
+
+      <!-- ─ Row 2: timeline controls (only when project open) ──────────────── -->
+      @if (projetoSelecionado) {
+        <div class="gp-tb-row gp-tb-controls">
+
+          <!-- Período -->
+          <div class="gp-ctrl-group">
+            <span class="gp-ctrl-label">Período</span>
+            <div class="gp-segmented">
+              <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"    (click)="timelineScale = 'DIA'">Dia</button>
+              <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'" (click)="timelineScale = 'SEMANA'">Semana</button>
+              <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"    (click)="timelineScale = 'MES'">Mês</button>
+            </div>
+          </div>
+
+          <span class="gp-ctrl-sep"></span>
+
+          <!-- Zoom -->
+          <div class="gp-ctrl-group">
+            <span class="gp-ctrl-label">Zoom</span>
+            <div class="gp-zoom-ctrl">
+              <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Diminuir zoom (−)">
+                <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+              </button>
+              <div class="gp-zoom-track" title="Zoom: {{ zoomLabel() }}">
+                <input type="range" class="gp-zoom-range"
+                       min="0" [max]="zoomLevelCount - 1" step="1"
+                       [ngModel]="zoomIndex" (ngModelChange)="setZoomIndex(+$event)" />
+              </div>
+              <span class="gp-zoom-val">{{ zoomLabel() }}</span>
+              <button class="gp-zoom-step" (click)="zoomIn()" [disabled]="!canZoomIn()" title="Aumentar zoom (+)">
+                <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <span class="gp-ctrl-sep"></span>
+
+          <!-- Marcador -->
+          <div class="gp-ctrl-group gp-ctrl-marker-group">
+            <span class="gp-ctrl-label">Marcador</span>
+            <div class="gp-marker-row">
+              <input class="gp-marker-date" type="date" [(ngModel)]="markerDate" title="Data do marcador" />
+              <input class="gp-marker-text" type="text"  [(ngModel)]="markerLabel"
+                     placeholder="Nome (máx. 50 chars)" maxlength="50" />
+              <button class="gp-marker-add-btn" (click)="addMarker()"
+                      [disabled]="!markerDate || !markerLabel.trim()" title="Adicionar marcador">
+                <svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>
+                Adicionar
+              </button>
+            </div>
+          </div>
+
+        </div>
+      }
+
+    </div>
+  }
+
+  <!-- ── Toolbar – Embedded ─────────────────────────────────────────────────── -->
+  @if (embedded) {
+    <div class="gp-toolbar gp-toolbar-embed">
+      <!-- Row 1: brand + project + spacer + new activity -->
+      <div class="gp-tb-row gp-tb-main">
+        <div class="gp-tb-brand">
+          <svg class="gp-icon-title" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 3 4 4H8zm-4 8h8v2H8zm0-3h5v2H8z"/></svg>
+          <h3 class="gp-title gp-title-embed">Linha do Tempo</h3>
+        </div>
+        @if (projetoSelecionado) {
+          <span class="gp-proj-badge">{{ projetoSelecionado.nome }}</span>
+        }
+        <div class="gp-tb-spacer"></div>
+        <button class="gp-add-btn" (click)="toggleForm()">
+          @if (formVisible) {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            Cancelar
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+            Atividade
+          }
+        </button>
+      </div>
+      <!-- Row 2: period segmented + zoom slider -->
+      <div class="gp-tb-row gp-tb-controls">
+        <!-- Period segmented -->
+        <div class="gp-segmented" role="group" aria-label="Escala da linha do tempo">
+          <button class="gp-seg-btn" [class.active]="timelineScale === 'DIA'"
+                  (click)="timelineScale = 'DIA'">Dia</button>
+          <button class="gp-seg-btn" [class.active]="timelineScale === 'SEMANA'"
+                  (click)="timelineScale = 'SEMANA'">Semana</button>
+          <button class="gp-seg-btn" [class.active]="timelineScale === 'MES'"
+                  (click)="timelineScale = 'MES'">Mês</button>
+        </div>
+        <!-- Zoom -->
+        <div class="gp-zoom-ctrl">
+          <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Reduzir zoom">
+            <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>
+          </button>
+          <input class="gp-zoom-range" type="range"
+                 [min]="0" [max]="zoomLevelCount - 1" [step]="1"
+                 [value]="zoomIndex" (input)="setZoomIndex(+$any($event.target).value)"
+                 [title]="zoomLabel()" />
+          <button class="gp-zoom-step" (click)="zoomIn()" [disabled]="!canZoomIn()" title="Aumentar zoom">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+          </button>
+          <span class="gp-zoom-val">{{ zoomLabel() }}</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (!projetoSelecionado && !embedded) {
+    <div class="gp-empty-state">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 3 4 4H8zm-4 8h8v2H8zm0-3h5v2H8z"/></svg>
+      <p>Selecione um projeto acima para visualizar e gerenciar o cronograma</p>
+    </div>
+
+  } @else if (projetoSelecionado) {
+
+    <!-- ── Stats row ──────────────────────────────────────────────────────────── -->
+    <div class="gp-stats-row">
+      <div class="gp-stat gp-stat-gray">
+        <strong>{{ stats().total }}</strong><span>atividades</span>
+      </div>
+      <div class="gp-stat gp-stat-blue">
+        <strong>{{ stats().andamento }}</strong><span>em andamento</span>
+      </div>
+      <div class="gp-stat gp-stat-green">
+        <strong>{{ stats().concluidas }}</strong><span>concluídas</span>
+      </div>
+      <div class="gp-stat gp-stat-red">
+        <strong>{{ stats().atrasadas }}</strong><span>atrasadas</span>
+      </div>
+      <div class="gp-stat gp-stat-purple">
+        <strong>{{ avgPct() }}%</strong><span>progresso médio</span>
+      </div>
+    </div>
+
+    <!-- ── Date warning banner ────────────────────────────────────────────────── -->
+    @if (dateWarning) {
+      <div class="gp-date-warning">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+        {{ dateWarning }}
+      </div>
+    }
+    @if (markerMessage) {
+      <div class="gp-date-warning gp-marker-warning">
+        {{ markerMessage }}
+      </div>
+    }
+    @if (timelineMarkers.length) {
+      <div class="gp-marker-list">
+        @for (mk of timelineMarkers; track mk.id) {
+          <span class="gp-marker-pill">
+            {{ mk.date | date:'dd/MM/yyyy' }} · {{ mk.label }}
+            <button class="gp-marker-pill-remove" (click)="removeMarker(mk.id)" title="Remover">x</button>
+          </span>
+        }
+      </div>
+    }
+
+    <!-- ── Gantt ──────────────────────────────────────────────────────────────── -->
+    @if (atividades().length === 0) {
+      <div class="gp-empty-proj">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+        <p>Este projeto não tem atividades ainda.</p>
+        <button class="gp-add-first-btn" (click)="toggleForm()">Adicionar primeira atividade</button>
+      </div>
+    } @else {
+      <div class="gp-gantt-outer" (mouseenter)="onTimelineMouseEnter()" (mouseleave)="onTimelineMouseLeave()">
+        <div class="gp-gantt-table" #ganttTable [style.minWidth.px]="totalWidth()">
+
+          <!-- ─ Header row ──────────────────────────────────────────────────── -->
+          <div class="gp-gantt-header">
+            <div class="gp-lcol gp-lcol-head" [style.width.px]="LEFT_W">
+              <span class="gh-num">#</span>
+              <span class="gh-name">Atividade</span>
+              <span class="gh-resp">Responsável</span>
+              <span class="gh-pct">%</span>
+              <span class="gh-dur">Dur.</span>
+            </div>
+            <div class="gp-rcol gp-rcol-head" [style.width.px]="timelineWidth()">
+              <div class="gp-month-top-row">
+                @for (mm of monthHeaders(); track mm.label + '-' + mm.left) {
+                  <div class="gp-month-top-band"
+                       [style.left.px]="mm.left"
+                       [style.width.px]="mm.width"
+                       [class.gp-month-first]="mm.isFirst">
+                    <span class="gp-month-top-label">{{ mm.label }}</span>
+                  </div>
+                }
+              </div>
+              <div class="gp-scale-row">
+                <!-- Weekend / holiday bands (behind month labels) -->
+                @for (band of nonWorkingBands(); track band.left) {
+                  <div class="gp-nonwork-band"
+                       [class.gp-holiday-band]="band.isHoliday"
+                       [style.left.px]="band.left"
+                       [style.width.px]="PX_PER_DAY"></div>
+                }
+                @for (mh of timelineHeaders(); track mh.label + '-' + mh.left) {
+                  <div class="gp-month-band"
+                       [class.gp-day-band]="timelineScale === 'DIA'"
+                       [class.gp-day-month-start]="timelineScale === 'DIA' && !!mh.isMonthStart"
+                       [class.gp-day-selected]="timelineScale === 'DIA' && isSelectedTimelineDay(mh)"
+                       [class.gp-day-blocked]="timelineScale === 'DIA' && isBlockedTimelineDay(mh)"
+                       [class.gp-day-clickable]="timelineScale === 'DIA'"
+                       [title]="timelineScale === 'DIA' && isBlockedTimelineDay(mh) ? blockedTimelineDayReason(mh) : ''"
+                       (click)="timelineScale === 'DIA' && onTimelineDayClick($event, mh)"
+                       [style.left.px]="mh.left"
+                       [style.width.px]="mh.width"
+                       [class.gp-month-first]="mh.isFirst">
+                    @if (timelineScale !== 'DIA' || mh.showLabel) {
+                      <span class="gp-day-label">{{ mh.label }}</span>
+                    }
+                  </div>
+                }
+                @if (timelineScale === 'DIA') {
+                  @for (wt of weekTicks(); track wt.left) {
+                    <div class="gp-week-tick" [style.left.px]="wt.left" [title]="wt.label"></div>
+                  }
+                }
+                <!-- day-action popup is now rendered at component root -->
+              </div>
+            </div>
+          </div>
+
+          <!-- ─ Data rows ───────────────────────────────────────────────────── -->
+          @for (item of atividades(); track item.id; let i = $index) {
+            <div class="gp-gantt-row"
+                 [class.gp-row-active]="editingItem?.id === item.id"
+                 [class.gp-row-done]="(item.status||'').toUpperCase() === 'CONCLUIDO'"
+                 [class.gp-row-dragging]="isDragging(item)">
+
+              <!-- Left col (sticky) -->
+              <div class="gp-lcol" [style.width.px]="LEFT_W">
+                <span class="gr-num">{{ i + 1 }}</span>
+                <div class="gr-name-block">
+                  <div class="gr-name-line">
+                    <span class="gr-name">{{ item.titulo }}</span>
+                    @if (etapasProgress(item); as ep) {
+                      <span class="gr-etapas-badge"
+                            [class.gr-etapas-complete]="ep.done === ep.total"
+                            [title]="ep.done + '/' + ep.total + ' etapas concluídas'">
+                        ✓&thinsp;{{ ep.done }}/{{ ep.total }}
+                      </span>
+                    }
+                  </div>
+                  @if (item.responsavel || getMeta(item.id).responsavel) {
+                    <span class="gr-resp">{{ item.responsavel || getMeta(item.id).responsavel }}</span>
+                  }
+                  @if (perfilNome(item)) {
+                    <span class="gr-resp">{{ perfilNome(item) }}</span>
+                  }
+                </div>
+                <span class="gr-status-dot"
+                      [class]="'dot-' + statusColor(effectiveStatus(item))"
+                      [title]="statusLabel(effectiveStatus(item))"></span>
+                <div class="gr-pct-wrap">
+                  <div class="gr-pct-track">
+                    <div class="gr-pct-fill" [style.width.%]="getMeta(item.id).pct"></div>
+                  </div>
+                  <span class="gr-pct-num">{{ getMeta(item.id).pct }}%</span>
+                </div>
+                <span class="gr-dur">{{ duracao(item) }}</span>
+              </div>
+
+              <!-- Right col (timeline) -->
+              <div class="gp-rcol" [style.width.px]="timelineWidth()" [class.gp-rcol-dragging]="isDragging(item)">
+                <!-- Weekend / holiday stripes in row -->
+                @for (band of nonWorkingBands(); track band.left) {
+                  <div class="gp-nonwork-row-band"
+                       [class.gp-holiday-row-band]="band.isHoliday"
+                       [style.left.px]="band.left"
+                       [style.width.px]="PX_PER_DAY"></div>
+                }
+                @if (todayLeft() >= 0) {
+                  <div class="gp-today-line" [style.left.px]="todayLeft()"></div>
+                }
+                @for (mk of timelineMarkers; track mk.id) {
+                  @if (markerLeft(mk.date) >= 0) {
+                    <div class="gp-marker-line" [style.left.px]="markerLeft(mk.date)"></div>
+                  }
+                }
+                @if (item.inicioPlanejado && item.fimPlanejado) {
+                  <!-- Drag tooltip (shown while dragging this item) -->
+                  @if (isDragging(item)) {
+                    <div class="gp-drag-tooltip"
+                         [style.left.px]="barLeft(item)"
+                         [style.width.px]="barWidth(item)">
+                      {{ dragTooltipFor(item) }}
+                    </div>
+                  }
+                  <!-- Bar with handles -->
+                  <div class="gp-bar"
+                       [class]="item.cor ? 'gb-custom' : 'gb-' + statusColor(effectiveStatus(item))"
+                       [class.gp-bar-dragging]="isDragging(item)"
+                       [style.--bar-custom-color]="item.cor || null"
+                       (click)="$event.stopPropagation(); onRowClick(item)"
+                       [style.left.px]="barLeft(item)"
+                       [style.width.px]="barWidth(item)">
+
+                    <!-- Resize handle — left (change início) -->
+                    <div class="gp-bar-handle gp-bar-handle-l"
+                         (mousedown)="onBarMouseDown($event, item, 'resize-left')"
+                         title="Arrastar para alterar início"></div>
+
+                    <!-- Bar body — drag to move -->
+                    <div class="gp-bar-body"
+                         (mousedown)="onBarMouseDown($event, item, 'move')"
+                         [title]="item.titulo + ' · ' + fmt(item.inicioPlanejado) + ' → ' + fmt(item.fimPlanejado)">
+                      <div class="gp-bar-fill" [style.width.%]="getMeta(item.id).pct"></div>
+                      <span class="gp-bar-label">{{ item.titulo }}</span>
+                    </div>
+
+                    <!-- Resize handle — right (change fim) -->
+                    <div class="gp-bar-handle gp-bar-handle-r"
+                         (mousedown)="onBarMouseDown($event, item, 'resize-right')"
+                         title="Arrastar para alterar fim"></div>
+                  </div>
+                } @else {
+                  <span class="gp-no-date">sem datas</span>
+                }
+              </div>
+
+            </div>
+          }
+
+          <!-- ─ Today marker footer ─────────────────────────────────────────── -->
+          @if (todayLeft() >= 0) {
+            <div class="gp-today-label-row" [style.minWidth.px]="totalWidth()">
+              <div [style.marginLeft.px]="LEFT_W + todayLeft() - 20" class="gp-today-chip">Hoje</div>
+            </div>
+          }
+          @for (mk of timelineMarkers; track mk.id) {
+            @if (markerLeft(mk.date) >= 0) {
+              <div class="gp-today-label-row" [style.minWidth.px]="totalWidth()">
+                <div [style.marginLeft.px]="LEFT_W + markerLeft(mk.date) - 24" class="gp-marker-chip">
+                  {{ mk.label }} ({{ mk.date | date:'dd/MM' }})
+                  <button class="gp-marker-remove" (click)="removeMarker(mk.id)" title="Remover marcador">x</button>
+                </div>
+              </div>
+            }
+          }
+
+        </div>
+      </div>
+    }
+
+  }
+</div>

@@ -1,0 +1,466 @@
+﻿<div class="dash-wrap">
+
+  <div class="dash-header">
+    <div class="dash-greeting">
+      <h1 class="dash-greeting-title">{{ saudacao() }}, {{ nomeUsuario || 'Usuário' }}!</h1>
+      <p class="dash-greeting-sub">{{ dataHoje() }}</p>
+    </div>
+    <div class="dash-year-badge">
+      <span class="dash-year-label">Ano de referência</span>
+      <strong class="dash-year-num">{{ anoAtual }}</strong>
+    </div>
+  </div>
+
+  <div class="dash-kpi-row">
+
+    <!-- Orçamento -->
+    <div class="dash-kpi dash-kpi-blue">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Orçamento {{ anoAtual }}</span>
+        <strong [title]="brlFull(orcamentoTotal())">{{ brl(orcamentoTotal()) }}</strong>
+        <small>{{ losDoAno().length }} LO{{ losDoAno().length !== 1 ? 's' : '' }}</small>
+      </div>
+    </div>
+
+    <!-- Comprometido -->
+    <div class="dash-kpi dash-kpi-amber">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Comprometido</span>
+        <strong [title]="brlFull(comprometidoTotal())">{{ brl(comprometidoTotal()) }}</strong>
+        <small>{{ pctComprometido() | number:'1.0-1' }}% do orçamento</small>
+      </div>
+    </div>
+
+    <!-- Saldo -->
+    <div class="dash-kpi" [class.dash-kpi-green]="saldoTotal() >= 0" [class.dash-kpi-red]="saldoTotal() < 0">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Saldo disponível</span>
+        <strong [title]="brlFull(saldoTotal())">{{ brl(saldoTotal()) }}</strong>
+        <small>{{ (100 - pctComprometido()) | number:'1.0-1' }}% livre</small>
+      </div>
+    </div>
+
+    <!-- Pessoas -->
+    <div class="dash-kpi dash-kpi-purple">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Pessoas</span>
+        <strong>{{ pessoas.length }}</strong>
+        <small>{{ pessoasAlocadas() }} alocadas no ano</small>
+      </div>
+    </div>
+
+    <!-- Projetos -->
+    <div class="dash-kpi dash-kpi-teal">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h8v2H8zm0 4h5v2H8z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Projetos</span>
+        <strong>{{ resumo.length }}</strong>
+        <small>{{ projetosConcluidos() }} concluído{{ projetosConcluidos() !== 1 ? 's' : '' }}</small>
+      </div>
+    </div>
+
+    <!-- Monitoramento -->
+    <div class="dash-kpi" [class.dash-kpi-red]="totalMonitoramento() > 0" [class.dash-kpi-gray]="totalMonitoramento() === 0">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Monitoramento</span>
+        <strong>{{ totalMonitoramento() }}</strong>
+        <small>{{ riscosAbertos().length }}R · {{ incidentesAbertos().length }}I · {{ debitosAbertos().length }}D</small>
+      </div>
+    </div>
+
+    <!-- Indicadores -->
+    <div class="dash-kpi" [class.dash-kpi-teal]="indicadoresNaMeta() === indicadoresAtivos().length && indicadoresAtivos().length > 0" [class.dash-kpi-amber]="indicadoresNaMeta() < indicadoresAtivos().length && indicadoresAtivos().length > 0" [class.dash-kpi-gray]="!indicadoresAtivos().length">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Indicadores</span>
+        <strong>{{ indicadoresNaMeta() }}/{{ indicadoresAtivos().length }}</strong>
+        <small>na meta · {{ totalAcoesAbertasIndicadores() }} ação(ões) abertas</small>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="dash-main-grid">
+
+    <!-- LO Utilization -->
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <div class="dash-card-title">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
+          Utilização por LO
+        </div>
+        <button class="dash-link-btn" (click)="navigate.emit('alocacoes_lo')">Ver alocações -></button>
+      </div>
+
+      @if (utilizacaoLos().length === 0) {
+        <div class="dash-empty">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <p>Nenhuma LO no ano {{ anoAtual }}</p>
+        </div>
+      } @else {
+        <div class="dash-lo-list">
+          @for (row of utilizacaoLos(); track row.lo.id) {
+            <div class="dash-lo-row">
+              <div class="dash-lo-head">
+                <div class="dash-lo-info">
+                  <span class="dash-lo-codigo">{{ row.lo.codigo }}</span>
+                  @if (row.lo.nome) {
+                    <span class="dash-lo-nome">{{ row.lo.nome }}</span>
+                  }
+                </div>
+                <div class="dash-lo-meta">
+                  <span class="dash-lo-pct" [class.over]="row.pct >= 100">{{ row.pct | number:'1.0-1' }}%</span>
+                  <span class="dash-lo-qtd">{{ row.qtd }} aloc.</span>
+                </div>
+              </div>
+              <div class="dash-progress-track">
+                <div class="dash-progress-fill" [class.over]="row.pct >= 100" [style.width.%]="row.pct"></div>
+              </div>
+              <div class="dash-lo-values">
+                <span>Comprometido: <strong>{{ brl(row.comprometido) }}</strong></span>
+                <span [class.saldo-neg]="row.saldo < 0">Saldo: <strong>{{ brl(row.saldo) }}</strong></span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Folha vs Terceiros -->
+        <div class="dash-breakdown">
+          <div class="dash-breakdown-item">
+            <span class="dash-breakdown-dot dot-blue"></span>
+            <div>
+              <span>Folha</span>
+              <strong>{{ brl(comprometidoFolha()) }}</strong>
+            </div>
+          </div>
+          <div class="dash-breakdown-sep"></div>
+          <div class="dash-breakdown-item">
+            <span class="dash-breakdown-dot dot-teal"></span>
+            <div>
+              <span>Terceiros</span>
+              <strong>{{ brl(comprometidoTerceiros()) }}</strong>
+            </div>
+          </div>
+          <div class="dash-breakdown-sep"></div>
+          <div class="dash-breakdown-item">
+            <span class="dash-breakdown-dot dot-gray"></span>
+            <div>
+              <span>Total</span>
+              <strong>{{ brl(comprometidoTotal()) }}</strong>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Monitoramento unificado -->
+    <div class="dash-card dash-mon-card">
+      <div class="dash-card-header">
+        <div class="dash-card-title">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg>
+          Monitoramento
+        </div>
+        <button class="dash-link-btn" (click)="navigate.emit(navMonitoramento())">Ver lista completa →</button>
+      </div>
+
+      <!-- Tabs de filtro -->
+      <div class="dash-mon-tabs">
+        <button class="dash-mon-tab" [class.active]="filtroMonitoramento === 'todos'" (click)="setFiltroMonitoramento('todos')">
+          Todos
+          @if (totalMonitoramento() > 0) {
+            <span class="dash-mon-count">{{ totalMonitoramento() }}</span>
+          }
+        </button>
+        <button class="dash-mon-tab" [class.active]="filtroMonitoramento === 'riscos'" (click)="setFiltroMonitoramento('riscos')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg>
+          Apontamentos
+          @if (riscosAbertos().length > 0) {
+            <span class="dash-mon-count count-risk">{{ riscosAbertos().length }}</span>
+          }
+        </button>
+        <button class="dash-mon-tab" [class.active]="filtroMonitoramento === 'incidentes'" (click)="setFiltroMonitoramento('incidentes')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          Incidentes
+          @if (incidentesAbertos().length > 0) {
+            <span class="dash-mon-count count-inc">{{ incidentesAbertos().length }}</span>
+          }
+        </button>
+        <button class="dash-mon-tab" [class.active]="filtroMonitoramento === 'debitos'" (click)="setFiltroMonitoramento('debitos')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17a5.96 5.96 0 0 0-2.84 0L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg>
+          Débitos
+          @if (debitosAbertos().length > 0) {
+            <span class="dash-mon-count count-debt">{{ debitosAbertos().length }}</span>
+          }
+        </button>
+      </div>
+
+      <!-- Lista -->
+      @if (itensMonitoramento().length === 0) {
+        <div class="dash-empty dash-empty-ok">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+          <p>Nenhum item em aberto</p>
+        </div>
+      } @else {
+        <ul class="dash-mon-list">
+          @for (item of itensMonitoramento(); track item.id) {
+            <li class="dash-mon-item"
+                (click)="item._tipo === 'risco' ? selectRisk.emit(item.id) : navigate.emit(item._tipo === 'incidente' ? 'incidentes' : 'debitos_tecnicos')"
+                [title]="item._tipo === 'risco' ? 'Abrir risco' : item._tipo === 'incidente' ? 'Ver incidentes' : 'Ver débitos'">
+              <!-- Cor lateral indicativa de severidade/prioridade -->
+              <span class="dash-mon-indicator" [class]="'risk-' + corItem(item)"></span>
+              <!-- Tipo chip -->
+              <span class="dash-mon-tipo-chip"
+                    [class.chip-risco]="item._tipo === 'risco'"
+                    [class.chip-inc]="item._tipo === 'incidente'"
+                    [class.chip-debt]="item._tipo === 'debito'">
+                @if (item._tipo === 'risco') { R }
+                @else if (item._tipo === 'incidente') { I }
+                @else { D }
+              </span>
+              <!-- Corpo -->
+              <div class="dash-mon-body">
+                <span class="dash-mon-titulo">{{ item.titulo }}</span>
+                <span class="dash-mon-meta">
+                  @if (item._tipo === 'risco' && item.dataFim) {
+                    Prazo: {{ formatDate(item.dataFim) }}
+                  } @else if (item._tipo === 'incidente' && item.dataOcorrencia) {
+                    Ocorrência: {{ formatDate(item.dataOcorrencia) }}
+                  } @else if (item._tipo === 'debito' && item.dataAlvo) {
+                    Alvo: {{ formatDate(item.dataAlvo) }}
+                  } @else {
+                    Registrado: {{ formatDate(item.criadoEm) }}
+                  }
+                </span>
+              </div>
+              <span class="dash-mon-badge" [class]="'badge-' + corItem(item)">{{ labelStatus(item) }}</span>
+            </li>
+          }
+        </ul>
+        @if (totalFiltrado() > 8) {
+          <p class="dash-risk-more">
+            +{{ totalFiltrado() - 8 }} itens ·
+            <button class="dash-link-btn" (click)="navigate.emit(navMonitoramento())">ver lista completa</button>
+          </p>
+        }
+      }
+    </div>
+
+    <!-- Indicadores mini card -->
+    @if (indicadores.length > 0) {
+      <div class="dash-card dash-ind-card">
+        <div class="dash-card-header">
+          <div class="dash-card-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+            Indicadores
+            <span class="dash-card-badge">{{ indicadoresAtivos().length }} ativo{{ indicadoresAtivos().length !== 1 ? 's' : '' }}</span>
+          </div>
+          <button class="dash-link-btn" (click)="navigate.emit('indicadores')">Ver todos →</button>
+        </div>
+
+        @if (!indMiniList().length) {
+          <div class="dash-empty">
+            <p>Nenhum indicador ativo</p>
+          </div>
+        } @else {
+          <div class="dash-ind-list">
+            @for (ind of indMiniList(); track ind.id) {
+              <div class="dash-ind-row" (click)="navigate.emit('indicadores')">
+                <div class="dash-ind-left">
+                  <span class="dash-ind-dot" [class.dot-ok]="indAtingeMeta(ind)" [class.dot-nok]="!indAtingeMeta(ind) && indValorAtual(ind) != null" [class.dot-sem]="indValorAtual(ind) == null"></span>
+                  <div class="dash-ind-info">
+                    <span class="dash-ind-titulo">{{ ind.titulo }}</span>
+                    <span class="dash-ind-sub">
+                      @if (indValorAtual(ind) != null) {
+                        {{ indFormatVal(indValorAtual(ind), ind.unidade) }}
+                        @if (ind.meta != null) { / {{ indFormatVal(ind.meta, ind.unidade) }} }
+                      } @else {
+                        Sem dados
+                      }
+                    </span>
+                  </div>
+                </div>
+                <div class="dash-ind-right">
+                  @if ((ind.ciclos ?? []).length >= 2) {
+                    <svg class="dash-ind-spark" viewBox="0 0 60 22" preserveAspectRatio="none">
+                      <polyline [attr.points]="indSparkline(ind)" [attr.stroke]="indSparkColor(ind)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  }
+                  @if (indValorAtual(ind) != null && ind.meta != null) {
+                    <span class="dash-ind-pct" [class.pct-ok]="indAtingeMeta(ind)">{{ indPct(ind) }}%</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          @if (indicadoresAtivos().length > 6) {
+            <p class="dash-risk-more">
+              +{{ indicadoresAtivos().length - 6 }} indicadores ·
+              <button class="dash-link-btn" (click)="navigate.emit('indicadores')">ver todos</button>
+            </p>
+          }
+        }
+      </div>
+    }
+
+  </div>
+
+  <div class="dash-card dash-card-full">
+    <div class="dash-card-header">
+      <div class="dash-card-title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h8v2H8zm0 4h5v2H8z"/></svg>
+        Projetos em andamento
+        @if (projetosAtivos().length > 5) {
+          <span class="dash-card-badge">mostrando 5 de {{ projetosAtivos().length }}</span>
+        }
+      </div>
+      <button class="dash-link-btn" (click)="navigate.emit('projetos')">Ver todos -></button>
+    </div>
+
+    @if (resumo.length === 0) {
+      <div class="dash-empty">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h8v2H8zm0 4h5v2H8z"/></svg>
+        <p>Nenhum projeto cadastrado</p>
+        <button class="dash-action-btn" (click)="navigate.emit('projetos')">Criar projeto</button>
+      </div>
+    } @else {
+      <div class="dash-proj-table-wrap">
+        <table class="dash-proj-table">
+          <thead>
+            <tr>
+              <th>Projeto</th>
+              <th>Status</th>
+              <th>Progresso</th>
+              <th>Etapas</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of projetosExibidos(); track r.id) {
+              <tr class="dash-proj-row" (click)="selectProject.emit(r.id)">
+                <td class="dash-proj-nome">{{ r.nome }}</td>
+                <td>
+                  <span class="dash-status-badge" [class]="'status-' + statusColor(r.status)">
+                    {{ statusLabel(r.status) }}
+                  </span>
+                </td>
+                <td class="dash-prog-cell">
+                  <div class="dash-prog-wrap">
+                    <div class="dash-prog-track">
+                      <div class="dash-prog-fill" [style.width.%]="num(r.percentualConclusao)" [class]="'status-' + statusColor(r.status)"></div>
+                    </div>
+                    <span class="dash-prog-pct">{{ num(r.percentualConclusao) }}%</span>
+                  </div>
+                </td>
+                <td class="dash-proj-etapas">{{ r.etapasConcluidas }}/{{ r.totalEtapas }}</td>
+                <td class="dash-proj-saldo" [class.neg]="num(r.saldo) < 0">{{ brlFull(num(r.saldo)) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <!-- Próximos eventos da equipe (aniversários + ausências/férias) -->
+  @if (proximosEventos().length > 0) {
+    <div class="dash-card dash-card-full dash-events-card">
+      <div class="dash-card-header">
+        <div class="dash-card-title">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+          Agenda da equipe
+          <span class="dash-card-badge">{{ proximosEventos().length }} nos próximos dias</span>
+        </div>
+        <div class="dash-events-legend">
+          <span class="dash-ev-legend-item"><span class="dash-ev-dot" style="background:#f59e0b"></span>Aniversários (30 dias)</span>
+          <span class="dash-ev-legend-item"><span class="dash-ev-dot" style="background:#1d63da"></span>Ausências / Férias (14 dias)</span>
+        </div>
+      </div>
+
+      <div class="dash-events-list">
+        @for (ev of proximosEventos(); track ev.tipo + ev.pessoa.id + (ev.ausencia?.id || '')) {
+          <div class="dash-event-row" [class.ev-today]="ev.diasAte === 0" [class.ev-tomorrow]="ev.diasAte === 1">
+
+            <!-- Avatar com inicial -->
+            <div class="dash-ev-avatar" [style.background]="ev.tipo === 'aniversario' ? '#f59e0b22' : ev.cor + '22'"
+                 [style.color]="ev.tipo === 'aniversario' ? '#b45309' : ev.cor"
+                 [style.border-color]="ev.tipo === 'aniversario' ? '#fde68a' : ev.cor + '55'">
+              {{ (ev.pessoa.nome || '?').charAt(0).toUpperCase() }}
+            </div>
+
+            <!-- Info principal -->
+            <div class="dash-ev-info">
+              <span class="dash-ev-nome">{{ ev.pessoa.nome }}</span>
+              <span class="dash-ev-tipo">
+                <span class="dash-ev-icon">{{ ev.icon }}</span>
+                {{ ev.tipoLabel }}
+                @if (ev.tipo === 'ausencia' && ev.ausencia?.fim) {
+                  <span class="dash-ev-ate"> · até {{ fimAusencia(ev.ausencia) }}</span>
+                }
+                @if (ev.ausencia?.recorrente) {
+                  <span class="dash-ev-recorrente">↺</span>
+                }
+              </span>
+            </div>
+
+            <!-- Data -->
+            <span class="dash-ev-data">{{ ev.dataLabel }}</span>
+
+            <!-- Badge de proximidade -->
+            <span class="dash-ev-badge"
+                  [class.ev-badge-today]="ev.diasAte === 0"
+                  [class.ev-badge-soon]="ev.diasAte > 0 && ev.diasAte <= 3"
+                  [class.ev-badge-normal]="ev.diasAte > 3">
+              {{ ev.diasAte === 0 ? (ev.tipo === 'aniversario' ? '🎂 Hoje!' : '📅 Hoje!') : labelDias(ev.diasAte) }}
+            </span>
+
+          </div>
+        }
+      </div>
+
+      <div class="dash-events-footer">
+        <button class="dash-link-btn" (click)="navigate.emit('pessoas')">Ver cadastro de pessoas</button>
+        <button class="dash-link-btn" (click)="navigate.emit('ausencias')">Ver férias &amp; ausências</button>
+      </div>
+    </div>
+  }
+
+  <div class="dash-card dash-card-full">
+    <div class="dash-card-header">
+      <div class="dash-card-title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4V4H4zm6 12h4v-4h-4zm-6 0h4v-4H4zm0-6h4v-4H4zm6 0h4v-4h-4zm6-10v4h4V4zm-6 4h4V4h-4zm6 6h4v-4h-4zm0 6h4v-4h-4z"/></svg>
+        Acesso rápido
+      </div>
+    </div>
+    <div class="dash-shortcuts">
+      @for (a of atalhos; track a.secao) {
+        <button class="dash-shortcut" [class]="'sc-' + a.color" (click)="navigate.emit(a.secao)">
+          <span class="dash-shortcut-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="a.icon"/></svg>
+          </span>
+          <span class="dash-shortcut-label">{{ a.label }}</span>
+          <span class="dash-shortcut-desc">{{ a.desc }}</span>
+        </button>
+      }
+    </div>
+  </div>
+
+</div>

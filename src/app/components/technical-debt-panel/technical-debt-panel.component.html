@@ -1,0 +1,222 @@
+<div class="td-wrap">
+  <div class="td-header">
+    <div class="td-header-info">
+      <svg class="td-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17a5.96 5.96 0 0 0-2.84 0L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/>
+      </svg>
+      <div>
+        <h2 class="td-title">Débitos Técnicos</h2>
+        <p class="td-subtitle">Gestão e priorização de débitos técnicos</p>
+      </div>
+    </div>
+    <div class="td-header-actions">
+      <button type="button" class="td-csv-btn" title="Importar débitos via CSV" (click)="openCsvPicker(csvInputDebito)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+        <span>Importar CSV</span>
+        <input #csvInputDebito type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="td-add-btn" (click)="toggleForm()">
+        @if (formExpanded && !editingId) {
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          Fechar
+        } @else {
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Novo Débito
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Formulário -->
+  @if (formExpanded) {
+    <div class="td-form-card">
+      <h3 class="td-form-title">{{ editingId ? 'Editar Débito Técnico' : 'Registrar Débito Técnico' }}</h3>
+      <div class="td-form-grid">
+        <div class="td-field td-field-full">
+          <label>Título *</label>
+          <input [(ngModel)]="form.titulo" placeholder="Descreva o débito resumidamente" />
+        </div>
+        <div class="td-field">
+          <label>Categoria</label>
+          <select [(ngModel)]="form.categoria">
+            @for (c of categorias; track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="td-field">
+          <label>Impacto</label>
+          <select [(ngModel)]="form.impacto">
+            @for (i of impactos; track i.value) {
+              <option [value]="i.value">{{ i.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="td-field">
+          <label>Prioridade</label>
+          <select [(ngModel)]="form.prioridade">
+            @for (p of prioridades; track p.value) {
+              <option [value]="p.value">{{ p.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="td-field">
+          <label>Status</label>
+          <select [(ngModel)]="form.status">
+            @for (s of statusOpts; track s.value) {
+              <option [value]="s.value">{{ s.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="td-field">
+          <label>Esforço estimado (horas)</label>
+          <input type="number" min="0" [(ngModel)]="form.esforcoEstimado" placeholder="0" />
+        </div>
+        <div class="td-field">
+          <label>Responsável</label>
+          <select [(ngModel)]="form.responsavel">
+            <option value="">— Sem responsável —</option>
+            @for (p of pessoasAtivas(); track p.id) {
+              <option [value]="p.nome">{{ p.nome }}</option>
+            }
+          </select>
+        </div>
+        <div class="td-field">
+          <label>Projeto / Componente</label>
+          <input [(ngModel)]="form.projetoRef" placeholder="Referência ao projeto ou sistema" />
+        </div>
+        <div class="td-field">
+          <label>Data alvo</label>
+          <input type="date" [(ngModel)]="form.dataAlvo" />
+        </div>
+        <div class="td-field td-field-full">
+          <label>Descrição</label>
+          <textarea [(ngModel)]="form.descricao" rows="3" placeholder="Contexto, motivação e detalhes do débito técnico"></textarea>
+        </div>
+      </div>
+      <div class="td-form-actions">
+        <button class="td-btn td-btn-primary" (click)="submit()" [disabled]="!form.titulo.trim()">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+          {{ editingId ? 'Salvar' : 'Registrar' }}
+        </button>
+        <button class="td-btn td-btn-sec" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    </div>
+  }
+
+  <!-- Busca -->
+  @if (debitos.length) {
+    <div class="td-search-row">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input class="td-search" [(ngModel)]="searchTerm" placeholder="Buscar por título, categoria, status, projeto…" />
+    </div>
+  }
+
+  <!-- Lista -->
+  @if (!debitos.length) {
+    <div class="td-empty">
+      <svg viewBox="0 0 24 24"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17a5.96 5.96 0 0 0-2.84 0L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg>
+      <p>Nenhum débito técnico registrado.</p>
+    </div>
+  } @else {
+    <div class="td-table-wrap">
+      <table class="td-table">
+        <thead>
+          <tr>
+            <th (click)="toggleSort('titulo')" class="sortable">Título{{ sortIndicator('titulo') }}</th>
+            <th (click)="toggleSort('categoria')" class="sortable">Categoria{{ sortIndicator('categoria') }}</th>
+            <th (click)="toggleSort('impacto')" class="sortable">Impacto{{ sortIndicator('impacto') }}</th>
+            <th (click)="toggleSort('prioridade')" class="sortable">Prioridade{{ sortIndicator('prioridade') }}</th>
+            <th (click)="toggleSort('status')" class="sortable">Status{{ sortIndicator('status') }}</th>
+            <th (click)="toggleSort('esforcoEstimado')" class="sortable">Esforço{{ sortIndicator('esforcoEstimado') }}</th>
+            <th (click)="toggleSort('dataAlvo')" class="sortable">Data alvo{{ sortIndicator('dataAlvo') }}</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of filteredSorted(); track d.id) {
+            <tr [class.td-row-urgente]="d.prioridade === 'URGENTE'" [class.td-row-resolvido]="d.status === 'RESOLVIDO'">
+              <td class="td-td-titulo">
+                <button class="td-expand-btn" (click)="toggleDetalhe(d.id)" [title]="detalheId === d.id ? 'Fechar' : 'Ver detalhes'">
+                  <svg viewBox="0 0 24 24" [class.rotated]="detalheId === d.id"><path d="M7 10l5 5 5-5z"/></svg>
+                </button>
+                <span [class.td-titulo-riscado]="d.status === 'RESOLVIDO'">{{ d.titulo }}</span>
+                @if (d.projetoRef) {
+                  <span class="td-projeto-chip">{{ d.projetoRef }}</span>
+                }
+              </td>
+              <td><span class="td-chip">{{ categoriaLabel(d.categoria) }}</span></td>
+              <td><span class="td-badge" [class]="impactoBadge(d.impacto)">{{ impactoLabel(d.impacto) }}</span></td>
+              <td><span class="td-badge" [class]="prioridadeBadge(d.prioridade)">{{ prioridadeLabel(d.prioridade) }}</span></td>
+              <td><span class="td-badge" [class]="statusBadge(d.status)">{{ statusLabel(d.status) }}</span></td>
+              <td>{{ esforcoLabel(d.esforcoEstimado) }}</td>
+              <td>{{ formatDate(d.dataAlvo) }}</td>
+              <td class="td-td-actions">
+                <button class="td-btn td-btn-icon td-act-edit" (click)="startEdit(d)" title="Editar">
+                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.05a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+                <button class="td-btn td-btn-icon td-btn-danger td-act-delete" (click)="excluir(d.id)" title="Excluir">
+                  <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+              </td>
+            </tr>
+            @if (detalheId === d.id) {
+              <tr class="td-detalhe-row">
+                <td colspan="8">
+                  <div class="td-detalhe">
+                    @if (d.descricao) {
+                      <div class="td-detalhe-bloco td-bloco-full">
+                        <strong>Descrição</strong>
+                        <p>{{ d.descricao }}</p>
+                      </div>
+                    }
+                    @if (d.responsavel) {
+                      <div class="td-detalhe-bloco">
+                        <strong>Responsável</strong>
+                        <p>{{ d.responsavel }}</p>
+                      </div>
+                    }
+                    @if (d.resolvidoEm) {
+                      <div class="td-detalhe-bloco">
+                        <strong>Resolvido em</strong>
+                        <p>{{ formatDate(d.resolvidoEm) }}</p>
+                      </div>
+                    }
+                    <!-- Histórico expansível -->
+                    @if (d.historico?.length) {
+                      <div class="td-detalhe-bloco td-bloco-hist">
+                        <button class="td-hist-toggle" (click)="toggleHistorico(d.id)">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                          Histórico ({{ d.historico.length }})
+                          <svg class="td-hist-caret" [class.rotated]="historicoAberto.has(d.id)" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
+                        </button>
+                        @if (historicoAberto.has(d.id)) {
+                          <div class="td-historico">
+                            @for (h of d.historico; track h.id) {
+                              <div class="td-hist-item">
+                                <span class="td-hist-tipo" [class.tipo-criacao]="h.tipo === 'CRIACAO'" [class.tipo-status]="h.tipo === 'STATUS'">{{ histTipoLabel(h.tipo) }}</span>
+                                <span class="td-hist-date">{{ formatDateTime(h.criadoEm) }}</span>
+                                <span class="td-hist-desc">{{ h.descricao }}</span>
+                                @if (h.statusAnterior) {
+                                  <span class="td-hist-status">
+                                    <span class="td-hist-status-prev">{{ statusLabel(h.statusAnterior) }}</span>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5v10z"/></svg>
+                                    <span class="td-hist-status-next">{{ statusLabel(h.statusNovo) }}</span>
+                                  </span>
+                                }
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

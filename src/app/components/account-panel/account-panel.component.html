@@ -1,0 +1,193 @@
+<planner-card>
+  <div class="acc-wrap">
+
+    <!-- ── Header ──────────────────────────────────────────────────────── -->
+    <div class="acc-header">
+      <div class="acc-header-info">
+        <svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+        </svg>
+        <div>
+          <h2 class="acc-title">Minha Conta</h2>
+          <p class="acc-subtitle">Informações de perfil e configurações de acesso</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Resumo do perfil ─────────────────────────────────────────────── -->
+    <div class="acc-profile-card">
+      <div class="acc-avatar-display">
+        @if (profileImage) {
+          <img [src]="profileImage" alt="Foto do perfil" />
+        } @else {
+          <span>{{ (conta?.nome || conta?.username || 'U').charAt(0).toUpperCase() }}</span>
+        }
+      </div>
+      <div class="acc-profile-info">
+        <p class="acc-profile-name">{{ conta?.nome || conta?.username || '—' }}</p>
+        <p class="acc-profile-meta">&#64;{{ conta?.username || '—' }}</p>
+        <p class="acc-profile-since">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+          Membro desde {{ conta?.criadoEm ? (conta?.criadoEm | date:'dd/MM/yyyy') : '—' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- ── Dados do perfil ──────────────────────────────────────────────── -->
+    <div class="acc-section">
+      <div class="acc-section-header">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        <span>Dados do perfil</span>
+      </div>
+      <div class="acc-section-body">
+        <div class="acc-form-grid">
+          <div class="acc-field">
+            <label>Nome completo</label>
+            <input [(ngModel)]="accountForm.nome" placeholder="Seu nome completo" />
+          </div>
+          <div class="acc-field">
+            <label>Username</label>
+            <input [(ngModel)]="accountForm.username" placeholder="Seu username" />
+          </div>
+        </div>
+        @if (accountFormError) {
+          <p class="acc-feedback acc-feedback-error">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            {{ accountFormError }}
+          </p>
+        }
+        <div class="acc-section-actions">
+          <button class="acc-btn acc-btn-primary" type="button" (click)="submitAccountUpdate()">
+            <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+            Salvar alterações
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Foto de perfil ───────────────────────────────────────────────── -->
+    <div class="acc-section">
+      <div class="acc-section-header">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 19V5c0-1.1-.9-2-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        <span>Foto de perfil</span>
+      </div>
+      <div class="acc-section-body">
+        <div class="acc-photo-row">
+          <div class="acc-photo-preview">
+            @if (profileImage) {
+              <img [src]="profileImage" alt="Foto do perfil" />
+            } @else {
+              <span>{{ (conta?.nome || conta?.username || 'U').charAt(0).toUpperCase() }}</span>
+            }
+          </div>
+          <div class="acc-photo-actions">
+            <label class="acc-file-label">
+              <input type="file" accept="image/*" (change)="onFileSelected($event)" hidden />
+              <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+              Escolher imagem
+            </label>
+            @if (selectedFileName !== 'Nenhum arquivo selecionado') {
+              <span class="acc-file-name">{{ selectedFileName }}</span>
+            }
+            <button class="acc-btn acc-btn-sec" type="button" (click)="removePhoto()">
+              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              Remover foto
+            </button>
+          </div>
+        </div>
+
+        @if (cropFeedback) {
+          <p class="acc-feedback acc-feedback-success">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            {{ cropFeedback }}
+          </p>
+        }
+
+        @if (sourceImage) {
+          <div class="acc-cropper">
+            <div class="acc-canvas-wrap">
+              <canvas
+                #cropCanvas
+                width="220"
+                height="220"
+                [class.dragging]="isDragging"
+                (wheel)="onCanvasWheel($event)"
+                (mousedown)="onDragStart($event)"
+                (mousemove)="onDragMove($event)"
+                (mouseup)="onDragEnd()"
+                (mouseleave)="onDragEnd()"></canvas>
+            </div>
+            <div class="acc-crop-controls">
+              <p class="acc-crop-tip">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                Arraste para posicionar · scroll para aplicar zoom
+              </p>
+              <button class="acc-btn acc-btn-primary" type="button" (click)="applyCrop()">
+                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                Aplicar recorte
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ── Segurança / Trocar senha ─────────────────────────────────────── -->
+    <div class="acc-section">
+      <div class="acc-section-header">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+        <span>Segurança</span>
+      </div>
+      <div class="acc-section-body">
+        <div class="acc-form-grid">
+          <div class="acc-field acc-field-full">
+            <label>Senha atual</label>
+            <div class="acc-input-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+              <input type="password" [(ngModel)]="form.senhaAtual" placeholder="Digite sua senha atual" />
+            </div>
+          </div>
+          <div class="acc-field">
+            <label>Nova senha</label>
+            <div class="acc-input-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              <input type="password" [(ngModel)]="form.novaSenha" placeholder="Mínimo 6 caracteres" />
+            </div>
+          </div>
+          <div class="acc-field">
+            <label>Confirmar nova senha</label>
+            <div class="acc-input-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              <input type="password" [(ngModel)]="form.confirmarNovaSenha" placeholder="Repita a nova senha" />
+            </div>
+          </div>
+        </div>
+
+        @if (formError) {
+          <p class="acc-feedback acc-feedback-error">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            {{ formError }}
+          </p>
+        }
+        @if (mensagem) {
+          <p class="acc-feedback" [class.acc-feedback-error]="mensagemEhErro" [class.acc-feedback-success]="!mensagemEhErro">
+            @if (mensagemEhErro) {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            }
+            {{ mensagem }}
+          </p>
+        }
+
+        <div class="acc-section-actions">
+          <button class="acc-btn acc-btn-primary" type="button" (click)="submitChangePassword()">
+            <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            Alterar senha
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</planner-card>

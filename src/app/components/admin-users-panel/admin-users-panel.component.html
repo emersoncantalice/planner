@@ -1,0 +1,167 @@
+<div class="aup-wrap">
+  <div class="aup-header">
+    <div class="aup-header-info">
+      <svg class="aup-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+      </svg>
+      <div>
+        <h2 class="aup-title">Gestão de Usuários</h2>
+        <p class="aup-subtitle">Aprovação, permissões e senhas</p>
+      </div>
+    </div>
+    <button class="aup-refresh-btn" (click)="carregar()" [disabled]="carregando()" title="Recarregar">
+      <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4C7.58 4 4 7.58 4 12s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+    </button>
+  </div>
+
+  <div class="aup-create">
+    <h3 class="aup-create-title">Novo usuario</h3>
+    <div class="aup-create-grid">
+      <input class="aup-edit-input" [(ngModel)]="createForm.nome" placeholder="Nome" />
+      <input class="aup-edit-input" [(ngModel)]="createForm.username" placeholder="Username *" />
+      <input class="aup-edit-input" [(ngModel)]="createForm.password" placeholder="Senha *" type="password" />
+      <input class="aup-edit-input" [(ngModel)]="createForm.email" placeholder="E-mail" type="email" />
+      <select class="aup-edit-select" [(ngModel)]="createForm.role">
+        <option value="USER">Usuario</option>
+        <option value="ADMIN">Admin</option>
+      </select>
+      <select class="aup-edit-select" [(ngModel)]="createForm.status">
+        <option value="APPROVED">Aprovado</option>
+        <option value="PENDING">Pendente</option>
+      </select>
+    </div>
+    <div class="aup-create-actions">
+      <button class="aup-btn aup-btn-save" (click)="criarUsuario()" [disabled]="criando()">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        {{ criando() ? 'Criando...' : 'Criar usuario' }}
+      </button>
+    </div>
+  </div>
+
+  @if (mensagem()) {
+    <div class="aup-msg" [class.aup-msg-ok]="mensagemTipo() === 'ok'" [class.aup-msg-erro]="mensagemTipo() === 'erro'">
+      {{ mensagem() }}
+    </div>
+  }
+
+  <!-- Nova senha gerada -->
+  @if (novaSenhaValor()) {
+    <div class="aup-nova-senha-banner">
+      <svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 1 5 5v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v1h6V6a3 3 0 0 0-3-3zm0 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+      <div class="aup-nova-senha-content">
+        <strong>Nova senha de {{ novaSenhaUsuario() }}</strong>
+        <code class="aup-senha-code">{{ novaSenhaValor() }}</code>
+        <span class="aup-senha-hint">Copie agora — não será exibida novamente.</span>
+      </div>
+      <button class="aup-copy-btn" [class.copied]="copiadoId() === novaSenhaUsuario()" (click)="copiarSenha()">
+        @if (copiadoId() === novaSenhaUsuario()) {
+          <svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          Copiado
+        } @else {
+          <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z"/></svg>
+          Copiar
+        }
+      </button>
+      <button class="aup-close-nova-senha" (click)="fecharNovaSenha()" title="Fechar">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+  }
+
+  @if (carregando()) {
+    <div class="aup-loading">
+      <div class="aup-spinner"></div>
+      <span>Carregando usuários…</span>
+    </div>
+  } @else if (!usuarios().length) {
+    <div class="aup-empty">
+      <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/></svg>
+      <p>Nenhum usuário cadastrado.</p>
+    </div>
+  } @else {
+    <div class="aup-table-wrap">
+      <table class="aup-table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Papel</th>
+            <th>Status</th>
+            <th>Criado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of usuarios(); track u.username) {
+            <tr [class.aup-row-pending]="u.status === 'PENDING'"
+                [class.aup-row-editing]="editandoId() === u.username">
+
+              @if (editandoId() === u.username) {
+                <td class="aup-td-username">
+                  <span class="aup-username">{{ u.username }}</span>
+                </td>
+                <td>
+                  <input class="aup-edit-input" [(ngModel)]="editForm.nome" placeholder="Nome" />
+                </td>
+                <td>
+                  <input class="aup-edit-input" [(ngModel)]="editForm.email" placeholder="E-mail" type="email" />
+                </td>
+                <td>
+                  <select class="aup-edit-select" [(ngModel)]="editForm.role">
+                    <option value="USER">Usuário</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="aup-edit-select" [(ngModel)]="editForm.status">
+                    <option value="PENDING">Pendente</option>
+                    <option value="APPROVED">Aprovado</option>
+                  </select>
+                </td>
+                <td class="aup-td-date">{{ u.criadoEm | date:'dd/MM/yyyy' }}</td>
+                <td class="aup-td-actions">
+                  <button class="aup-btn aup-btn-save" (click)="salvar(u)">
+                    <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                    Salvar
+                  </button>
+                  <button class="aup-btn aup-btn-sec" (click)="cancelEdit()">Cancelar</button>
+                </td>
+              } @else {
+                <td class="aup-td-username">
+                  <span class="aup-username">{{ u.username }}</span>
+                </td>
+                <td>{{ u.nome }}</td>
+                <td class="aup-td-email">{{ u.email || '—' }}</td>
+                <td>
+                  <span class="aup-badge" [class]="roleBadge(u.role)">{{ roleLabel(u.role) }}</span>
+                </td>
+                <td>
+                  <span class="aup-badge" [class]="statusBadge(u.status)">{{ statusLabel(u.status) }}</span>
+                </td>
+                <td class="aup-td-date">{{ u.criadoEm | date:'dd/MM/yyyy' }}</td>
+                <td class="aup-td-actions">
+                  @if (u.status === 'PENDING') {
+                    <button class="aup-btn aup-btn-approve" (click)="aprovar(u)" title="Aprovar acesso">
+                      <svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      Aprovar
+                    </button>
+                  }
+                  <button class="aup-btn aup-btn-edit" (click)="startEdit(u)" title="Editar campos">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.04a1 1 0 0 0 0-1.42l-2.5-2.5a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 2-2.66z"/></svg>
+                  </button>
+                  <button class="aup-btn aup-btn-password" (click)="resetSenha(u)" title="Gerar nova senha">
+                    <svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 1 5 5v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v1h6V6a3 3 0 0 0-3-3zm0 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+                  </button>
+                  <button class="aup-btn aup-btn-danger" (click)="excluir(u)" title="Excluir usuário">
+                    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  </button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

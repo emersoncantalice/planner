@@ -1,0 +1,673 @@
+﻿<!-- Toast container global -->
+@if (toast.toasts().length) {
+  <div class="toast-container" aria-live="polite">
+    @for (t of toast.toasts(); track t.id) {
+      <div class="toast-item" [class]="'toast-' + t.type">
+
+        <!-- Cabeçalho -->
+        <div class="toast-header">
+          <span class="toast-title">
+            @if (t.onSelectFile) {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 1.5L18.5 9H13zM6 20V4h5v7h7v9z"/></svg>
+              Importar CSV
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+              Info
+            }
+          </span>
+          <button class="toast-close" (click)="toast.dismiss(t.id)" aria-label="Fechar">×</button>
+        </div>
+
+        <!-- Corpo: modo CSV -->
+        @if (t.onSelectFile) {
+          <div class="toast-body">
+            <p class="toast-label">Formato (1 linha por item):</p>
+            <code class="toast-code">{{ t.format }}</code>
+            <p class="toast-label">Exemplo:</p>
+            <code class="toast-code">{{ t.example }}</code>
+          </div>
+          <div class="toast-actions">
+            <button class="toast-btn toast-btn-primary" (click)="toast.selectFile(t.id)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+              Selecionar arquivo
+            </button>
+            <button class="toast-btn" [class.toast-btn-copied]="t.copied" (click)="toast.copyExample(t.id)">
+              @if (t.copied) {
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                Copiado!
+              } @else {
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z"/></svg>
+                Copiar exemplo
+              }
+            </button>
+          </div>
+
+        <!-- Corpo: modo simples -->
+        } @else {
+          <div class="toast-body">
+            <pre class="toast-msg">{{ t.message }}</pre>
+          </div>
+        }
+
+      </div>
+    }
+  </div>
+}
+
+@if (confirmModalOpen()) {
+  <div class="modal-backdrop modal-backdrop-top" (click)="cancelarConfirmacao()"></div>
+  <div class="modal-card confirm-modal">
+    <div class="confirm-modal-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/></svg>
+    </div>
+    <h3>Confirmar exclusão</h3>
+    <p>{{ confirmModalMessage() }}</p>
+    <div class="confirm-modal-actions">
+      <button type="button" class="sec" (click)="cancelarConfirmacao()">Cancelar</button>
+      <button type="button" class="danger" (click)="confirmarAcaoModal()">Excluir</button>
+    </div>
+  </div>
+}
+
+@if (!token()) {
+  <main class="auth-layout">
+    @if (authLoading) {
+      <div class="loading-overlay">
+        <div class="loader-ring"></div>
+        <p>Processando...</p>
+      </div>
+    }
+    <section class="auth-hero">
+      <img class="auth-logo" src="assets/branding/logo-full.png" alt="Planner" />
+      <p>Planejamento e gestão de trabalho em um só lugar.</p>
+    </section>
+    <div class="auth-divider" aria-hidden="true"></div>
+    <section class="auth-panel">
+      <app-auth-panel [mensagem]="mensagem()" [loading]="authLoading" (login)="entrar($event)" (register)="cadastrar($event)"></app-auth-panel>
+    </section>
+  </main>
+} @else {
+<main class="app-shell" [class.mobile-sidebar-open]="mobileSidebarOpen()">
+
+  <!-- Mobile hamburger ──────────────────────────────────────────────────── -->
+  <button class="mobile-menu-btn" (click)="toggleMobileSidebar()" [class.open]="mobileSidebarOpen()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+
+  <!-- Mobile overlay ────────────────────────────────────────────────────── -->
+  @if (mobileSidebarOpen()) {
+    <div class="mobile-overlay" (click)="toggleMobileSidebar()"></div>
+  }
+
+  @if (token()) {
+    <aside class="sidebar" [class.collapsed]="sidebarCollapsed()" [class.mobile-open]="mobileSidebarOpen()">
+      <div class="sb-brand">
+        @if (!sidebarCollapsed()) {
+          <div class="sb-logo-wrap">
+            <img class="sb-logo" src="assets/branding/logo-full.png" alt="Planner" />
+          </div>
+        } @else {
+          <div class="sb-mark-wrap">
+            <img class="sb-mark" src="assets/branding/icon-square.png" alt="Planner" />
+          </div>
+        }
+      </div>
+      <button class="sb-toggle" (click)="toggleSidebar()" [title]="sidebarCollapsed() ? 'Expandir menu' : 'Retrair menu'">
+        @if (sidebarCollapsed()) {
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.41L10.71 6.7a1 1 0 0 0-1.42 0z"/></svg>
+        } @else {
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.71 6.71a1 1 0 0 1 0 1.41L10.83 12l3.88 3.88a1 1 0 0 1-1.42 1.41l-4.58-4.58a1 1 0 0 1 0-1.41L13.29 6.7a1 1 0 0 1 1.42 0z"/></svg>
+        }
+      </button>
+      <nav class="sb-nav">
+        <a [class.active]="secaoAtiva() === 'dashboard'" (click)="selecionarSecao('dashboard')" title="Planner">
+          <span class="sb-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 13h8v8H3zm10-10h8v18h-8zM3 3h8v8H3z"/></svg>
+          </span>
+          <span class="sb-text"><strong>Cookpit</strong></span>
+        </a>
+        <a [class.active]="secaoAtiva() === 'projetos'" (click)="selecionarSecao('projetos')" title="Projetos">
+          <span class="sb-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h8v2H8zm0 4h5v2H8z"/></svg>
+          </span>
+          <span class="sb-text"><strong>Projetos</strong></span>
+        </a>
+        <div class="sb-group">
+          <a [class.active]="secaoAtiva() === 'alocacoes_lo' || secaoAtiva() === 'alocacoes_pessoa' || secaoAtiva() === 'pessoas_atividade'" (click)="toggleAlocacoesMenu($event)" title="Alocações">
+            <span class="sb-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
+            </span>
+            <span class="sb-text"><strong>Alocações</strong></span>
+            @if (!sidebarCollapsed()) {
+              <span class="sb-caret" aria-hidden="true">
+                @if (alocacoesExpanded()) {
+                  <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                }
+              </span>
+            }
+          </a>
+          @if (alocacoesExpanded() && !sidebarCollapsed()) {
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'alocacoes_lo'" (click)="selecionarSecao('alocacoes_lo')" title="Por LO">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg></span>
+              <span class="sb-text"><strong>Por LO</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'alocacoes_pessoa'" (click)="selecionarSecao('alocacoes_pessoa')" title="Por pessoa">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg></span>
+              <span class="sb-text"><strong>Por pessoa</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'pessoas_atividade'" (click)="selecionarSecao('pessoas_atividade')" title="Pessoas por atividade">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
+              <span class="sb-text"><strong>Por atividade</strong></span>
+            </a>
+          } @else if (alocacoesExpanded() && sidebarCollapsed()) {
+            <div class="sb-flyout" [style.top.px]="flyoutTop()">
+              <p class="sb-flyout-label">Alocações</p>
+              <a [class.active]="secaoAtiva() === 'alocacoes_lo'" (click)="selecionarSecao('alocacoes_lo')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
+                </span>
+                <span>Por LO</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'alocacoes_pessoa'" (click)="selecionarSecao('alocacoes_pessoa')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                </span>
+                <span>Por pessoa</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'pessoas_atividade'" (click)="selecionarSecao('pessoas_atividade')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                </span>
+                <span>Por atividade</span>
+              </a>
+            </div>
+          }
+        </div>
+        <div class="sb-group">
+          <a [class.active]="secaoAtiva() === 'riscos' || secaoAtiva() === 'incidentes' || secaoAtiva() === 'debitos_tecnicos'" (click)="toggleRiscosMenu($event)" title="Riscos">
+            <span class="sb-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg>
+            </span>
+            <span class="sb-text"><strong>Riscos</strong></span>
+            @if (!sidebarCollapsed()) {
+              <span class="sb-caret" aria-hidden="true">
+                @if (riscosExpanded()) {
+                  <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                }
+              </span>
+            }
+          </a>
+          @if (riscosExpanded() && !sidebarCollapsed()) {
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'riscos'" (click)="selecionarSecao('riscos')" title="Apontamentos">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg></span>
+              <span class="sb-text"><strong>Apontamentos</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'incidentes'" (click)="selecionarSecao('incidentes')" title="Incidentes">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></span>
+              <span class="sb-text"><strong>Incidentes</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'debitos_tecnicos'" (click)="selecionarSecao('debitos_tecnicos')" title="Débitos Técnicos">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17a5.96 5.96 0 0 0-2.84 0L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg></span>
+              <span class="sb-text"><strong>Débitos Técnicos</strong></span>
+            </a>
+          } @else if (riscosExpanded() && sidebarCollapsed()) {
+            <div class="sb-flyout" [style.top.px]="flyoutTop()">
+              <p class="sb-flyout-label">Riscos</p>
+              <a [class.active]="secaoAtiva() === 'riscos'" (click)="selecionarSecao('riscos')">
+                <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg></span>
+                <span>Apontamentos</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'incidentes'" (click)="selecionarSecao('incidentes')">
+                <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></span>
+                <span>Incidentes</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'debitos_tecnicos'" (click)="selecionarSecao('debitos_tecnicos')">
+                <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17a5.96 5.96 0 0 0-2.84 0L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg></span>
+                <span>Débitos Técnicos</span>
+              </a>
+            </div>
+          }
+        </div>
+        <a [class.active]="secaoAtiva() === 'indicadores'" (click)="selecionarSecao('indicadores')" title="Indicadores">
+          <span class="sb-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+          </span>
+          <span class="sb-text"><strong>Indicadores</strong></span>
+        </a>
+        <div class="sb-group">
+          <a [class.active]="secaoAtiva() === 'perfis' || secaoAtiva() === 'orcamento' || secaoAtiva() === 'epicos' || secaoAtiva() === 'pessoas' || secaoAtiva() === 'horas_mes' || secaoAtiva() === 'prestadores' || secaoAtiva() === 'pontos_focais' || secaoAtiva() === 'feriados' || secaoAtiva() === 'ausencias'" (click)="toggleCadastrosMenu($event)" title="Cadastros">
+            <span class="sb-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 3h14v4H5zm0 7h14v11H5zm3 2v2h8v-2zm0 4v2h6v-2z"/></svg>
+            </span>
+            <span class="sb-text"><strong>Cadastros</strong></span>
+            @if (!sidebarCollapsed()) {
+              <span class="sb-caret" aria-hidden="true">
+                @if (cadastrosExpanded()) {
+                  <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                }
+              </span>
+            }
+          </a>
+          @if (cadastrosExpanded() && !sidebarCollapsed()) {
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'perfis'" (click)="selecionarSecao('perfis')" title="Perfis">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/></svg></span>
+              <span class="sb-text"><strong>Perfis</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'orcamento'" (click)="selecionarSecao('orcamento')" title="LO">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg></span>
+              <span class="sb-text"><strong>LO</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'epicos'" (click)="selecionarSecao('epicos')" title="BEs">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></span>
+              <span class="sb-text"><strong>BEs</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'pessoas'" (click)="selecionarSecao('pessoas')" title="Pessoas">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
+              <span class="sb-text"><strong>Pessoas</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'prestadores'" (click)="selecionarSecao('prestadores')" title="Prestadores">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg></span>
+              <span class="sb-text"><strong>Prestadores</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'pontos_focais'" (click)="selecionarSecao('pontos_focais')" title="Pontos focais">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></span>
+              <span class="sb-text"><strong>Pontos focais</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'horas_mes'" (click)="selecionarSecao('horas_mes')" title="Horas/Mês">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
+              <span class="sb-text"><strong>Horas/Mês</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'feriados'" (click)="selecionarSecao('feriados')" title="Feriados">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg></span>
+              <span class="sb-text"><strong>Feriados</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'ausencias'" (click)="selecionarSecao('ausencias')" title="Férias e Ausências">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6c1.1 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.35 17.13 5.18 17.5 4 17.5v1.99c1.55 0 2.93-.56 4-1.48 1.07.92 2.45 1.48 4 1.48s2.93-.56 4-1.48c1.07.92 2.45 1.48 4 1.48V17.5c-1.18 0-2.35-.37-3.4-1.51zM20 8H4C2.9 8 2 8.9 2 10v3h20v-3c0-1.1-.9-2-2-2z"/></svg></span>
+              <span class="sb-text"><strong>Férias</strong></span>
+            </a>
+          } @else if (cadastrosExpanded() && sidebarCollapsed()) {
+            <div class="sb-flyout" [style.top.px]="flyoutTop()">
+              <p class="sb-flyout-label">Cadastros</p>
+              <a [class.active]="secaoAtiva() === 'perfis'" (click)="selecionarSecao('perfis')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- Perfis: pessoa com badge -->
+                  <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/></svg>
+                </span>
+                <span>Perfis</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'orcamento'" (click)="selecionarSecao('orcamento')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- LO: cifrão / orçamento -->
+                  <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                </span>
+                <span>LO</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'epicos'" (click)="selecionarSecao('epicos')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- BEs: raio / épico -->
+                  <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+                </span>
+                <span>BEs</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'pessoas'" (click)="selecionarSecao('pessoas')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- Pessoas: grupo -->
+                  <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                </span>
+                <span>Pessoas</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'prestadores'" (click)="selecionarSecao('prestadores')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- Prestadores: prédio / empresa -->
+                  <svg viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                </span>
+                <span>Prestadores</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'pontos_focais'" (click)="selecionarSecao('pontos_focais')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- Pontos focais: alvo / pin -->
+                  <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                </span>
+                <span>Pontos focais</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'horas_mes'" (click)="selecionarSecao('horas_mes')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- Horas/Mês: relógio -->
+                  <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                </span>
+                <span>Horas/Mês</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'feriados'" (click)="selecionarSecao('feriados')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <!-- Feriados: calendário -->
+                  <svg viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+                </span>
+                <span>Feriados</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'ausencias'" (click)="selecionarSecao('ausencias')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 6c1.1 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.35 17.13 5.18 17.5 4 17.5v1.99c1.55 0 2.93-.56 4-1.48 1.07.92 2.45 1.48 4 1.48s2.93-.56 4-1.48c1.07.92 2.45 1.48 4 1.48V17.5c-1.18 0-2.35-.37-3.4-1.51zM20 8H4C2.9 8 2 8.9 2 10v3h20v-3c0-1.1-.9-2-2-2z"/></svg>
+                </span>
+                <span>Férias</span>
+              </a>
+            </div>
+          }
+        </div>
+        <a [class.active]="secaoAtiva() === 'relatorios'" (click)="selecionarSecao('relatorios')" title="Relatórios">
+          <span class="sb-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 19h16v2H4zM6 10h2v7H6zm5-4h2v11h-2zm5 2h2v9h-2z"/></svg>
+          </span>
+          <span class="sb-text"><strong>Relatórios</strong></span>
+        </a>
+        @if (isAdmin()) {
+          <a [class.active]="secaoAtiva() === 'usuarios'" (click)="selecionarSecao('usuarios')" title="Usuários">
+            <span class="sb-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            </span>
+            <span class="sb-text"><strong>Usuários</strong></span>
+          </a>
+        }
+      </nav>
+      <div class="sb-user">
+        <button type="button" class="sb-user-head sb-account-trigger" (click)="irParaContaComMenuCompleto()" [title]="sidebarCollapsed() ? 'Conta' : ''">
+          <div class="sb-avatar">
+            @if (profileImage()) {
+              <img [src]="profileImage()" alt="Foto de perfil" />
+            } @else {
+              {{ (nomeExibicaoUsuario() || 'U').charAt(0).toUpperCase() }}
+            }
+          </div>
+          @if (!sidebarCollapsed()) {
+            <strong>{{ nomeExibicaoUsuario() }}</strong>
+          }
+        </button>
+        <div class="linha">
+          <button class="danger" (click)="sair()" [title]="sidebarCollapsed() ? 'Sair' : ''">
+            @if (sidebarCollapsed()) {
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14">
+                <path fill="currentColor" d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Zm1.71 13.29L14 14H4v-4h10l-2.29-2.29 1.42-1.42L18.84 12l-5.71 5.71-1.42-1.42Z"/>
+              </svg>
+            } @else {
+              Sair
+            }
+          </button>
+        </div>
+        <small class="sb-version">Versão 1.0.0</small>
+      </div>
+    </aside>
+  }
+
+  <section class="page fade-in">
+    @if (mensagem()) {
+      <div class="app-alert" [class.error]="mensagemEhErro()">
+        <span>{{ mensagem() }}</span>
+        <button type="button" class="app-alert-close" (click)="fecharMensagem()" aria-label="Fechar mensagem">×</button>
+      </div>
+    }
+    <section class="grid">
+      @if (secaoAtiva() === 'dashboard') {
+        <app-dashboard-panel
+          [nomeUsuario]="nomeExibicaoUsuario()"
+          [resumo]="resumo()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [ajustes]="ajustesLo()"
+          [alocacoes]="alocacoesLo()"
+          [pessoas]="pessoas()"
+          [ausencias]="ausencias()"
+          [riscos]="riscos()"
+          [incidentes]="incidentes()"
+          [debitosTecnicos]="debitosTecnicos()"
+          [indicadores]="indicadores()"
+          (navigate)="selecionarSecao($any($event))"
+          (selectProject)="selecionarProjeto($event)"
+          (selectRisk)="abrirRiscoDoDashboard($event)">
+        </app-dashboard-panel>
+      }
+      @if (secaoAtiva() === 'conta') {
+        <app-account-panel
+          [conta]="conta()"
+          [profileImage]="profileImage()"
+          [mensagem]="mensagem()"
+          (updateAccount)="atualizarConta($event)"
+          (profileImageChange)="atualizarFotoPerfil($event)"
+          (changePassword)="alterarSenha($event)"></app-account-panel>
+      }
+      @if (secaoAtiva() === 'perfis') {
+        <app-profile-panel
+          [perfis]="perfis()"
+          (create)="criarPerfil($event)"
+          (importCsv)="importarPerfisCsv($event)"
+          (update)="atualizarPerfil($event)"
+          (remove)="excluirPerfil($event)"></app-profile-panel>
+      }
+      @if (secaoAtiva() === 'projetos') {
+        <app-overview-list
+          class="full-row"
+          [resumo]="resumo()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [alocacoesLo]="alocacoesLo()"
+          [showDashboard]="true"
+          [showChart]="false"
+          [showList]="false">
+        </app-overview-list>
+        <app-overview-list
+          class="full-row"
+          [resumo]="resumo()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [alocacoesLo]="alocacoesLo()"
+          [showDashboard]="false"
+          [showChart]="false"
+          [showList]="true"
+          [userRole]="role()"
+          [currentUser]="usuario()"
+          (openCreateProject)="abrirModalProjeto()"
+          (exportJira)="exportarProjetosParaJira()"
+          (select)="selecionarProjeto($event)"
+          (updateProject)="atualizarProjeto($event)"
+          (deleteProject)="excluirProjeto($event)"
+          (updateProjectSituacao)="atualizarSituacaoProjeto($event)"></app-overview-list>
+
+        @if (projectCreateModalOpen()) {
+          <div class="modal-backdrop" (click)="fecharModalProjeto()"></div>
+          <div class="modal-card project-create-modal" (click)="$event.stopPropagation()">
+            <div class="project-modal-head">
+              <h3>Novo projeto</h3>
+              <button type="button" class="app-alert-close" (click)="fecharModalProjeto()" aria-label="Fechar">×</button>
+            </div>
+            <app-project-create
+              [showHeader]="false"
+              [forceExpanded]="true"
+              [linhasOrcamentarias]="linhasOrcamentarias()"
+              [businessEpics]="businessEpics()"
+              (openBudgetLines)="selecionarSecao('orcamento'); fecharModalProjeto()"
+              (openBusinessEpics)="selecionarSecao('epicos'); fecharModalProjeto()"
+              (create)="criarProjeto($event)"></app-project-create>
+          </div>
+        }
+      }
+      @if (secaoAtiva() === 'orcamento') {
+        <app-budget-line-panel
+          [linhas]="linhasOrcamentarias()"
+          [ajustes]="ajustesLo()"
+          [userRole]="role()"
+          [currentUser]="usuario()"
+          (create)="criarLinhaOrcamentaria($event)"
+          (importCsv)="importarLinhasCsv($event)"
+          (update)="atualizarLinhaOrcamentaria($event)"
+          (remove)="excluirLinhaOrcamentaria($event)"
+          (createAdjustment)="criarAjusteLo($event)"
+          (updateAdjustment)="atualizarAjusteLo($event)"
+          (removeAdjustment)="excluirAjusteLo($event)"
+          (updateLineSituacao)="atualizarSituacaoLo($event)"></app-budget-line-panel>
+      }
+      @if (secaoAtiva() === 'epicos') {
+        <app-business-epic-panel
+          [epics]="businessEpics()"
+          (create)="criarBusinessEpic($event)"
+          (importCsv)="importarEpicsCsv($event)"
+          (update)="atualizarBusinessEpic($event)"
+          (remove)="excluirBusinessEpic($event)"></app-business-epic-panel>
+      }
+      @if (secaoAtiva() === 'pessoas') {
+        <app-person-panel
+          [perfis]="perfis()"
+          [pessoas]="pessoas()"
+          [consultorias]="consultorias()"
+          (create)="criarPessoa($event)"
+          (importCsv)="importarPessoasCsv($event)"
+          (update)="atualizarPessoa($event)"
+          (remove)="excluirPessoa($event)"></app-person-panel>
+      }
+      @if (secaoAtiva() === 'prestadores') {
+        <app-consultancy-panel
+          [consultorias]="consultorias()"
+          (create)="criarConsultoria($event)"
+          (importCsv)="importarConsultoriasCsv($event)"
+          (update)="atualizarConsultoria($event)"
+          (remove)="excluirConsultoria($event)"></app-consultancy-panel>
+      }
+      @if (secaoAtiva() === 'pontos_focais') {
+        <app-focal-point-panel
+          [pontosFocais]="pontosFocais()"
+          (create)="criarPontoFocal($event)"
+          (importCsv)="importarPontosFocaisCsv($event)"
+          (update)="atualizarPontoFocal($event)"
+          (remove)="excluirPontoFocal($event)"></app-focal-point-panel>
+      }
+      @if (secaoAtiva() === 'horas_mes') {
+        <app-monthly-hours-panel
+          [horasMes]="horasMes()"
+          (saveAll)="salvarHorasMesLote($event)"></app-monthly-hours-panel>
+      }
+      @if (secaoAtiva() === 'feriados') {
+        <app-feriados-panel></app-feriados-panel>
+      }
+      @if (secaoAtiva() === 'ausencias') {
+        <app-ausencias-panel
+          [pessoas]="pessoas()"
+          [ausencias]="ausencias()"
+          (create)="criarAusencia($event)"
+          (update)="atualizarAusencia($event)"
+          (remove)="excluirAusencia($event)">
+        </app-ausencias-panel>
+      }
+      @if (secaoAtiva() === 'alocacoes_lo') {
+        <app-budget-allocation-panel
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [ajustes]="ajustesLo()"
+          [horasMes]="horasMes()"
+          [perfis]="perfis()"
+          [pessoas]="pessoas()"
+          [consultorias]="consultorias()"
+          [alocacoes]="alocacoesLo()"
+          (createPerson)="criarPessoa($event)"
+          (create)="criarAlocacaoLo($event)"
+          (update)="atualizarAlocacaoLo($event)"
+          (remove)="excluirAlocacaoLo($event)">
+        </app-budget-allocation-panel>
+      }
+      @if (secaoAtiva() === 'alocacoes_pessoa') {
+        <app-person-allocation-panel
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [horasMes]="horasMes()"
+          [alocacoes]="alocacoesLo()"
+          (openAllocation)="abrirAbaAlocacoesLo($event)"></app-person-allocation-panel>
+      }
+      @if (secaoAtiva() === 'pessoas_atividade') {
+        <app-person-activity-panel
+          [pessoas]="pessoas()"
+          [riscos]="riscos()"
+          [incidentes]="incidentes()"
+          [debitos]="debitosTecnicos()"
+          [indicadores]="indicadores()"
+          [atividades]="atividades()">
+        </app-person-activity-panel>
+      }
+      @if (secaoAtiva() === 'riscos') {
+        <app-risk-panel
+          [riscos]="riscos()"
+          [pessoas]="pessoas()"
+          [focoRiscoId]="riscoEmFocoId()"
+          (create)="criarRiscoGlobal($event)"
+          (update)="atualizarRiscoGlobal($event)"
+          (updateStatus)="updateRiscoGlobalStatus($event)"
+          (postpone)="adiarRiscoGlobal($event)"
+          (remove)="excluirRiscoGlobal($event)"
+          (importCsv)="importarRiscosCsv($event)">
+        </app-risk-panel>
+      }
+      @if (secaoAtiva() === 'incidentes') {
+        <app-incident-panel
+          [incidentes]="incidentes()"
+          [pessoas]="pessoas()"
+          (create)="criarIncidente($event)"
+          (update)="atualizarIncidente($event)"
+          (importCsv)="importarIncidentesCsv($event)"
+          (remove)="excluirIncidente($event)">
+        </app-incident-panel>
+      }
+      @if (secaoAtiva() === 'debitos_tecnicos') {
+        <app-technical-debt-panel
+          [debitos]="debitosTecnicos()"
+          [pessoas]="pessoas()"
+          (create)="criarDebitoTecnico($event)"
+          (update)="atualizarDebitoTecnico($event)"
+          (remove)="excluirDebitoTecnico($event)"
+          (importCsv)="importarDebitosCsv($event)">
+        </app-technical-debt-panel>
+      }
+      @if (secaoAtiva() === 'indicadores') {
+        <app-indicators-panel
+          [indicadores]="indicadores()"
+          [pessoas]="pessoas()"
+          (create)="criarIndicador($event)"
+          (update)="atualizarIndicador($event)"
+          (remove)="excluirIndicador($event)"
+          (addCycle)="adicionarCiclo($event)"
+          (addAction)="adicionarAcaoIndicador($event)"
+          (updateAction)="atualizarAcaoIndicador($event)"
+          (removeAction)="excluirAcaoIndicador($event)">
+        </app-indicators-panel>
+      }
+      @if (secaoAtiva() === 'usuarios' && isAdmin()) {
+        <app-admin-users-panel [token]="token()"></app-admin-users-panel>
+      }
+      @if (secaoAtiva() === 'relatorios') {
+        <app-reports-panel
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [ajustes]="ajustesLo()"
+          [alocacoes]="alocacoesLo()"
+          [pessoas]="pessoas()"
+          [perfis]="perfis()"
+          [consultorias]="consultorias()"
+          [horasMes]="horasMes()">
+        </app-reports-panel>
+      }
+    </section>
+    @if (secaoAtiva() === 'projetos' && projetoSelecionado()) {
+      <app-project-detail
+        [projeto]="projetoSelecionado()"
+        [perfis]="perfis()"
+        [pessoas]="pessoas()"
+        (addScheduleItem)="addCronograma($event)"
+        (updateScheduleItem)="updateCronograma($event)"
+        (deleteScheduleItem)="excluirAtividadeCronograma($event)"
+        (logReplanejamento)="registrarReplanejamento($event)">
+      </app-project-detail>
+    }
+  </section>
+</main>
+}
+
+
+
+
+
+
+

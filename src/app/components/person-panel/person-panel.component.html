@@ -1,0 +1,133 @@
+﻿<planner-card><article class="card">
+  <div class="panel-head">
+    <h2>Pessoas</h2>
+    <div class="panel-actions">
+      <button type="button" class="csv-upload-btn" title="Importar cadastro em lote por CSV" (click)="openCsvPicker(csvInput)">
+        Importar CSV
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+    </div>
+  </div>
+  <small class="csv-hint">Exemplo: Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500</small>
+
+  @if (formExpanded) {
+    <label>Nome da pessoa</label>
+    <input [(ngModel)]="pessoa.nome" placeholder="Nome da pessoa" />
+    <label>Perfil</label>
+    <select [(ngModel)]="pessoa.perfilId" (ngModelChange)="onPerfilChange()">
+      <option value="">Selecione o perfil</option>
+      @for (p of perfis; track p.id) {
+        <option [value]="p.id">{{ p.nomePerfil }}</option>
+      }
+    </select>
+    <label>Tipo de vinculo</label>
+    <select [(ngModel)]="pessoa.tipoVinculo" (ngModelChange)="onTipoVinculoChange($event)">
+      <option value="BV">Folha</option>
+      <option value="TERCEIRO">Prestador de servico</option>
+    </select>
+    @if (perfilSelecionadoDebitaLo()) {
+      <label>Valor/hora da pessoa (sobrescreve o perfil)</label>
+      <input
+        [ngModel]="valorHoraMasked"
+        (ngModelChange)="onValorHoraChange($event)"
+        (keydown)="onValorKeydown($event)"
+        inputmode="numeric"
+        placeholder="Valor/hora (R$ 0,00)" />
+    }
+    @if (pessoa.tipoVinculo === 'TERCEIRO') {
+      <label>Prestador de servico</label>
+      <select [(ngModel)]="pessoa.consultoria">
+        <option value="">Selecione o prestador de servico</option>
+        @for (c of consultorias; track c.id) {
+          <option [value]="c.nome">{{ c.nome }}</option>
+        }
+      </select>
+      <label>URL da vaga</label>
+      <input [(ngModel)]="pessoa.vagaUrl" type="url" placeholder="URL da vaga (opcional)" />
+      <label>Alias da vaga</label>
+      <input [(ngModel)]="pessoa.vagaAlias" placeholder="Alias da vaga (ex: VAG0031164)" />
+    }
+    <label>Data de nascimento (opcional)</label>
+    <input [(ngModel)]="pessoa.dataNascimento" type="date" placeholder="Data de nascimento" />
+    <label>Contato (telefone / e-mail, opcional)</label>
+    <input [(ngModel)]="pessoa.contato" placeholder="Ex: (11) 91234-5678 ou fulano@empresa.com" />
+    <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
+      <input type="checkbox" [(ngModel)]="pessoa.ativo" id="pessoa-ativo" style="width:auto" />
+      <label for="pessoa-ativo" style="margin:0">Pessoa ativa</label>
+    </div>
+    <label>Valor mensal medio</label>
+    <input
+      [value]="perfilSelecionadoDebitaLo() ? valorMensalMedioAtual() : 'Perfil não debita da LO, valor na alocação fica zerado.'"
+      readonly
+      aria-label="Valor mensal medio" />
+    @if (!editingId) {
+      <button (click)="submit()">Cadastrar pessoa</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  }
+
+  <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center;">
+    <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." style="flex:1;min-width:160px" />
+    <select [(ngModel)]="filtroAtivo" style="width:auto">
+      <option value="ativos">Só ativos</option>
+      <option value="inativos">Só inativos</option>
+      <option value="todos">Todos</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('nome')">Nome{{ sortIndicator('nome') }}</th>
+          <th>Status</th>
+          <th>Vaga</th>
+          <th (click)="toggleSort('perfilNome')">Perfil{{ sortIndicator('perfilNome') }}</th>
+          <th (click)="toggleSort('tipoVinculo')">Vinculo{{ sortIndicator('tipoVinculo') }}</th>
+          <th (click)="toggleSort('consultoria')">Prestador de servico{{ sortIndicator('consultoria') }}</th>
+          <th (click)="toggleSort('valorHora')">Valor hora{{ sortIndicator('valorHora') }}</th>
+          <th (click)="toggleSort('valorMensal')">Valor mensal medio{{ sortIndicator('valorMensal') }}</th>
+          <th>Aniversario</th>
+          <th>Contato</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of sortedPessoas(); track p.id) {
+          <tr [class.row-inativo]="p.ativo === false">
+            <td>{{ p.nome }}</td>
+            <td>
+              @if (p.ativo === false) {
+                <span class="badge badge-inativo">Inativo</span>
+              } @else {
+                <span class="badge badge-ativo">Ativo</span>
+              }
+            </td>
+            <td>
+              @if (p.tipoVinculo === 'TERCEIRO' && p.vagaUrl) {
+                <a class="readonly-cell vaga-link-cell" [href]="p.vagaUrl" target="_blank" rel="noopener noreferrer" [title]="p.vagaUrl">{{ p.vagaAlias || 'Abrir vaga ?' }}</a>
+              } @else {
+                <span class="readonly-cell">-</span>
+              }
+            </td>
+            <td>{{ p.perfilNome }}</td>
+            <td>{{ labelTipoVinculo(p.tipoVinculo) }}</td>
+            <td>{{ p.consultoria || '-' }}</td>
+            <td>{{ pessoaDebitaLo(p) ? (p.valorHora || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-' }}</td>
+            <td>{{ pessoaDebitaLo(p) ? valorMensalMedioDaPessoa(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-' }}</td>
+            <td>{{ fmtNascimento(p.dataNascimento) }}</td>
+            <td>{{ p.contato || '-' }}</td>
+            <td class="actions">
+              <button class="sec" type="button" (click)="startEdit(p)">Editar</button>
+              <button type="button" (click)="remove.emit(p.id)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article></planner-card>

@@ -1,0 +1,54 @@
+﻿@if (projeto) {
+  <section class="card detalhe">
+    <h3>Cronograma</h3>
+    <div class="cronograma-wrap">
+      <app-gantt-panel
+        [embedded]="true"
+        [projetoSelecionado]="projeto"
+        [perfis]="perfis"
+        [pessoas]="pessoas"
+        (addScheduleItem)="addScheduleItem.emit($event)"
+        (updateScheduleItem)="updateScheduleItem.emit($event)"
+        (deleteScheduleItem)="deleteScheduleItem.emit($event)"
+        (logReplanejamento)="logReplanejamento.emit($event)">
+      </app-gantt-panel>
+    </div>
+  </section>
+
+  @if (historicoReplanejamento().length > 0) {
+    <section class="card replan-history">
+      <h3>
+        <span class="replan-icon">↺</span>
+        Histórico de Replanejamento
+        <span class="replan-badge">{{ historicoReplanejamento().length }}</span>
+      </h3>
+      <div class="replan-list">
+        @for (ev of historicoVisivel(); track ev.id) {
+          <div class="replan-row">
+            <div class="replan-meta">
+              <span class="replan-tipo" [class]="'rt-' + ev.tipoAlteracao.toLowerCase()">
+                {{ tipoLabel(ev.tipoAlteracao) }}
+              </span>
+              <span class="replan-item-titulo">{{ ev.scheduleItemTitulo }}</span>
+              <span class="replan-date">{{ fmtDt(ev.registradoEm) }}</span>
+            </div>
+            <div class="replan-dates">
+              <span class="replan-before">
+                {{ fmtD(ev.inicioAnterior) }} → {{ fmtD(ev.fimAnterior) }}
+              </span>
+              <span class="replan-arrow">⟶</span>
+              <span class="replan-after">
+                {{ fmtD(ev.inicioNovo) }} → {{ fmtD(ev.fimNovo) }}
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+      @if (historicoReplanejamento().length > visibleReplanCount) {
+        <button class="replan-more-btn" (click)="visibleReplanCount = visibleReplanCount + 10">
+          Ver mais ({{ historicoReplanejamento().length - visibleReplanCount }} restantes)
+        </button>
+      }
+    </section>
+  }
+}

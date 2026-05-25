@@ -1,0 +1,68 @@
+<planner-card><article class="card">
+  <div class="panel-head">
+    <h2>Prestadores de servico</h2>
+    <div class="panel-actions">
+      <button type="button" class="csv-upload-btn" title="Importar prestadores via CSV" (click)="openCsvPicker(csvInput)">
+        <span>Importar CSV</span>
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+    </div>
+  </div>
+  <small class="csv-hint">Exemplo: Consultoria XPTO,Bodyshop squad,(11) 99999-0000,contato@xpto.com</small>
+
+  @if (formExpanded) {
+    <input [(ngModel)]="consultoria.nome" placeholder="Nome do prestador" />
+    <input [(ngModel)]="consultoria.telefone" (input)="onPhoneInput()" placeholder="Telefone" />
+    <input [(ngModel)]="consultoria.email" placeholder="Email" />
+    <textarea [(ngModel)]="consultoria.descricao" placeholder="Descricao dos servicos"></textarea>
+    @if (!editingId) {
+      <button (click)="submit()">Cadastrar prestador</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  }
+  <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
+
+  <div class="table-wrap">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('nome')">Nome{{ sortIndicator('nome') }}</th>
+          <th (click)="toggleSort('telefone')">Telefone{{ sortIndicator('telefone') }}</th>
+          <th (click)="toggleSort('email')">Email{{ sortIndicator('email') }}</th>
+          <th (click)="toggleSort('descricao')">Descricao{{ sortIndicator('descricao') }}</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of sortedConsultorias(); track c.id) {
+          <tr>
+            <td>{{ c.nome }}</td>
+            <td>
+              {{ c.telefone || c.contato || '-' }}
+              @if (c.telefone || c.contato) {
+                <button class="copy-btn" type="button" (click)="copyValue(c.telefone || c.contato)" title="Copiar telefone">Copiar</button>
+              }
+            </td>
+            <td>
+              {{ c.email || '-' }}
+              @if (c.email) {
+                <button class="copy-btn" type="button" (click)="copyValue(c.email)" title="Copiar email">Copiar</button>
+              }
+            </td>
+            <td>{{ c.descricao || '-' }}</td>
+            <td class="actions">
+              <button class="sec" type="button" (click)="startEdit(c)">Editar</button>
+              <button type="button" (click)="remove.emit(c.id)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article></planner-card>
+

@@ -1,0 +1,165 @@
+/* Full-width wrapper for embedded Gantt chart */
+.cronograma-wrap {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.table-wrap {
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 1180px;
+}
+
+.modern-table th,
+.modern-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e3ecff;
+  text-align: left;
+}
+
+.modern-table th {
+  background: #f3f7ff;
+  color: #2a4a7c;
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+.modern-table tbody tr:hover {
+  background: #f9fbff;
+}
+
+.modern-table .num {
+  text-align: right;
+}
+
+.cell-input {
+  width: 90px;
+  margin: 0;
+}
+
+.cell-input-sm {
+  width: 80px;
+}
+
+/* ── Replanning History ─────────────────────────────────────────────────────── */
+.replan-history {
+  margin-top: 16px;
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    color: #2a4a7c;
+    margin-bottom: 12px;
+
+    .replan-icon {
+      font-size: 1.15rem;
+      color: #5b8dee;
+    }
+
+    .replan-badge {
+      margin-left: auto;
+      background: #e8f0fe;
+      color: #4468c4;
+      font-size: .75rem;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 1px 8px;
+    }
+  }
+}
+
+.replan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.replan-row {
+  background: #f8faff;
+  border: 1px solid #e3ecff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.replan-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.replan-tipo {
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+
+  &.rt-mover             { background: #e8f4fd; color: #1a7abf; }
+  &.rt-redimensionar_inicio { background: #fef9e7; color: #b07d00; }
+  &.rt-redimensionar_fim    { background: #fef9e7; color: #b07d00; }
+  &.rt-redimensionar     { background: #fdf2ff; color: #8b27c8; }
+}
+
+.replan-item-titulo {
+  font-size: .88rem;
+  font-weight: 600;
+  color: #1e2d4e;
+  flex: 1;
+}
+
+.replan-date {
+  font-size: .75rem;
+  color: #7a8aaa;
+  white-space: nowrap;
+}
+
+.replan-dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8rem;
+  flex-wrap: wrap;
+}
+
+.replan-before {
+  color: #888;
+  text-decoration: line-through;
+}
+
+.replan-arrow {
+  color: #5b8dee;
+  font-size: 1rem;
+}
+
+.replan-after {
+  color: #2a7a2a;
+  font-weight: 600;
+}
+
+.replan-more-btn {
+  margin-top: 10px;
+  background: none;
+  border: 1px solid #c5d5f5;
+  color: #4468c4;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: background .15s;
+
+  &:hover { background: #eef4ff; }
+}

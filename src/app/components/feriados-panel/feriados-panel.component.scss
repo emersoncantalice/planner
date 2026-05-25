@@ -1,0 +1,384 @@
+:host {
+  display: contents;
+}
+
+.fp-root {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+.fp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fp-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  h2 { margin: 0; font-size: 1.2rem; }
+}
+
+.fp-icon {
+  width: 22px;
+  height: 22px;
+  fill: var(--primary);
+  flex-shrink: 0;
+}
+
+.fp-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+
+  svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+}
+
+// ── Sections ─────────────────────────────────────────────────────────────────
+.fp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fp-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fp-section-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--brand-700);
+}
+
+.fp-section-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+// ── Year nav ─────────────────────────────────────────────────────────────────
+.fp-year-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fp-year-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--surface-soft);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.fp-year-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-width: 44px;
+  text-align: center;
+}
+
+// ── Weekday toggles ───────────────────────────────────────────────────────────
+.fp-weekdays {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fp-day-btn {
+  width: 48px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  background: #eaf0ff;
+  color: var(--muted);
+  border: 2px solid transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: 0.15s ease;
+
+  &.fp-day-active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary-2);
+  }
+}
+
+.fp-weekday-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+// ── Lists ─────────────────────────────────────────────────────────────────────
+.fp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+  transition: opacity 0.15s;
+
+  &.fp-row-federal {
+    background: #f0f6ff;
+  }
+
+  // Disabled (removed from calendar) state
+  &.fp-row-disabled {
+    opacity: 0.55;
+    background: #f8f8f8;
+    border-color: #e0e0e0;
+
+    .fp-name {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .fp-date-badge {
+      opacity: 0.6;
+    }
+  }
+}
+
+// ── Date badge ────────────────────────────────────────────────────────────────
+.fp-date-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--brand-700);
+  min-width: 80px;
+  background: #dce9ff;
+  padding: 2px 7px;
+  border-radius: 6px;
+
+  &.fp-badge-federal { background: #bfd6ff; }
+}
+
+// ── Name + chips ─────────────────────────────────────────────────────────────
+.fp-name {
+  flex: 1;
+  font-size: 0.9rem;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fp-renamed-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: #fef9c3;
+  color: #92400e;
+  letter-spacing: 0.02em;
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+.fp-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+
+  &.fp-tag-federal    { background: #dbeafe; color: #1d4ed8; }
+  &.fp-tag-removido   { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
+  &.fp-tag-municipal  { background: #d1fae5; color: #065f46; }
+  &.fp-tag-estadual   { background: #ede9fe; color: #6d28d9; }
+  &.fp-tag-facultativo { background: #fef3c7; color: #92400e; }
+  &.fp-tag-outro      { background: #f3f4f6; color: #374151; }
+}
+
+// ── Row actions ───────────────────────────────────────────────────────────────
+.fp-row-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.fp-edit-btn,
+.fp-del-btn,
+.fp-restore-btn {
+  height: 30px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+
+  svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+}
+
+.fp-edit-btn {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+  background: #e0eaff;
+  color: var(--primary);
+}
+
+.fp-del-btn {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.fp-restore-btn {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0 10px;
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+.fp-empty {
+  font-size: 0.88rem;
+  color: var(--muted);
+  padding: 10px 0;
+}
+
+// ── Modal backdrop ────────────────────────────────────────────────────────────
+.fp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 25, 60, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+.fp-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  width: min(480px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fp-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  h3 { margin: 0; font-size: 1.05rem; }
+}
+
+.fp-close-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: #f0f4ff;
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 1.1rem;
+}
+
+.fp-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fp-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+
+  input, select { margin: 0; font-size: 0.9rem; }
+}
+
+.fp-input-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: #f3f7ff !important;
+}
+
+.fp-original-hint {
+  margin: -4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.fp-modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.fp-cancel-btn {
+  background: #eef2ff;
+  color: var(--text);
+}
+
+.fp-save-btn {
+  &:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+}
+
+// ── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 600px) {
+  .fp-row {
+    gap: 8px;
+  }
+
+  .fp-name {
+    width: 100%;
+    order: 3;
+  }
+
+  .fp-weekdays {
+    gap: 6px;
+  }
+
+  .fp-day-btn {
+    width: 40px;
+    height: 36px;
+    font-size: 0.78rem;
+  }
+}

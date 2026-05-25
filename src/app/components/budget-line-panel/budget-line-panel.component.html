@@ -1,0 +1,146 @@
+<planner-card><article class="card">
+  <div class="panel-head">
+    <h2>Linhas Orcamentarias (LO)</h2>
+    <div class="panel-actions">
+      <button type="button" class="csv-upload-btn" title="Importar LOs via CSV" (click)="openCsvPicker(csvInput)">
+        <span>Importar CSV</span>
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+    </div>
+  </div>
+  <small class="csv-hint">Exemplo: LO-2026-001,Plataforma Core,2026,RUN,TI-DIGITAL,120000</small>
+  @if (formExpanded) {
+    <input [(ngModel)]="linha.codigo" placeholder="Codigo LO (Ex.: LO-2026-001)" />
+    <input [(ngModel)]="linha.nome" placeholder="Nome da linha orcamentaria" />
+    <input type="number" min="2000" max="2100" [(ngModel)]="linha.ano" placeholder="Ano (Ex.: 2026)" />
+    <select [(ngModel)]="linha.tipo">
+      <option value="CHANGE">CHANGE</option>
+      <option value="RUN">RUN</option>
+      <option value="RECURSOS">RECURSOS</option>
+    </select>
+    <input [(ngModel)]="linha.centroCusto" placeholder="Centro de custo (Ex.: TI-DIGITAL)" />
+    <input
+      [ngModel]="valorTotalMasked"
+      (ngModelChange)="onValorTotalChange($event)"
+      inputmode="numeric"
+      placeholder="R$ 0,00" />
+    @if (!editingId) {
+      <button (click)="createLine()">Cadastrar LO</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  }
+
+  <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
+  <div class="table-wrap">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('codigo')">Codigo{{ sortIndicator('codigo') }}</th>
+          <th (click)="toggleSort('nome')">Nome{{ sortIndicator('nome') }}</th>
+          <th (click)="toggleSort('ano')">Ano{{ sortIndicator('ano') }}</th>
+          <th (click)="toggleSort('tipo')">Tipo{{ sortIndicator('tipo') }}</th>
+          <th (click)="toggleSort('centroCusto')">Centro custo{{ sortIndicator('centroCusto') }}</th>
+          <th (click)="toggleSort('valorTotal')">Orcamento base{{ sortIndicator('valorTotal') }}</th>
+          <th>Saldo atual</th>
+          <th>Status</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (lo of sortedLinhas(); track lo.id) {
+          <tr>
+            <td>{{ lo.codigo }}</td>
+            <td>{{ lo.nome }}</td>
+            <td>{{ lo.ano || '-' }}</td>
+            <td>{{ lo.tipo }}</td>
+            <td>{{ lo.centroCusto || '-' }}</td>
+            <td>{{ (lo.valorTotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</td>
+            <td>{{ saldoAtualLo(lo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</td>
+            <td>
+              <span class="lo-situacao-badge" [class.draft]="isDraftLo(lo)" [class.published]="!isDraftLo(lo)">
+                {{ situacaoLoLabel(lo) }}
+              </span>
+            </td>
+            <td class="actions">
+              @if (canToggleLoSituacao(lo)) {
+                <button class="sec" type="button" (click)="toggleLoSituacao(lo)" [title]="isDraftLo(lo) ? 'Publicar LO' : 'Tornar rascunho'">
+                  {{ isDraftLo(lo) ? 'Publicar' : 'Rascunho' }}
+                </button>
+              }
+              <button class="sec" type="button" (click)="startEdit(lo)">Editar</button>
+              <button class="sec" type="button" (click)="selecionarLoHistorico(lo.id)">Movimentacoes</button>
+              <button type="button" (click)="remove.emit(lo.id)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article></planner-card>
+
+@if (movimentacaoModalAberto) {
+  <div class="modal-backdrop" (click)="fecharMovimentacaoModal()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>Movimentacoes da LO</h3>
+      <button class="sec" type="button" (click)="fecharMovimentacaoModal()">Fechar</button>
+    </div>
+
+    <div class="linha">
+      <select [(ngModel)]="ajuste.tipo">
+        <option value="TASK">Task (retira saldo)</option>
+        <option value="APORTE">Aporte (injeta saldo)</option>
+      </select>
+      <input
+        [ngModel]="ajusteValorMasked"
+        (ngModelChange)="onAjusteValorChange($event)"
+        inputmode="numeric"
+        placeholder="R$ 0,00" />
+    </div>
+    <textarea [(ngModel)]="ajuste.descricao" placeholder="Descricao da movimentacao"></textarea>
+    @if (!ajusteEditingId) {
+      <button (click)="criarAjuste()">Cadastrar movimentacao</button>
+    } @else {
+      <div class="linha">
+        <button (click)="salvarAjuste()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelarAjuste()">Cancelar</button>
+      </div>
+    }
+
+    <div class="table-wrap">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th>Valor</th>
+            <th>Descricao</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of ajustesDaLo(); track a.id) {
+            <tr>
+              <td>{{ a.criadoEm | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ a.tipo }}</td>
+              <td [class.positive]="valorImpacto(a) >= 0" [class.negative]="valorImpacto(a) < 0">{{ valorImpacto(a).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</td>
+              <td>{{ a.descricao || '-' }}</td>
+              <td class="actions">
+                <button class="sec" type="button" (click)="editarAjuste(a)">Editar</button>
+                <button type="button" (click)="removeAdjustment.emit(a.id)">Excluir</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <label>Historico descritivo da LO</label>
+    <textarea [value]="historicoDescritivoLo()" rows="6" readonly></textarea>
+  </div>
+}

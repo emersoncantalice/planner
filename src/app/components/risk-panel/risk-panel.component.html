@@ -1,0 +1,214 @@
+﻿<planner-card><article class="rsk-wrap">
+
+  <!-- ── Header ────────────────────────────────────────────────────────── -->
+  <div class="rsk-header">
+    <div class="rsk-header-info">
+      <svg class="rsk-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2L2 19h20L12 2zm0 3.5L19.5 18h-15L12 5.5zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/>
+      </svg>
+      <div>
+        <p class="rsk-title">Apontamentos de risco</p>
+        <p class="rsk-subtitle">Gestão de riscos e planos de ação do projeto</p>
+      </div>
+    </div>
+    <div class="rsk-header-actions">
+      <button type="button" class="rsk-csv-btn" title="Importar riscos via CSV" (click)="openCsvPicker(csvInput)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+        <span>Importar CSV</span>
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button type="button" class="rsk-add-btn" (click)="toggleForm()">
+        @if (!formExpanded) {
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Novo risco
+        } @else {
+          <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+          Retrair
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Form ──────────────────────────────────────────────────────────── -->
+  @if (formExpanded) {
+    <div id="risco-form-anchor" class="rsk-form-card">
+      <p class="rsk-form-title">{{ editingId ? 'Editar apontamento' : 'Novo apontamento de risco' }}</p>
+      <div class="rsk-form-grid">
+        <div class="rsk-field rsk-field-full">
+          <label>Título</label>
+          <input [(ngModel)]="risco.titulo" placeholder="Título da demanda/risco" />
+        </div>
+        <div class="rsk-field">
+          <label>Status</label>
+          <select [(ngModel)]="risco.status">
+            <option value="PLANO_ACAO">Plano de ação</option>
+            <option value="DESENVOLVIMENTO">Desenvolvimento</option>
+            <option value="ENTREGA">Entrega</option>
+            <option value="CONCLUIDO">Concluído</option>
+          </select>
+        </div>
+        <div class="rsk-field">
+          <label>Data fim</label>
+          <input [(ngModel)]="risco.dataFim" type="date" />
+        </div>
+        <div class="rsk-field">
+          <label>Responsável</label>
+          <select [(ngModel)]="risco.responsavel">
+            <option [value]="null">— Sem responsável —</option>
+            @for (p of pessoasAtivas(); track p.id) {
+              <option [value]="p.nome">{{ p.nome }}</option>
+            }
+          </select>
+        </div>
+        <div class="rsk-field rsk-field-full">
+          <label>Descrição curta</label>
+          <input [(ngModel)]="risco.descricao" placeholder="Descrição resumida do risco" />
+        </div>
+        <div class="rsk-field rsk-field-full">
+          <label>Plano de ação</label>
+          <textarea [(ngModel)]="risco.planoAcao" rows="4" placeholder="Plano de ação detalhado"></textarea>
+        </div>
+      </div>
+      <div class="rsk-form-actions">
+        @if (!editingId) {
+          <button class="rsk-btn rsk-btn-primary" type="button" (click)="submit()">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Cadastrar
+          </button>
+        } @else {
+          <button class="rsk-btn rsk-btn-primary" type="button" (click)="saveEdit()">
+            <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg>
+            Salvar edição
+          </button>
+          <button class="rsk-btn rsk-btn-sec" type="button" (click)="cancelEdit()">Cancelar</button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── Search ─────────────────────────────────────────────────────────── -->
+  <div class="rsk-search-row">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    <input class="rsk-search" [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
+  </div>
+
+  <!-- ── Table ─────────────────────────────────────────────────────────── -->
+  <div class="rsk-table-wrap">
+    <table class="rsk-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('titulo')">Título{{ sortIndicator('titulo') }}</th>
+          <th (click)="toggleSort('status')">Status{{ sortIndicator('status') }}</th>
+          <th>Responsável</th>
+          <th (click)="toggleSort('descricao')">Descrição{{ sortIndicator('descricao') }}</th>
+          <th (click)="toggleSort('planoAcao')">Plano de ação{{ sortIndicator('planoAcao') }}</th>
+          <th (click)="toggleSort('dataFim')">Data fim{{ sortIndicator('dataFim') }}</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of sortedRiscos(); track r.id) {
+          <!-- Data row -->
+          <tr [class]="vencimentoClass(r)">
+            <td>{{ r.titulo }}</td>
+            <td><span class="rsk-badge" [class]="'rsk-badge ' + statusClass(r.status)">{{ r.status }}</span></td>
+            <td>{{ r.responsavel || '-' }}</td>
+            <td>{{ r.descricao || '-' }}</td>
+            <td>{{ r.planoAcao || '-' }}</td>
+            <td>
+              {{ r.dataFim | date:'dd/MM/yyyy' }}
+              <small class="rsk-due-info">{{ diasParaVencer(r) }}</small>
+            </td>
+            <td class="rsk-td-actions">
+              <button class="rsk-btn-icon rsk-act-edit" type="button" title="Editar" (click)="startEdit(r)">
+                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              </button>
+              <button class="rsk-btn-icon rsk-act-next" type="button" title="Avançar status" (click)="updateStatus.emit({ riskId: r.id, status: nextStatus(r.status) })">
+                <svg viewBox="0 0 24 24"><path d="M13 5.83V2l-5 5 5 5V8.17c3.31.48 5.5 3.42 4.66 6.81-.47 1.94-1.95 3.54-3.86 4.14C10.6 20.13 7 17.6 7 14H5c0 4.42 3.75 8 8.5 8C18.09 22 21.5 18.5 21 14.19c-.41-3.37-2.76-6.19-6.07-7.16L13 5.83z"/></svg>
+              </button>
+              <button class="rsk-btn-icon rsk-act-delay" type="button" title="Adiar" (click)="abrirAdiamento(r.id)">
+                <svg viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+              </button>
+              <button class="rsk-btn-icon rsk-btn-done rsk-act-done" type="button" title="Concluir" (click)="updateStatus.emit({ riskId: r.id, status: 'CONCLUIDO' })">
+                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              </button>
+              <button class="rsk-btn-icon rsk-btn-danger rsk-act-delete" type="button" title="Excluir" (click)="remove.emit(r.id)">
+                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 002-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Adiamento row -->
+          @if (adiarRiskId === r.id) {
+            <tr class="rsk-sub-row">
+              <td colspan="7">
+                <div class="rsk-postpone-form">
+                  <div class="rsk-field">
+                    <label>Nova data fim</label>
+                    <input type="date" [(ngModel)]="adiamento.novaDataFim" />
+                  </div>
+                  <div class="rsk-field">
+                    <label>Motivo</label>
+                    <input [(ngModel)]="adiamento.motivo" placeholder="Motivo do adiamento" />
+                  </div>
+                  <div class="rsk-postpone-actions">
+                    <button class="rsk-btn rsk-btn-primary" type="button" (click)="confirmarAdiamento()">
+                      Confirmar adiamento
+                    </button>
+                    <button class="rsk-btn rsk-btn-sec" type="button" (click)="cancelarAdiamento()">Cancelar</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+
+          <!-- Histórico row -->
+          @if (historySorted(r).length) {
+            <tr class="rsk-hist-row">
+              <td colspan="7">
+                <div class="rsk-hist-wrap">
+                  <button class="rsk-hist-toggle" type="button" (click)="toggleHistorico(r.id)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                    {{ historicoAberto.has(r.id) ? 'Ocultar histórico' : 'Ver histórico' }}
+                    <span class="rsk-hist-count">{{ historySorted(r).length }}</span>
+                    <svg class="rsk-hist-caret" [class.rotated]="historicoAberto.has(r.id)" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
+                  </button>
+
+                  @if (historicoAberto.has(r.id)) {
+                    <div class="rsk-historico">
+                      @for (h of historySorted(r); track h.id) {
+                        <div class="rsk-hist-item">
+                          <span class="rsk-hist-tipo" [class]="h.tipo === 'CRIACAO' ? 'tipo-criacao' : h.tipo === 'ADIAMENTO' ? 'tipo-adiamento' : 'tipo-status'">
+                            {{ h.tipo }}
+                          </span>
+                          <span class="rsk-hist-date">{{ h.criadoEm | date:'dd/MM/yyyy HH:mm' }}</span>
+                          <span class="rsk-hist-desc">{{ h.descricao }}</span>
+                          @if (h.motivo) {
+                            <span class="rsk-hist-motivo">Motivo: {{ h.motivo }}</span>
+                          }
+                          @if (h.dataFimAnterior || h.dataFimNova) {
+                            <span class="rsk-hist-prazo">
+                              {{ h.dataFimAnterior | date:'dd/MM/yyyy' }}
+                              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                              {{ h.dataFimNova | date:'dd/MM/yyyy' }}
+                            </span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+</article></planner-card>
+
+
+
+
+

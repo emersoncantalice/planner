@@ -1,0 +1,51 @@
+<planner-card>
+  <section class="card auth-card">
+    <div class="auth-head">
+      <h2>Acesso</h2>
+      <div class="auth-tabs">
+        <button type="button" class="tab" [class.active]="mode === 'login'" (click)="setMode('login')" [disabled]="loading">Entrar</button>
+        <button type="button" class="tab" [class.active]="mode === 'register'" (click)="setMode('register')" [disabled]="loading">Cadastrar</button>
+      </div>
+    </div>
+    <p class="auth-subtitle">
+      @if (mode === 'login') {
+        Entre com seu usuario e senha para continuar.
+      } @else {
+        Crie sua conta preenchendo os dados abaixo.
+      }
+    </p>
+    <input [(ngModel)]="auth.username" (keydown.enter)="onEnterSubmit()" placeholder="Seu login" [disabled]="loading" />
+    <input [(ngModel)]="auth.password" (keydown.enter)="onEnterSubmit()" type="password" placeholder="Sua senha" [disabled]="loading" />
+    @if (mode === 'register') {
+      <input [(ngModel)]="auth.nome" (keydown.enter)="onEnterSubmit()" placeholder="Seu nome" [disabled]="loading" />
+      <input [(ngModel)]="auth.confirmPassword" (keydown.enter)="onEnterSubmit()" type="password" placeholder="Confirmar senha" [disabled]="loading" />
+      <div class="password-live">
+        <p [class.ok]="nomeValido" [class.error]="auth.nome && !nomeValido">
+          Nome com ao menos 3 caracteres
+        </p>
+        <p [class.ok]="usernameValido" [class.error]="auth.username && !usernameValido">
+          Login com ao menos 3 caracteres
+        </p>
+        <p [class.ok]="senhaValida" [class.error]="auth.password && !senhaValida">
+          Senha com ao menos 6 caracteres
+        </p>
+        <p [class.ok]="senhasConferem" [class.error]="senhasDivergentes">
+          Confirmacao de senha deve ser igual
+        </p>
+      </div>
+    }
+    <div class="linha auth-actions">
+      @if (mode === 'login') {
+        <button type="button" (click)="submitLogin()" [disabled]="loading">Entrar</button>
+      } @else {
+        <button type="button" (click)="submitRegister()" [disabled]="loading">Criar conta</button>
+      }
+    </div>
+    @if (formError) {
+      <p class="auth-message auth-error">{{ formError }}</p>
+    }
+    @if (mensagem) {
+      <p class="auth-message">{{ mensagem }}</p>
+    }
+  </section>
+</planner-card>

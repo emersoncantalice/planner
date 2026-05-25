@@ -1,0 +1,91 @@
+.auth-card {
+  min-width: 360px;
+  max-width: 440px;
+  margin: 0 auto;
+  display: grid;
+  gap: 10px;
+}
+
+.auth-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-head h2 {
+  margin: 0;
+}
+
+.auth-tabs {
+  display: inline-flex;
+  gap: 6px;
+  background: #eef4ff;
+  border: 1px solid #cfe0ff;
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.tab {
+  background: transparent;
+  color: #27518c;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.tab.active {
+  background: #1c63da;
+  color: #fff;
+}
+
+.auth-subtitle {
+  margin: 0 0 4px;
+  color: #4a6592;
+  font-size: .92rem;
+}
+
+.auth-actions {
+  margin-top: 4px;
+}
+
+.auth-actions button {
+  flex: 1;
+}
+
+.auth-message {
+  margin: 4px 0 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid #c9dcff;
+  background: #f3f8ff;
+  color: #23457a;
+  font-size: .88rem;
+}
+
+.auth-error {
+  border-color: #f0c4ca;
+  background: #fff5f6;
+  color: #9b2330;
+}
+
+.password-live {
+  display: grid;
+  gap: 4px;
+  margin-top: -2px;
+}
+
+.password-live p {
+  margin: 0;
+  font-size: .8rem;
+  color: #6d83a8;
+}
+
+.password-live p.ok {
+  color: #1e8e4a;
+}
+
+.password-live p.error {
+  color: #b43030;
+}

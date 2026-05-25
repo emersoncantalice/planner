@@ -1,0 +1,61 @@
+
+<planner-card><article class="card">
+  <div class="panel-head">
+    <h2>Business Epics</h2>
+    <div class="panel-actions">
+      <button type="button" class="csv-upload-btn" title="Importar epics via CSV" (click)="openCsvPicker(csvInput)">
+        <span>Importar CSV</span>
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+    </div>
+  </div>
+  <small class="csv-hint">Exemplo: Epic Pagamentos,Jira Epic,https://jira.exemplo/EPIC-123,2026-01-10,2026-03-30</small>
+  @if (formExpanded) {
+    <input [(ngModel)]="epic.nome" placeholder="Nome do Business Epic" />
+    <input [(ngModel)]="epic.aliasLink" placeholder="Alias do link (Ex.: Jira Epic)" />
+    <input [(ngModel)]="epic.jiraUrl" placeholder="Link Jira (Ex.: https://jira...)" />
+    <div class="linha">
+      <input [(ngModel)]="epic.inicio" type="date" placeholder="Inicio" />
+      <input [(ngModel)]="epic.fim" type="date" placeholder="Fim" />
+    </div>
+    @if (!editingId) {
+      <button (click)="submit()">Cadastrar Business Epic</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  }
+  <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
+  <div class="table-wrap">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('nome')">Epic{{ sortIndicator('nome') }}</th>
+          <th (click)="toggleSort('jiraUrl')">Jira{{ sortIndicator('jiraUrl') }}</th>
+          <th (click)="toggleSort('inicio')">Inicio{{ sortIndicator('inicio') }}</th>
+          <th (click)="toggleSort('fim')">Fim{{ sortIndicator('fim') }}</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of sortedEpics(); track e.id) {
+          <tr>
+            <td>{{ e.nome }}</td>
+            <td><a [href]="e.jiraUrl" target="_blank" rel="noreferrer">{{ e.aliasLink || 'Abrir' }}</a></td>
+            <td>{{ e.inicio | date:'dd/MM/yyyy' }}</td>
+            <td>{{ e.fim | date:'dd/MM/yyyy' }}</td>
+            <td class="actions">
+              <button class="sec" type="button" (click)="startEdit(e)">Editar</button>
+              <button type="button" (click)="remove.emit(e.id)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article></planner-card>
+  
+

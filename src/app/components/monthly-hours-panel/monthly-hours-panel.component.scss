@@ -1,0 +1,31 @@
+.months-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.month-cell {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #d8e6ff;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fbfdff;
+}
+
+.month-cell span {
+  font-size: .72rem;
+  color: #42659a;
+  font-weight: 700;
+}
+
+.month-cell input {
+  margin: 0;
+}
+
+.actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}

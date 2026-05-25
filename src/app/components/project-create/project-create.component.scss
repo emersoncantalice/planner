@@ -1,0 +1,37 @@
+
+.action-row { display: block; margin: 6px 0 8px; }
+.architecture-check { display: block; margin: 10px 0 6px; }
+.linha { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.linha > div { display: grid; gap: 4px; }
+.lo-cta-btn { margin: 4px 0 10px; display: inline-flex; }
+
+.percent-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.percent-input {
+  padding-right: 34px;
+}
+
+.percent-suffix {
+  position: absolute;
+  right: 12px;
+  color: #4a6da6;
+  font-size: .78rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* Remove spinner para evitar visual quebrado em alguns browsers */
+.percent-input::-webkit-outer-spin-button,
+.percent-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.percent-input[type=number] {
+  -moz-appearance: textfield;
+}
+  

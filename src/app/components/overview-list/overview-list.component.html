@@ -1,0 +1,96 @@
+<planner-card><article class="card dashboard">
+  @if (showDashboard) {
+    <div class="dash-head">
+      <h2>Dashboard de projetos</h2>
+      <label class="dash-year">
+        <span>Ano</span>
+        <select [ngModel]="anoSelecionado" (ngModelChange)="selecionarAno($event)">
+          @for (ano of anosDisponiveis(); track ano) {
+            <option [value]="ano">{{ ano }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><span>Total projetos</span><strong>{{ resumo.length }}</strong></div>
+      <div class="kpi"><span>Concluidos</span><strong>{{ projetosConcluidos() }}</strong></div>
+      <div class="kpi"><span>Progresso medio</span><strong>{{ progressoMedio() }}%</strong></div>
+      <div class="kpi"><span>Total LO ({{ anoSelecionado }})</span><strong>{{ currency(totalLo()) }}</strong></div>
+      <div class="kpi"><span>Comprometido LO ({{ anoSelecionado }})</span><strong>{{ currency(totalComprometidoLo()) }}</strong></div>
+      <div class="kpi"><span>Saldo LO ({{ anoSelecionado }})</span><strong>{{ currency(saldoLo()) }}</strong></div>
+    </div>
+  }
+
+  @if (showChart) {
+    <section class="chart">
+      <h3>Distribuicao de custo por projeto</h3>
+      @for (r of resumo; track r.id) {
+        <div class="bar-row">
+          <div class="bar-head">
+            <strong>{{ r.nome }}</strong>
+            <span>{{ currency(number(r.custoPlanejadoEquipe)) }}</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="(number(r.custoPlanejadoEquipe) / maxCustoEquipe()) * 100"></div>
+          </div>
+        </div>
+      }
+    </section>
+  }
+
+  @if (showList) {
+    <section class="proj-list">
+      <div class="proj-list-head">
+        <h3>Projetos e Demandas</h3>
+        <div class="proj-list-actions">
+          <button class="sec" type="button" (click)="exportJira.emit()">Exportar Jira (CSV)</button>
+          <button class="sec" type="button" (click)="openCreateProject.emit()">Novo projeto</button>
+        </div>
+      </div>
+      <input class="proj-search" [(ngModel)]="searchTerm" placeholder="Pesquisar projetos e demandas..." />
+      @for (r of filteredResumo(); track r.id) {
+        <div class="proj-item">
+          @if (editingProjectId !== r.id) {
+            <div (click)="select.emit(r.id)" style="cursor:pointer;">
+              <div class="proj-head">
+                <strong>{{ r.nome }}</strong>
+                <span class="status">{{ r.status }}</span>
+                <span class="situacao-badge" [class.draft]="isDraft(r)" [class.published]="!isDraft(r)">
+                  {{ situacaoLabel(r) }}
+                </span>
+              </div>
+              <div class="progress-line">
+                <div class="progress-fill" [style.width.%]="number(r.percentualConclusao)"></div>
+              </div>
+              <div class="proj-meta">
+                <span>Conclusao: {{ r.percentualConclusao }}%</span>
+                <span>Etapas: {{ r.etapasConcluidas }}/{{ r.totalEtapas }}</span>
+                <span>Saldo: {{ currency(number(r.saldo)) }}</span>
+              </div>
+            </div>
+            <div class="linha">
+              @if (canToggleSituacao(r)) {
+                <button class="sec situacao-toggle" type="button" (click)="toggleSituacao(r)" [title]="isDraft(r) ? 'Publicar projeto' : 'Voltar para rascunho'">
+                  {{ isDraft(r) ? 'Publicar' : 'Tornar rascunho' }}
+                </button>
+              }
+              <button class="sec" type="button" (click)="startEditProject(r)">Editar</button>
+              <button type="button" (click)="deleteProject.emit(r.id)">Excluir</button>
+            </div>
+          } @else {
+            <input [(ngModel)]="projectForm.nome" placeholder="Nome do projeto" />
+            <textarea [(ngModel)]="projectForm.descricao" rows="2" placeholder="Descricao do projeto"></textarea>
+            <div class="linha">
+              <button type="button" (click)="saveEditProject()">Salvar edicao</button>
+              <button class="sec" type="button" (click)="cancelEditProject()">Cancelar</button>
+            </div>
+          }
+        </div>
+      }
+      @if (!filteredResumo().length) {
+        <div class="proj-empty">Nenhum projeto encontrado para o filtro informado.</div>
+      }
+    </section>
+  }
+</article></planner-card>

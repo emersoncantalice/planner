@@ -1,0 +1,156 @@
+.people-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.person-card {
+  border: 1px solid #d9e7ff;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fbfdff;
+}
+
+.person-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.person-pico {
+  font-size: .78rem;
+  color: #355e9a;
+  font-weight: 700;
+}
+
+.person-totals {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: .78rem;
+  color: #3a5f96;
+  font-weight: 700;
+}
+
+.months-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(64px, 1fr));
+  gap: 6px;
+}
+
+.month-box {
+  border: 1px solid #d7e6ff;
+  border-radius: 8px;
+  background: #f5f9ff;
+  text-decoration: none;
+  color: #204a8a;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  min-height: 58px;
+}
+
+.month-box small {
+  font-size: .62rem;
+  font-weight: 700;
+  color: #4d6ea5;
+}
+
+.month-box strong {
+  font-size: .7rem;
+  line-height: 1.1;
+}
+
+.month-box span {
+  font-size: .62rem;
+  color: #3c5d91;
+}
+
+.month-box.on {
+  background: #e9f2ff;
+  border-color: #c4d9ff;
+}
+
+.month-box.partial {
+  background: #fff4e5;
+  border-color: #ffd39a;
+}
+
+.month-box.partial small,
+.month-box.partial strong,
+.month-box.partial span {
+  color: #a35a00;
+}
+
+.month-box.off {
+  background: #e9f8ee;
+  border-color: #b9e3c8;
+  color: #2f7a4a;
+}
+
+.month-box.off small,
+.month-box.off strong,
+.month-box.off span {
+  color: #2f7a4a;
+}
+
+.month-box:hover {
+  background: #dce9ff;
+  border-color: #9fbef7;
+}
+
+/* Capacidade restante no mês */
+.month-disponivel {
+  font-size: .58rem;
+  font-weight: 700;
+  color: #2e7d32;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-top: 2px;
+  display: inline-block;
+  line-height: 1.3;
+}
+
+.month-box.off .month-disponivel {
+  color: #2f7a4a;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: .62rem;
+}
+
+.lo-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: left;
+
+  &:hover { opacity: .75; }
+}
+
+/* Linha de total quando há múltiplas LOs no mês */
+.month-total-pct {
+  font-size: .6rem;
+  font-weight: 700;
+  color: #1d63da;
+  border-top: 1px solid #c4d9ff;
+  padding-top: 2px;
+  margin-top: 1px;
+}
+
+@media (max-width: 1200px) {
+  .months-grid {
+    grid-template-columns: repeat(6, minmax(64px, 1fr));
+  }
+}

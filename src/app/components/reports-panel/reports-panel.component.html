@@ -1,0 +1,416 @@
+<planner-card><article class="card rpt-card">
+
+  <!-- ── Cabeçalho ───────────────────────────────────────────────────────── -->
+  <div class="rpt-header">
+    <div class="rpt-header-title">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H4zM6 10h2v7H6zm5-4h2v11h-2zm5 2h2v9h-2z"/></svg>
+      <h2>Relatórios — {{ anoSelecionado }}</h2>
+    </div>
+    <div class="rpt-header-controls">
+      <select [(ngModel)]="anoSelecionado">
+        @for (ano of anosDisponiveis(); track ano) {
+          <option [value]="ano">{{ ano }}</option>
+        }
+      </select>
+      <button class="sec" type="button" (click)="exportarCsv()">
+        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" style="margin-right:4px"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zm-15 9v2h16v-2H4z"/></svg>
+        Exportar CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
+  <div class="rpt-tabs">
+    <button type="button" class="rpt-tab" [class.active]="relatorioAtivo === 'lo'" (click)="relatorioAtivo = 'lo'">
+      <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      Por LO
+    </button>
+    <button type="button" class="rpt-tab" [class.active]="relatorioAtivo === 'pessoa'" (click)="relatorioAtivo = 'pessoa'">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+      Por Pessoa
+    </button>
+    <button type="button" class="rpt-tab" [class.active]="relatorioAtivo === 'prestador'" (click)="relatorioAtivo = 'prestador'">
+      <svg viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+      Por Prestador
+    </button>
+    <button type="button" class="rpt-tab" [class.active]="relatorioAtivo === 'mensal'" (click)="relatorioAtivo = 'mensal'">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 2v3H5V5h14zM5 19V10h14v9H5zm2-7h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zm-8 3h2v2H7zm4 0h2v2h-2z"/></svg>
+      Visão Mensal
+    </button>
+    <button type="button" class="rpt-tab" [class.active]="relatorioAtivo === 'nao_alocados'" (click)="relatorioAtivo = 'nao_alocados'">
+      <svg viewBox="0 0 24 24"><path d="M15 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg>
+      Não Alocados
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RELATÓRIO 1 — Por LO                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (relatorioAtivo === 'lo') {
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-blue">
+        <span>Total Orçado</span>
+        <strong>{{ currency(totaisLo().orcamento) }}</strong>
+        <small>{{ losDoAno().length }} LO{{ losDoAno().length !== 1 ? 's' : '' }}</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-amber">
+        <span>Comprometido</span>
+        <strong>{{ currency(totaisLo().comprometido) }}</strong>
+        <small>{{ totaisLo().qtdAlocacoes }} alocaç{{ totaisLo().qtdAlocacoes !== 1 ? 'ões' : 'ão' }}</small>
+      </div>
+      <div class="rpt-kpi" [class]="totaisLo().saldo >= 0 ? 'rpt-kpi-green' : 'rpt-kpi-red'">
+        <span>Saldo Geral</span>
+        <strong>{{ currency(totaisLo().saldo) }}</strong>
+        <small>{{ totaisLo().saldo >= 0 ? 'Dentro do orçamento' : 'Extrapolado' }}</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-purple">
+        <span>Folha</span>
+        <strong>{{ currency(totaisLo().folha) }}</strong>
+        <small>{{ totaisLo().orcamento > 0 ? (totaisLo().folha / totaisLo().orcamento * 100).toFixed(1) : 0 }}% do orçado</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-teal">
+        <span>Prestadores</span>
+        <strong>{{ currency(totaisLo().terceiros) }}</strong>
+        <small>{{ totaisLo().orcamento > 0 ? (totaisLo().terceiros / totaisLo().orcamento * 100).toFixed(1) : 0 }}% do orçado</small>
+      </div>
+    </div>
+
+    <div class="rpt-table-wrap">
+      <table class="modern-table rpt-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nome</th>
+            <th>Tipo</th>
+            <th>CC</th>
+            <th>Orçamento</th>
+            <th>Comprometido</th>
+            <th>Folha</th>
+            <th>Prestadores</th>
+            <th>Saldo</th>
+            <th>Utilização</th>
+            <th>Aloc.</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of relatorioLo(); track r.codigo) {
+            <tr>
+              <td><strong>{{ r.codigo }}</strong></td>
+              <td>{{ r.nome }}</td>
+              <td><span class="rpt-badge rpt-badge-gray">{{ r.tipo }}</span></td>
+              <td class="rpt-sub">{{ r.centroCusto }}</td>
+              <td>{{ currency(r.orcamento) }}</td>
+              <td>{{ currency(r.comprometido) }}</td>
+              <td class="rpt-sub">{{ currency(r.folha) }}</td>
+              <td class="rpt-sub">{{ currency(r.terceiros) }}</td>
+              <td [class]="r.saldo >= 0 ? 'rpt-pos' : 'rpt-neg'"><strong>{{ currency(r.saldo) }}</strong></td>
+              <td>
+                <div class="rpt-progress-wrap">
+                  <div class="rpt-progress-bar" [style.width.%]="clamp(r.pctUtilizado)" [class.over]="r.pctUtilizado > 100"></div>
+                </div>
+                <span class="rpt-pct">{{ pct(r.pctUtilizado) }}</span>
+              </td>
+              <td class="rpt-center">{{ r.qtdAlocacoes }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="rpt-total-row">
+            <td colspan="4"><strong>Total</strong></td>
+            <td><strong>{{ currency(totaisLo().orcamento) }}</strong></td>
+            <td><strong>{{ currency(totaisLo().comprometido) }}</strong></td>
+            <td><strong>{{ currency(totaisLo().folha) }}</strong></td>
+            <td><strong>{{ currency(totaisLo().terceiros) }}</strong></td>
+            <td [class]="totaisLo().saldo >= 0 ? 'rpt-pos' : 'rpt-neg'"><strong>{{ currency(totaisLo().saldo) }}</strong></td>
+            <td></td>
+            <td class="rpt-center"><strong>{{ totaisLo().qtdAlocacoes }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RELATÓRIO 2 — Por Pessoa                                               -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (relatorioAtivo === 'pessoa') {
+    <div class="rpt-filters">
+      <select [(ngModel)]="filtroTipo">
+        <option value="">Todos os tipos</option>
+        <option value="FOLHA">Folha</option>
+        <option value="TERCEIRO">Prestadores de serviço</option>
+      </select>
+      <select [(ngModel)]="filtroLoId">
+        <option value="">Todas as LOs</option>
+        @for (lo of losDoAno(); track lo.id) {
+          <option [value]="lo.id">{{ lo.codigo }} — {{ lo.nome }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-sky">
+        <span>Pessoas alocadas</span>
+        <strong class="rpt-kpi-big">{{ totaisPessoa().qtd }}</strong>
+        <small>em {{ anoSelecionado }}</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-amber">
+        <span>Custo Anual Total</span>
+        <strong>{{ currency(totaisPessoa().total) }}</strong>
+      </div>
+      <div class="rpt-kpi rpt-kpi-teal">
+        <span>Custo Médio / Pessoa</span>
+        <strong>{{ totaisPessoa().qtd > 0 ? currency(totaisPessoa().total / totaisPessoa().qtd) : '-' }}</strong>
+      </div>
+    </div>
+
+    <div class="rpt-table-wrap">
+      <table class="modern-table rpt-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Perfil</th>
+            <th>Tipo</th>
+            <th>Prestador</th>
+            <th>LOs</th>
+            <th>Valor/h</th>
+            <th>Custo Anual</th>
+            <th>% do Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of relatorioPessoa(); track r.nome) {
+            <tr>
+              <td><strong>{{ r.nome }}</strong></td>
+              <td>{{ r.perfil }}</td>
+              <td>
+                <span class="rpt-badge" [class]="r.tipo === 'Prestador' ? 'rpt-badge-teal' : 'rpt-badge-blue'">
+                  {{ r.tipo }}
+                </span>
+              </td>
+              <td class="rpt-sub">{{ r.consultoria }}</td>
+              <td class="rpt-sub">{{ r.los }}</td>
+              <td>{{ currency(r.valorHora) }}</td>
+              <td><strong>{{ currency(r.custoAnual) }}</strong></td>
+              <td>
+                <div class="rpt-progress-wrap">
+                  <div class="rpt-progress-bar" [style.width.%]="totaisPessoa().total > 0 ? clamp(r.custoAnual / totaisPessoa().total * 100) : 0"></div>
+                </div>
+                <span class="rpt-pct">{{ totaisPessoa().total > 0 ? (r.custoAnual / totaisPessoa().total * 100).toFixed(1) : 0 }}%</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="rpt-total-row">
+            <td colspan="6"><strong>Total — {{ totaisPessoa().qtd }} pessoas</strong></td>
+            <td><strong>{{ currency(totaisPessoa().total) }}</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RELATÓRIO 3 — Por Prestador                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (relatorioAtivo === 'prestador') {
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-teal">
+        <span>Prestadores</span>
+        <strong class="rpt-kpi-big">{{ relatorioPrestador().length }}</strong>
+        <small>No cadastro</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-amber">
+        <span>Total Anual Terceiros</span>
+        <strong>{{ currency(totaisPrestador().totalCusto) }}</strong>
+      </div>
+      <div class="rpt-kpi rpt-kpi-sky">
+        <span>Profissionais terceirizados</span>
+        <strong class="rpt-kpi-big">{{ totaisPrestador().totalPessoas }}</strong>
+        <small>Alocados em {{ anoSelecionado }}</small>
+      </div>
+    </div>
+
+    <div class="rpt-table-wrap">
+      <table class="modern-table rpt-table">
+        <thead>
+          <tr>
+            <th>Prestador de Serviço</th>
+            <th>Pessoas</th>
+            <th>Nomes alocados</th>
+            <th>Custo Anual</th>
+            <th>% do Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of relatorioPrestador(); track r.nome) {
+            <tr>
+              <td><strong>{{ r.nome }}</strong></td>
+              <td class="rpt-center">{{ r.qtdPessoas }}</td>
+              <td class="rpt-sub">{{ r.pessoas }}</td>
+              <td><strong>{{ currency(r.custoAnual) }}</strong></td>
+              <td>
+                @if (totaisPrestador().totalCusto > 0 && r.custoAnual > 0) {
+                  <div class="rpt-progress-wrap">
+                    <div class="rpt-progress-bar rpt-bar-teal" [style.width.%]="clamp(r.custoAnual / totaisPrestador().totalCusto * 100)"></div>
+                  </div>
+                  <span class="rpt-pct">{{ (r.custoAnual / totaisPrestador().totalCusto * 100).toFixed(1) }}%</span>
+                } @else {
+                  <span class="rpt-sub">-</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="rpt-total-row">
+            <td colspan="3"><strong>Total</strong></td>
+            <td><strong>{{ currency(totaisPrestador().totalCusto) }}</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RELATÓRIO 4 — Visão Mensal                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (relatorioAtivo === 'mensal') {
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-blue">
+        <span>Folha (anual)</span>
+        <strong>{{ currency(relatorioMensal().totalFolha) }}</strong>
+      </div>
+      <div class="rpt-kpi rpt-kpi-teal">
+        <span>Prestadores (anual)</span>
+        <strong>{{ currency(relatorioMensal().totalTerceiros) }}</strong>
+      </div>
+      <div class="rpt-kpi rpt-kpi-amber">
+        <span>Total Geral</span>
+        <strong>{{ currency(relatorioMensal().totalGeral) }}</strong>
+      </div>
+      <div class="rpt-kpi rpt-kpi-purple">
+        <span>Média Mensal</span>
+        <strong>{{ currency(relatorioMensal().totalGeral / 12) }}</strong>
+        <small>Custo médio por mês</small>
+      </div>
+    </div>
+
+    <h3 class="rpt-section-title">Consolidado por Categoria</h3>
+    <div class="rpt-table-wrap">
+      <table class="modern-table rpt-table rpt-mensal-table">
+        <thead>
+          <tr>
+            <th>Categoria</th>
+            @for (mes of meses; track mes) { <th class="rpt-month-th">{{ mes }}</th> }
+            <th>Total Anual</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="rpt-row-folha">
+            <td><strong>Folha</strong></td>
+            @for (v of relatorioMensal().folha; track $index) { <td>{{ currency(v) }}</td> }
+            <td><strong>{{ currency(relatorioMensal().totalFolha) }}</strong></td>
+          </tr>
+          <tr class="rpt-row-terceiros">
+            <td><strong>Prestadores</strong></td>
+            @for (v of relatorioMensal().terceiros; track $index) { <td>{{ currency(v) }}</td> }
+            <td><strong>{{ currency(relatorioMensal().totalTerceiros) }}</strong></td>
+          </tr>
+          <tr class="rpt-row-total">
+            <td><strong>Total</strong></td>
+            @for (v of relatorioMensal().total; track $index) { <td><strong>{{ currency(v) }}</strong></td> }
+            <td><strong>{{ currency(relatorioMensal().totalGeral) }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    @if (relatorioMensal().losRows.length) {
+      <h3 class="rpt-section-title">Detalhamento por LO</h3>
+      <div class="rpt-table-wrap">
+        <table class="modern-table rpt-table rpt-mensal-table">
+          <thead>
+            <tr>
+              <th>LO</th>
+              @for (mes of meses; track mes) { <th class="rpt-month-th">{{ mes }}</th> }
+              <th>Total Anual</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (lo of relatorioMensal().losRows; track lo.codigo) {
+              <tr>
+                <td><strong>{{ lo.codigo }}</strong> <span class="rpt-sub rpt-lo-nome">{{ lo.nome }}</span></td>
+                @for (v of lo.mensal; track $index) { <td>{{ currency(v) }}</td> }
+                <td><strong>{{ currency(lo.totalAnual) }}</strong></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RELATÓRIO 5 — Não Alocados                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (relatorioAtivo === 'nao_alocados') {
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-red">
+        <span>Sem alocação</span>
+        <strong class="rpt-kpi-big">{{ relatorioNaoAlocados().length }}</strong>
+        <small>Pessoas não alocadas em {{ anoSelecionado }}</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-gray">
+        <span>Total cadastrado</span>
+        <strong class="rpt-kpi-big">{{ pessoas.length }}</strong>
+        <small>No cadastro de pessoas</small>
+      </div>
+      <div class="rpt-kpi rpt-kpi-green">
+        <span>Com alocação ativa</span>
+        <strong class="rpt-kpi-big">{{ pessoas.length - relatorioNaoAlocados().length }}</strong>
+        <small>Alocadas em {{ anoSelecionado }}</small>
+      </div>
+    </div>
+
+    @if (relatorioNaoAlocados().length === 0) {
+      <div class="rpt-empty">
+        <svg viewBox="0 0 24 24" width="48" height="48"><path fill="#16a34a" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+        <p>Todas as pessoas estão alocadas em {{ anoSelecionado }}.</p>
+      </div>
+    } @else {
+      <div class="rpt-table-wrap">
+        <table class="modern-table rpt-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Perfil</th>
+              <th>Tipo</th>
+              <th>Prestador</th>
+              <th>Valor/h</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of relatorioNaoAlocados(); track r.nome) {
+              <tr>
+                <td><strong>{{ r.nome }}</strong></td>
+                <td>{{ r.perfil }}</td>
+                <td>
+                  <span class="rpt-badge" [class]="r.tipo === 'Prestador' ? 'rpt-badge-teal' : 'rpt-badge-blue'">
+                    {{ r.tipo }}
+                  </span>
+                </td>
+                <td class="rpt-sub">{{ r.consultoria }}</td>
+                <td>{{ currency(r.valorHora) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+</article></planner-card>

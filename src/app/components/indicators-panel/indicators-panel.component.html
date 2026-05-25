@@ -1,0 +1,604 @@
+<div class="ind-wrap">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="ind-header">
+    <div class="ind-header-info">
+      <svg class="ind-icon" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+      <div>
+        <h2 class="ind-title">Indicadores</h2>
+        <p class="ind-subtitle">{{ filtered().length }} de {{ indicadores.length }} indicadores</p>
+      </div>
+    </div>
+    <div class="ind-header-actions">
+      <button class="ind-batch-btn" (click)="openBatch()" title="Atualizar ciclos de todos os indicadores ativos">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        Revisão de Ciclos
+      </button>
+      <button class="ind-add-btn" (click)="openCreate()">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+        Novo Indicador
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filters ────────────────────────────────────────────────────────── -->
+  <div class="ind-filters">
+    <div class="ind-filter-chips">
+      <button class="ind-chip" [class.active]="filterTipo === ''" (click)="filterTipo = ''">Todos</button>
+      <button class="ind-chip ind-chip-tecnico" [class.active]="filterTipo === 'TECNICO'" (click)="filterTipo = 'TECNICO'">Técnico</button>
+      <button class="ind-chip ind-chip-negocio" [class.active]="filterTipo === 'NEGOCIO'" (click)="filterTipo = 'NEGOCIO'">Negócio</button>
+      <span class="ind-chip-sep"></span>
+      <button class="ind-chip" [class.active]="filterStatus === ''" (click)="filterStatus = ''">Ativos + Inativos</button>
+      <button class="ind-chip" [class.active]="filterStatus === 'ATIVO'" (click)="filterStatus = 'ATIVO'">Só Ativos</button>
+      <button class="ind-chip" [class.active]="filterStatus === 'INATIVO'" (click)="filterStatus = 'INATIVO'">Só Inativos</button>
+    </div>
+    <input class="ind-search" type="search" placeholder="Buscar indicador…" [(ngModel)]="searchTerm" />
+  </div>
+
+  <!-- ── Create / Edit Modal ────────────────────────────────────────────── -->
+  @if (formOpen) {
+    <div class="modal-backdrop" (click)="cancelForm()"></div>
+    <div class="ind-modal" (click)="$event.stopPropagation()">
+      <div class="ind-modal-head">
+        <h3>{{ editingId ? 'Editar Indicador' : 'Novo Indicador' }}</h3>
+        <button class="ind-modal-close" (click)="cancelForm()" aria-label="Fechar">×</button>
+      </div>
+      <div class="ind-modal-body">
+        <div class="ind-form-grid">
+          <div class="ind-form-field full">
+            <label>Título *</label>
+            <input type="text" [(ngModel)]="indForm.titulo" placeholder="Ex: Taxa de defeitos" />
+          </div>
+          <div class="ind-form-field">
+            <label>Tipo *</label>
+            <select [(ngModel)]="indForm.tipo">
+              @for (t of tipos; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field">
+            <label>Categoria *</label>
+            <select [(ngModel)]="indForm.categoria">
+              @for (c of categorias; track c.value) {
+                <option [value]="c.value">{{ c.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field">
+            <label>Unidade</label>
+            <input type="text" [(ngModel)]="indForm.unidade" placeholder="Ex: %, pts, ms, itens" />
+          </div>
+          <div class="ind-form-field">
+            <label>Meta</label>
+            <input type="number" [(ngModel)]="indForm.meta" placeholder="Valor alvo" step="any" />
+          </div>
+          @if (!editingId) {
+            <div class="ind-form-field">
+              <label>Valor Atual</label>
+              <input type="number" [(ngModel)]="indForm.valorInicial" placeholder="Valor inicial (opcional)" step="any" />
+            </div>
+          }
+          <div class="ind-form-field">
+            <label>Polaridade *</label>
+            <select [(ngModel)]="indForm.polaridade">
+              @for (p of polaridades; track p.value) {
+                <option [value]="p.value">{{ p.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field">
+            <label>Frequência *</label>
+            <select [(ngModel)]="indForm.frequencia">
+              @for (f of frequencias; track f.value) {
+                <option [value]="f.value">{{ f.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field">
+            <label>Responsável</label>
+            <select [(ngModel)]="indForm.responsavel">
+              <option value="">— Sem responsável —</option>
+              @for (p of pessoasAtivas(); track p.id) {
+                <option [value]="p.nome">{{ p.nome }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field">
+            <label>Status *</label>
+            <select [(ngModel)]="indForm.status">
+              @for (s of statusOpts; track s.value) {
+                <option [value]="s.value">{{ s.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field full">
+            <label>Descrição</label>
+            <textarea [(ngModel)]="indForm.descricao" rows="3" placeholder="Contexto e objetivo do indicador…"></textarea>
+          </div>
+
+          @if (editingId) {
+            <!-- Separador: registrar novo valor atual -->
+            <div class="ind-form-sep full">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+              Registrar novo valor atual
+              <span class="ind-form-sep-hint">(opcional — cria um novo ciclo)</span>
+            </div>
+            <div class="ind-form-field">
+              <label>Novo Valor</label>
+              <input type="number" [(ngModel)]="indForm.novoValor"
+                     placeholder="Valor medido" step="any" />
+            </div>
+            <div class="ind-form-field">
+              <label>Data de Referência</label>
+              <input type="date" [(ngModel)]="indForm.novaDataReferencia" [max]="today" />
+            </div>
+          }
+        </div>
+      </div>
+      <div class="ind-modal-foot">
+        <button class="ind-btn-sec" (click)="cancelForm()">Cancelar</button>
+        <button class="ind-btn-pri" (click)="submitForm()" [disabled]="!indForm.titulo.trim()">
+          {{ editingId ? 'Salvar alterações' : 'Criar indicador' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Empty state ────────────────────────────────────────────────────── -->
+  @if (!filtered().length) {
+    <div class="ind-empty">
+      <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+      <p>Nenhum indicador encontrado.</p>
+      <button class="ind-add-btn" (click)="openCreate()">Criar primeiro indicador</button>
+    </div>
+  }
+
+  <!-- ── Main Table ──────────────────────────────────────────────────────── -->
+  @if (filtered().length) {
+    <div class="ind-table-wrap">
+      <table class="ind-main-table">
+        <thead>
+          <tr>
+            <th class="col-expand"></th>
+            <th>Tipo / Categoria</th>
+            <th>Título / Responsável</th>
+            <th>Valor Atual</th>
+            <th>Meta</th>
+            <th>Tend.</th>
+            <th>Ações</th>
+            <th>Status</th>
+            <th class="col-ops">Operações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ind of filtered(); track ind.id) {
+
+            <!-- Main row -->
+            <tr class="ind-main-row"
+                [ngClass]="[cardStatusClass(ind), selectedId === ind.id ? 'row-expanded' : '']"
+                (click)="selectCard(ind.id)">
+
+              <td class="col-expand">
+                <span class="expand-arrow">{{ selectedId === ind.id ? '▼' : '▶' }}</span>
+              </td>
+
+              <td>
+                <div class="ind-tipo-cat">
+                  <span class="ind-tipo-chip" [class.chip-tecnico]="ind.tipo === 'TECNICO'" [class.chip-negocio]="ind.tipo === 'NEGOCIO'">
+                    {{ tipoLabel(ind.tipo) }}
+                  </span>
+                  <span class="ind-cat-chip">{{ categoriaLabel(ind.categoria) }}</span>
+                </div>
+              </td>
+
+              <td>
+                <div class="ind-titulo-resp">
+                  <span class="ind-titulo-text">{{ ind.titulo }}</span>
+                  @if (ind.responsavel) {
+                    <span class="ind-resp-text">{{ ind.responsavel }}</span>
+                  }
+                </div>
+              </td>
+
+              <td>
+                @if (valorAtual(ind) != null) {
+                  <span class="ind-val-num">{{ formatVal(valorAtual(ind), ind.unidade) }}</span>
+                } @else {
+                  <span class="ind-val-none">—</span>
+                }
+              </td>
+
+              <td>
+                @if (ind.meta != null) {
+                  <span class="ind-val-meta-inline">{{ formatVal(ind.meta, ind.unidade) }}</span>
+                  @if (valorAtual(ind) != null) {
+                    <div class="ind-progress-bar">
+                      <div class="ind-progress-fill"
+                           [class.fill-ok]="metaAtingida(ind)"
+                           [class.fill-perto]="!metaAtingida(ind) && pctMeta(ind) >= 80"
+                           [style.width.%]="pctMeta(ind)">
+                      </div>
+                    </div>
+                  }
+                } @else {
+                  <span class="ind-val-none">—</span>
+                }
+              </td>
+
+              <td>
+                @if (tendencia(ind) === 'up') {
+                  <span class="ind-trend" [class.trend-good]="isGoodTrend(ind)" [class.trend-bad]="!isGoodTrend(ind)">↑</span>
+                } @else if (tendencia(ind) === 'down') {
+                  <span class="ind-trend" [class.trend-good]="isGoodTrend(ind)" [class.trend-bad]="!isGoodTrend(ind)">↓</span>
+                } @else {
+                  <span class="ind-trend trend-stable">→</span>
+                }
+              </td>
+
+              <td>
+                <span class="ind-acoes-badge" [class.chip-warn]="acoesAbertas(ind).length > 0">
+                  {{ acoesAbertas(ind).length }} aberta(s)
+                </span>
+              </td>
+
+              <td>
+                @if (ind.status === 'INATIVO') {
+                  <span class="ind-status-badge badge-inativo">Inativo</span>
+                } @else {
+                  <span class="ind-status-badge badge-ativo">Ativo</span>
+                }
+              </td>
+
+              <td class="col-ops" (click)="$event.stopPropagation()">
+                <button class="ind-row-btn ind-row-btn-cycle" (click)="openCycleModal(ind)" title="Novo ciclo">
+                  <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                  Ciclo
+                </button>
+                <button class="ind-row-btn" (click)="openActionModal(ind.id)" title="Nova ação">+ Ação</button>
+                <button class="ind-row-btn" (click)="openEdit(ind)" title="Editar">
+                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+                <button class="ind-row-btn ind-row-btn-del" (click)="excluir(ind.id)" title="Excluir">
+                  <svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+              </td>
+            </tr>
+
+            <!-- ── Expanded detail row ──────────────────────────────────── -->
+            @if (selectedId === ind.id) {
+              <tr class="ind-detail-row">
+                <td colspan="9">
+                  <div class="ind-detail-body">
+
+                    @if (ind.descricao) {
+                      <p class="ind-row-desc">{{ ind.descricao }}</p>
+                    }
+
+                    <div class="ind-detail-meta">
+                      <span>{{ frequenciaLabel(ind.frequencia) }}</span>
+                      <span class="sep">·</span>
+                      <span>{{ polaridadeLabel(ind.polaridade) }}</span>
+                      @if ((ind.ciclos ?? []).length) {
+                        <span class="sep">·</span>
+                        <span>{{ (ind.ciclos ?? []).length }} ciclos registrados</span>
+                      }
+                    </div>
+
+                    <!-- Detail tabs -->
+                    <div class="ind-detail-tabs">
+                      <button class="ind-tab" [class.active]="detailTab === 'ciclos'"
+                              (click)="detailTab = 'ciclos'; $event.stopPropagation()">
+                        <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+                        Histórico de Ciclos ({{ (ind.ciclos ?? []).length }})
+                      </button>
+                      <button class="ind-tab" [class.active]="detailTab === 'acoes'"
+                              (click)="detailTab = 'acoes'; $event.stopPropagation()">
+                        Ações ({{ acoesAbertas(ind).length }} abertas · {{ acoesConcluidasInd(ind).length }} concluídas)
+                      </button>
+                    </div>
+
+                    <!-- Ciclos tab -->
+                    @if (detailTab === 'ciclos') {
+                      @if (!(ind.ciclos ?? []).length) {
+                        <p class="ind-empty-msg">Nenhum ciclo registrado. Use "Ciclo" para registrar o primeiro valor.</p>
+                      } @else {
+                        <div class="ind-sub-table-wrap">
+                          <table class="ind-sub-table">
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>Data de referência</th>
+                                <th>Valor</th>
+                                <th>Meta</th>
+                                <th>Status</th>
+                                <th>Observação</th>
+                                <th>Registrado em</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (ciclo of (ind.ciclos ?? []).slice().reverse(); track ciclo.id) {
+                                <tr>
+                                  <td class="ind-cycle-num">{{ ciclo.numero }}</td>
+                                  <td>{{ formatDate(ciclo.dataReferencia) }}</td>
+                                  <td class="ind-cycle-val">{{ formatVal(ciclo.valor, ind.unidade) }}</td>
+                                  <td class="ind-cycle-meta">{{ ind.meta != null ? formatVal(ind.meta, ind.unidade) : '—' }}</td>
+                                  <td>
+                                    @if (ind.meta != null) {
+                                      @if (ind.polaridade === 'MAIOR_MELHOR' && ciclo.valor >= ind.meta) {
+                                        <span class="ind-badge badge-ok">✓ Atingida</span>
+                                      } @else if (ind.polaridade === 'MENOR_MELHOR' && ciclo.valor <= ind.meta) {
+                                        <span class="ind-badge badge-ok">✓ Atingida</span>
+                                      } @else {
+                                        <span class="ind-badge badge-nok">✗ Abaixo</span>
+                                      }
+                                    } @else {
+                                      <span class="ind-badge badge-neutral">—</span>
+                                    }
+                                  </td>
+                                  <td class="ind-cycle-obs">{{ ciclo.observacao || '—' }}</td>
+                                  <td>{{ formatDate(ciclo.criadoEm) }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+                      <div class="ind-detail-add-btn">
+                        <button class="ind-btn-teal" (click)="openCycleModal(ind); $event.stopPropagation()">
+                          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                          Registrar novo ciclo
+                        </button>
+                      </div>
+                    }
+
+                    <!-- Ações tab -->
+                    @if (detailTab === 'acoes') {
+                      <div class="ind-acoes-head">
+                        <h4>Ações em Aberto</h4>
+                        <button class="ind-btn-teal ind-btn-sm" (click)="openActionModal(ind.id); $event.stopPropagation()">
+                          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                          Nova Ação
+                        </button>
+                      </div>
+                      @if (!acoesAbertas(ind).length) {
+                        <p class="ind-empty-msg">Nenhuma ação em aberto para este indicador.</p>
+                      } @else {
+                        <div class="ind-acoes-list">
+                          @for (acao of acoesAbertas(ind); track acao.id) {
+                            <div class="ind-acao-item acao-aberta">
+                              <div class="ind-acao-top">
+                                <span class="ind-acao-ciclo">Ciclo {{ acao.cicloAberto }}</span>
+                                <span class="ind-acao-status status-aberta">Aberta</span>
+                                @if (acao.prazo) {
+                                  <span class="ind-acao-prazo">Prazo: {{ formatDate(acao.prazo) }}</span>
+                                }
+                              </div>
+                              <p class="ind-acao-desc">{{ acao.descricao }}</p>
+                              @if (acao.responsavel) {
+                                <p class="ind-acao-resp">{{ acao.responsavel }}</p>
+                              }
+                              <div class="ind-acao-actions">
+                                <button class="ind-acao-btn acao-btn-done" (click)="concludeAction(ind, acao); $event.stopPropagation()" title="Concluir">
+                                  <svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                  Concluir
+                                </button>
+                                <button class="ind-acao-btn" (click)="openActionModal(ind.id, acao); $event.stopPropagation()" title="Editar">
+                                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                  Editar
+                                </button>
+                                <button class="ind-acao-btn acao-btn-del" (click)="excluirAction(ind.id, acao.id); $event.stopPropagation()" title="Excluir">
+                                  <svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                </button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                      @if (acoesConcluidasInd(ind).length) {
+                        <details class="ind-acoes-concluidas-wrap">
+                          <summary>Concluídas ({{ acoesConcluidasInd(ind).length }})</summary>
+                          <div class="ind-acoes-list">
+                            @for (acao of acoesConcluidasInd(ind); track acao.id) {
+                              <div class="ind-acao-item acao-concluida">
+                                <div class="ind-acao-top">
+                                  <span class="ind-acao-ciclo">Ciclo {{ acao.cicloAberto }}</span>
+                                  @if (acao.cicloConcluido) {
+                                    <span class="ind-acao-ciclo">→ Ciclo {{ acao.cicloConcluido }}</span>
+                                  }
+                                  <span class="ind-acao-status status-concluida">Concluída</span>
+                                </div>
+                                <p class="ind-acao-desc">{{ acao.descricao }}</p>
+                                @if (acao.responsavel) { <p class="ind-acao-resp">{{ acao.responsavel }}</p> }
+                                <div class="ind-acao-actions">
+                                  <button class="ind-acao-btn" (click)="reopenAction(ind, acao); $event.stopPropagation()" title="Reabrir">
+                                    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                    Reabrir
+                                  </button>
+                                  <button class="ind-acao-btn acao-btn-del" (click)="excluirAction(ind.id, acao.id); $event.stopPropagation()" title="Excluir">
+                                    <svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                  </button>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        </details>
+                      }
+                    }
+
+                  </div>
+                </td>
+              </tr>
+            }
+
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- ── Single Cycle Modal ─────────────────────────────────────────────── -->
+  @if (cycleModalId && cycleModalInd(); as cInd) {
+    <div class="modal-backdrop" (click)="closeCycleModal()"></div>
+    <div class="ind-modal" (click)="$event.stopPropagation()">
+      <div class="ind-modal-head">
+        <h3>Novo Ciclo — {{ cInd.titulo }}</h3>
+        <button class="ind-modal-close" (click)="closeCycleModal()" aria-label="Fechar">×</button>
+      </div>
+      <div class="ind-modal-body">
+        @if (valorAtual(cInd) != null) {
+          <p class="ind-cycle-current">
+            Valor atual: <strong>{{ formatVal(valorAtual(cInd), cInd.unidade) }}</strong>
+            @if (cInd.meta != null) { · Meta: <strong>{{ formatVal(cInd.meta, cInd.unidade) }}</strong> }
+          </p>
+        }
+        <div class="ind-form-grid">
+          <div class="ind-form-field">
+            <label>Novo valor *</label>
+            <input type="number" [(ngModel)]="cycleForm.valor" placeholder="0" step="any" />
+          </div>
+          <div class="ind-form-field">
+            <label>Data de referência</label>
+            <input type="date" [(ngModel)]="cycleForm.dataReferencia" [max]="today" />
+          </div>
+          <div class="ind-form-field full">
+            <label>Observação</label>
+            <textarea [(ngModel)]="cycleForm.observacao" rows="2" placeholder="Contexto deste ciclo…"></textarea>
+          </div>
+        </div>
+        @if (acoesAbertas(cInd).length) {
+          <div class="ind-cycle-acoes">
+            <p class="ind-cycle-acoes-label">Marcar ações como concluídas neste ciclo:</p>
+            @for (acao of acoesAbertas(cInd); track acao.id) {
+              <label class="ind-acao-check">
+                <input type="checkbox"
+                       [checked]="cycleForm.acoesConcluidasIds.includes(acao.id)"
+                       (change)="toggleCycleAction(acao.id)" />
+                <span class="ind-acao-check-label">
+                  <strong>{{ acao.descricao }}</strong>
+                  @if (acao.responsavel) { <em>{{ acao.responsavel }}</em> }
+                </span>
+              </label>
+            }
+          </div>
+        }
+      </div>
+      <div class="ind-modal-foot">
+        <button class="ind-btn-sec" (click)="closeCycleModal()">Cancelar</button>
+        <button class="ind-btn-pri" (click)="submitCycle()" [disabled]="cycleForm.valor === '' || cycleForm.valor == null">Registrar Ciclo</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Batch Review Modal ─────────────────────────────────────────────── -->
+  @if (batchOpen) {
+    <div class="modal-backdrop" (click)="closeBatch()"></div>
+    <div class="ind-modal ind-modal-batch" (click)="$event.stopPropagation()">
+      <div class="ind-modal-head">
+        <div>
+          <h3>Revisão de Ciclos</h3>
+          <p class="ind-modal-sub">Preencha os valores que mudaram. Deixe em branco para não atualizar.</p>
+        </div>
+        <button class="ind-modal-close" (click)="closeBatch()" aria-label="Fechar">×</button>
+      </div>
+      <div class="ind-modal-body ind-batch-body">
+        @if (!batchEntries.length) {
+          <p class="ind-empty-msg">Nenhum indicador ativo cadastrado.</p>
+        }
+        @for (entry of batchEntries; track entry.id) {
+          <div class="ind-batch-entry" [class.batch-has-val]="entry.novoValor !== '' && entry.novoValor != null">
+            <div class="ind-batch-entry-head">
+              <div class="ind-batch-entry-info">
+                <span class="ind-batch-title">{{ entry.titulo }}</span>
+                @if (entry.valorAtual != null) {
+                  <span class="ind-batch-current">atual: {{ formatVal(entry.valorAtual, entry.unidade) }}</span>
+                }
+                @if (entry.meta != null) {
+                  <span class="ind-batch-meta">meta: {{ formatVal(entry.meta, entry.unidade) }}</span>
+                }
+              </div>
+            </div>
+            <div class="ind-batch-fields">
+              <div class="ind-form-field">
+                <label>Novo valor {{ entry.unidade ? '(' + entry.unidade + ')' : '' }}</label>
+                <input type="number" [(ngModel)]="entry.novoValor" placeholder="Deixe vazio para pular" step="any" />
+              </div>
+              <div class="ind-form-field">
+                <label>Data de referência</label>
+                <input type="date" [(ngModel)]="entry.dataReferencia" [max]="today" />
+              </div>
+              <div class="ind-form-field">
+                <label>Observação</label>
+                <input type="text" [(ngModel)]="entry.observacao" placeholder="Opcional" />
+              </div>
+            </div>
+            @if (entry.acoes.length) {
+              <details class="ind-batch-acoes" [open]="entry.acoesExpanded">
+                <summary (click)="entry.acoesExpanded = !entry.acoesExpanded">
+                  {{ entry.acoes.length }} ação(ões) em aberto — marcar concluídas
+                </summary>
+                <div class="ind-batch-acoes-list">
+                  @for (acao of entry.acoes; track acao.id) {
+                    <label class="ind-acao-check">
+                      <input type="checkbox"
+                             [checked]="entry.acoesConcluidasIds.includes(acao.id)"
+                             (change)="toggleBatchAction(entry, acao.id)" />
+                      <span class="ind-acao-check-label">
+                        <strong>{{ acao.descricao }}</strong>
+                        @if (acao.responsavel) { <em>{{ acao.responsavel }}</em> }
+                      </span>
+                    </label>
+                  }
+                </div>
+              </details>
+            }
+          </div>
+        }
+      </div>
+      <div class="ind-modal-foot">
+        <span class="ind-batch-count">{{ batchUpdateCount() }} de {{ batchEntries.length }} indicadores serão atualizados</span>
+        <button class="ind-btn-sec" (click)="closeBatch()">Cancelar</button>
+        <button class="ind-btn-pri" (click)="submitBatch()" [disabled]="!batchHasUpdates()">Salvar revisão</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Action Modal ───────────────────────────────────────────────────── -->
+  @if (actionModalId) {
+    <div class="modal-backdrop" (click)="closeActionModal()"></div>
+    <div class="ind-modal ind-modal-sm" (click)="$event.stopPropagation()">
+      <div class="ind-modal-head">
+        <h3>{{ editingActionId ? 'Editar Ação' : 'Nova Ação' }}</h3>
+        <button class="ind-modal-close" (click)="closeActionModal()" aria-label="Fechar">×</button>
+      </div>
+      <div class="ind-modal-body">
+        <div class="ind-form-grid">
+          <div class="ind-form-field full">
+            <label>Descrição *</label>
+            <textarea [(ngModel)]="actionForm.descricao" rows="3" placeholder="Descreva a ação a ser realizada…"></textarea>
+          </div>
+          <div class="ind-form-field">
+            <label>Responsável</label>
+            <select [(ngModel)]="actionForm.responsavel">
+              <option value="">— Sem responsável —</option>
+              @for (p of pessoasAtivas(); track p.id) {
+                <option [value]="p.nome">{{ p.nome }}</option>
+              }
+            </select>
+          </div>
+          <div class="ind-form-field">
+            <label>Prazo</label>
+            <input type="date" [(ngModel)]="actionForm.prazo" />
+          </div>
+        </div>
+      </div>
+      <div class="ind-modal-foot">
+        <button class="ind-btn-sec" (click)="closeActionModal()">Cancelar</button>
+        <button class="ind-btn-pri" (click)="submitAction()" [disabled]="!actionForm.descricao.trim()">
+          {{ editingActionId ? 'Salvar' : 'Criar Ação' }}
+        </button>
+      </div>
+    </div>
+  }
+
+</div>

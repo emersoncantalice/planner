@@ -1,0 +1,66 @@
+﻿
+<planner-card><article class="card">
+  <div class="panel-head">
+    <h2>Perfis e valor/hora</h2>
+    <div class="panel-actions">
+      <button type="button" class="csv-upload-btn" title="Importar perfis via CSV" (click)="openCsvPicker(csvInput)">
+        <span>Importar CSV</span>
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+    </div>
+  </div>
+  <small class="csv-hint">Exemplo: "Desenvolvedor Frontend Senior",150,true</small>
+  @if (formExpanded) {
+    <input [(ngModel)]="perfil.nomePerfil" placeholder="Ex.: Desenvolvedor Frontend Senior" />
+    <input [(ngModel)]="perfil.nivel" placeholder="Nivel (Junior, Pleno, Senior)" />
+    <input [(ngModel)]="perfil.departamento" placeholder="Departamento (Ex.: Tecnologia)" />
+    <label class="check">
+      <input [(ngModel)]="perfil.debitaLo" type="checkbox" />
+      Debita da LO
+    </label>
+    <textarea [(ngModel)]="perfil.observacoes" placeholder="Observacoes do perfil (competencias, escopo, etc.)"></textarea>
+    <input
+      [ngModel]="valorHoraMasked"
+      (ngModelChange)="onValorHoraChange($event)"
+      inputmode="numeric"
+      placeholder="R$ 0,00" />
+    @if (!editingId) {
+      <button (click)="submit()">Cadastrar perfil</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  }
+  <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
+  <div class="table-wrap">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('nomePerfil')">Perfil{{ sortIndicator('nomePerfil') }}</th>
+          <th (click)="toggleSort('debitaLo')">Debita LO{{ sortIndicator('debitaLo') }}</th>
+          <th (click)="toggleSort('valorHora')">Valor/h{{ sortIndicator('valorHora') }}</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of sortedPerfis(); track p.id) {
+          <tr>
+            <td>{{ p.nomePerfil }}</td>
+            <td>{{ p.debitaLo ? 'Sim' : 'Não' }}</td>
+            <td>R$ {{ p.valorHora }}</td>
+            <td class="actions">
+              <button class="sec" type="button" (click)="startEdit(p)">Editar</button>
+              <button type="button" (click)="remove.emit(p.id)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article></planner-card>
+  
+
+

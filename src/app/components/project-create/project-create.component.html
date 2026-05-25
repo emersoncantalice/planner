@@ -1,0 +1,86 @@
+<planner-card><article class="card">
+  @if (showHeader) {
+    <div class="panel-head">
+      <h2>Projetos</h2>
+      <div class="panel-actions">
+        <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      </div>
+    </div>
+  }
+
+  @if (shouldShowForm()) {
+    <label>Nome do projeto</label>
+    <input [(ngModel)]="projeto.nome" placeholder="Ex.: Implantacao do e-commerce" />
+
+    <label>Cliente/area solicitante</label>
+    <input [(ngModel)]="projeto.cliente" placeholder="Ex.: Comercial" />
+
+    <label>Responsavel</label>
+    <input [(ngModel)]="projeto.responsavel" placeholder="Ex.: Maria Souza" />
+
+    <div class="linha">
+      <div>
+        <label>Inicio previsto</label>
+        <input [(ngModel)]="projeto.inicioPrevisto" type="date" />
+      </div>
+      <div>
+        <label>Fim previsto</label>
+        <input [(ngModel)]="projeto.fimPrevisto" type="date" />
+      </div>
+    </div>
+
+    <label>Prioridade</label>
+    <select [(ngModel)]="projeto.prioridade">
+      <option value="MEDIA">Prioridade media</option>
+      <option value="ALTA">Prioridade alta</option>
+      <option value="BAIXA">Prioridade baixa</option>
+    </select>
+
+    <label>LO vinculada</label>
+    <select [(ngModel)]="projeto.linhaOrcamentariaId">
+      <option value="">Selecione a LO vinculada</option>
+      @for (lo of linhasOrcamentarias; track lo.id) {
+        <option [value]="lo.id">{{ lo.codigo }} - {{ lo.nome }} (R$ {{ lo.valorTotal }})</option>
+      }
+    </select>
+    <button class="sec lo-cta-btn" type="button" (click)="openBudgetLines.emit()">Cadastrar LO</button>
+
+    <label>% da LO para este projeto</label>
+    <div class="percent-field">
+      <input
+        class="percent-input"
+        [(ngModel)]="projeto.percentualLo"
+        (ngModelChange)="onPercentualLoChange($event)"
+        type="number"
+        min="0"
+        max="100"
+        step="0.01"
+        placeholder="Ex.: 35,00" />
+      <span class="percent-suffix">%</span>
+    </div>
+    <p>
+      Orcamento previsto derivado: <strong>{{ currency(orcamentoPrevistoDerivado()) }}</strong>
+    </p>
+
+    <label>Business Epic vinculado</label>
+    <select [(ngModel)]="projeto.businessEpicId">
+      <option value="">Selecione o Business Epic vinculado</option>
+      @for (e of businessEpics; track e.id) {
+        <option [value]="e.id">{{ e.nome }}</option>
+      }
+    </select>
+    <div class="action-row">
+      <button class="sec" type="button" (click)="openBusinessEpics.emit()">Cadastrar Business Epic</button>
+    </div>
+
+    <label class="check architecture-check">
+      <input [(ngModel)]="projeto.precisaArquitetura" type="checkbox" />
+      Precisa de desenho de arquitetura
+    </label>
+
+    <label>Descricao</label>
+    <textarea [(ngModel)]="projeto.descricao" placeholder="Ex.: Projeto para lancar a loja online em 60 dias"></textarea>
+
+    <button type="button" (click)="submit()">Criar</button>
+  }
+</article></planner-card>

@@ -1,0 +1,21 @@
+<planner-card><article class="card">
+  <h2>Horas por mes (base Folha)</h2>
+  <p>Defina a quantidade de horas por mes usada para calcular o valor/hora de pessoas da Folha.</p>
+
+  <div class="months-grid">
+    @for (m of meses; track m.num) {
+      <label class="month-cell">
+        <span>{{ m.sigla }}</span>
+        <input
+          type="number"
+          min="1"
+          [ngModel]="getHoras(m.num)"
+          (ngModelChange)="setDraftHoras(m.num, $event)" />
+      </label>
+    }
+  </div>
+
+  <div class="actions">
+    <button type="button" class="pri" (click)="salvarTodos()">Salvar horas</button>
+  </div>
+</article></planner-card>

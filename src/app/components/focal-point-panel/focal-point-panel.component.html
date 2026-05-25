@@ -1,0 +1,59 @@
+<planner-card><article class="card">
+  <div class="panel-head">
+    <h2>Pontos focais</h2>
+    <div class="panel-actions">
+      <button type="button" class="csv-upload-btn" title="Importar pontos focais via CSV" (click)="openCsvPicker(csvInput)">
+        <span>Importar CSV</span>
+        <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
+      </button>
+      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+    </div>
+  </div>
+  <small class="csv-hint">Exemplo: Riscos e Controles,Gestao de riscos,risco@empresa.com,(11) 98888-7777</small>
+
+  @if (formExpanded) {
+    <input [(ngModel)]="pontoFocal.area" placeholder="Area" />
+    <input [(ngModel)]="pontoFocal.responsavelPor" placeholder="Responsavel por" />
+    <input [(ngModel)]="pontoFocal.email" placeholder="Email" />
+    <input [(ngModel)]="pontoFocal.telefone" (input)="onPhoneInput()" placeholder="Telefone" />
+    @if (!editingId) {
+      <button (click)="submit()">Cadastrar ponto focal</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  }
+
+  <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
+
+  <div class="table-wrap">
+    <table class="modern-table">
+      <thead>
+        <tr>
+          <th (click)="toggleSort('area')">Area{{ sortIndicator('area') }}</th>
+          <th (click)="toggleSort('responsavelPor')">Responsavel por{{ sortIndicator('responsavelPor') }}</th>
+          <th (click)="toggleSort('email')">Email{{ sortIndicator('email') }}</th>
+          <th (click)="toggleSort('telefone')">Telefone{{ sortIndicator('telefone') }}</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of sortedPontosFocais(); track p.id) {
+          <tr>
+            <td>{{ p.area }}</td>
+            <td>{{ p.responsavelPor }}</td>
+            <td>{{ p.email }}</td>
+            <td>{{ p.telefone }}</td>
+            <td class="actions">
+              <button class="sec" type="button" (click)="startEdit(p)">Editar</button>
+              <button type="button" (click)="remove.emit(p.id)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article></planner-card>
+

@@ -1,0 +1,57 @@
+<planner-card><article class="card">
+  <h2>Alocacoes por pessoa</h2>
+  <p>Visao anual por pessoa: clique no mes para abrir a aba de alocacoes na LO.</p>
+
+  <div class="toolbar-row">
+    <label for="anoPessoa">Ano</label>
+    <select id="anoPessoa" [ngModel]="anoSelecionado" (ngModelChange)="selecionarAno($event)">
+      @for (ano of anosDisponiveis(); track ano) {
+        <option [value]="ano">{{ ano }}</option>
+      }
+    </select>
+  </div>
+
+  <input [(ngModel)]="searchTerm" placeholder="Pesquisar pessoa, mes ou LO..." />
+
+  <div class="people-grid">
+    @for (p of pessoasAno(); track p.nomePessoa) {
+      <section class="person-card">
+        <header class="person-head">
+          <strong>{{ p.nomePessoa }}</strong>
+          <span class="person-pico">Pico: {{ p.picoPercentual.toFixed(2) }}%</span>
+        </header>
+        <div class="person-totals">
+          <span>{{ p.totalHorasAno }}h no ano</span>
+          <span>{{ currency(p.totalValorAno) }}</span>
+        </div>
+
+        <div class="months-grid">
+          @for (m of p.meses; track m.monthIndex) {
+            <div
+              class="month-box"
+              [class.on]="m.alocado"
+              [class.partial]="m.alocado && m.percentual < 100"
+              [class.off]="!m.alocado">
+              <small>{{ m.mes }}</small>
+              @if (m.alocado) {
+                @for (l of m.linhas; track l.loId) {
+                  <button type="button" class="lo-link" (click)="abrirAlocacaoLinha(l)">{{ l.loLabel }}</button>
+                  <span>{{ l.percentual.toFixed(0) }}%</span>
+                }
+                @if (m.linhas.length > 1) {
+                  <span class="month-total-pct">= {{ m.percentual.toFixed(0) }}%</span>
+                }
+                @if (m.percentual < 100) {
+                  <span class="month-disponivel">+{{ (100 - m.percentual).toFixed(0) }}% livre</span>
+                }
+              } @else {
+                <strong>-</strong>
+                <span class="month-disponivel">100% livre</span>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</article></planner-card>

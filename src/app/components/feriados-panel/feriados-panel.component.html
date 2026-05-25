@@ -1,0 +1,199 @@
+<div class="fp-root card full-row">
+
+  <!-- ── Cabeçalho ────────────────────────────────────────────────────── -->
+  <div class="fp-header">
+    <div class="fp-title-wrap">
+      <svg class="fp-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
+      </svg>
+      <h2>Feriados e Dias Úteis</h2>
+    </div>
+    <button class="fp-add-btn" (click)="abrirNovoCustom()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      Novo feriado
+    </button>
+  </div>
+
+  <!-- ── Dias úteis ─────────────────────────────────────────────────── -->
+  <section class="fp-section">
+    <h3 class="fp-section-title">Dias da semana úteis</h3>
+    <div class="fp-weekdays">
+      @for (nome of diasNomes; track $index) {
+        <button
+          class="fp-day-btn"
+          [class.fp-day-active]="svc.diasUteis()[$index]"
+          (click)="toggleDia($index)"
+          [title]="diasNomesLong[$index]">
+          {{ nome }}
+        </button>
+      }
+    </div>
+    <p class="fp-weekday-hint">
+      Clique para ativar/desativar. Dias marcados em azul são dias úteis.
+    </p>
+  </section>
+
+  <!-- ── Feriados nacionais ─────────────────────────────────────────── -->
+  <section class="fp-section">
+    <div class="fp-section-head">
+      <h3 class="fp-section-title">Feriados nacionais</h3>
+      <div class="fp-year-nav">
+        <button class="fp-year-btn" (click)="mudarAno(-1)" title="Ano anterior">‹</button>
+        <span class="fp-year-label">{{ anoRef() }}</span>
+        <button class="fp-year-btn" (click)="mudarAno(1)" title="Próximo ano">›</button>
+      </div>
+    </div>
+    <p class="fp-section-hint">Você pode renomear ou remover feriados nacionais do calendário de dias úteis.</p>
+    <div class="fp-list fp-list-federal">
+      @for (f of federaisDoAno(); track f.data) {
+        <div class="fp-row fp-row-federal" [class.fp-row-disabled]="f.disabled">
+          <span class="fp-date-badge fp-badge-federal">{{ formatDate(f.data) }}</span>
+          <span class="fp-name">
+            {{ f.nome }}
+            @if (f.editado && !f.disabled) {
+              <span class="fp-renamed-chip" [title]="'Nome original: ' + f.nomeOriginal">editado</span>
+            }
+          </span>
+          @if (f.disabled) {
+            <span class="fp-tag fp-tag-removido">Removido</span>
+          } @else {
+            <span class="fp-tag fp-tag-federal">Federal</span>
+          }
+          <div class="fp-row-actions">
+            @if (f.disabled) {
+              <!-- Restaurar -->
+              <button class="fp-restore-btn" (click)="restaurarFederal(f.data)" title="Restaurar feriado">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+                Restaurar
+              </button>
+            } @else {
+              <!-- Editar nome -->
+              <button class="fp-edit-btn" (click)="abrirEditarFederal(f)" title="Renomear">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              </button>
+              <!-- Remover do calendário -->
+              <button class="fp-del-btn" (click)="desabilitarFederal(f.data)" title="Remover do calendário">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zm2.46-7.12 1.41-1.41L12 12.59l2.12-2.12 1.41 1.41L13.41 14l2.12 2.12-1.41 1.41L12 15.41l-2.12 2.12-1.41-1.41L10.59 14zM15.5 4l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ── Feriados personalizados ───────────────────────────────────── -->
+  <section class="fp-section">
+    <h3 class="fp-section-title">Feriados personalizados</h3>
+    @if (allCustoms().length === 0) {
+      <p class="fp-empty">Nenhum feriado personalizado cadastrado. Clique em "Novo feriado" para adicionar.</p>
+    } @else {
+      <div class="fp-list">
+        @for (f of allCustoms(); track f.id) {
+          <div class="fp-row">
+            <span class="fp-date-badge">{{ formatDate(f.data) }}</span>
+            <span class="fp-name">{{ f.nome }}</span>
+            <span class="fp-tag" [class]="'fp-tag-' + f.tipo">{{ tipoLabels[f.tipo] }}</span>
+            <div class="fp-row-actions">
+              <button class="fp-edit-btn" (click)="abrirEditarCustom(f)" title="Editar">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              </button>
+              <button class="fp-del-btn" (click)="removerCustom(f.id)" title="Remover">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zm2.46-7.12 1.41-1.41L12 12.59l2.12-2.12 1.41 1.41L13.41 14l2.12 2.12-1.41 1.41L12 15.41l-2.12 2.12-1.41-1.41L10.59 14zM15.5 4l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Modal — feriado personalizado (novo / editar)
+══════════════════════════════════════════════════════════════════════════ -->
+@if (modalMode() === 'custom') {
+  <div class="fp-backdrop" (click)="fecharModal()"></div>
+  <div class="fp-modal card" (click)="$event.stopPropagation()">
+    <div class="fp-modal-head">
+      <h3>{{ editingCustomId() ? 'Editar feriado' : 'Novo feriado personalizado' }}</h3>
+      <button class="fp-close-btn" (click)="fecharModal()" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="fp-modal-body">
+      <label class="fp-label">
+        Data
+        <input type="date"
+          [ngModel]="customForm().data"
+          (ngModelChange)="customForm.update(f => ({ ...f, data: $event }))" />
+      </label>
+      <label class="fp-label">
+        Nome do feriado
+        <input type="text"
+          [ngModel]="customForm().nome"
+          (ngModelChange)="customForm.update(f => ({ ...f, nome: $event }))"
+          placeholder="Ex: Aniversário da cidade" />
+      </label>
+      <label class="fp-label">
+        Tipo
+        <select
+          [ngModel]="customForm().tipo"
+          (ngModelChange)="customForm.update(f => ({ ...f, tipo: $event }))">
+          <option value="municipal">Municipal</option>
+          <option value="estadual">Estadual</option>
+          <option value="facultativo">Facultativo</option>
+          <option value="outro">Outro</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="fp-modal-footer">
+      <button class="fp-cancel-btn" (click)="fecharModal()">Cancelar</button>
+      <button class="fp-save-btn" (click)="salvarCustom()"
+        [disabled]="!customForm().data || !customForm().nome.trim()">
+        {{ editingCustomId() ? 'Salvar alterações' : 'Adicionar feriado' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Modal — renomear feriado federal
+══════════════════════════════════════════════════════════════════════════ -->
+@if (modalMode() === 'federal') {
+  <div class="fp-backdrop" (click)="fecharModal()"></div>
+  <div class="fp-modal card" (click)="$event.stopPropagation()">
+    <div class="fp-modal-head">
+      <h3>Editar nome do feriado nacional</h3>
+      <button class="fp-close-btn" (click)="fecharModal()" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="fp-modal-body">
+      <!-- Data readonly -->
+      <label class="fp-label">
+        Data (não editável)
+        <input type="text" [value]="formatDate(federalForm().data)" disabled class="fp-input-disabled" />
+      </label>
+      <!-- Nome original como referência -->
+      <p class="fp-original-hint">
+        Nome original: <strong>{{ federalForm().nomeOriginal }}</strong>
+      </p>
+      <label class="fp-label">
+        Nome personalizado
+        <input type="text"
+          [ngModel]="federalForm().nomeCustom"
+          (ngModelChange)="federalForm.update(f => ({ ...f, nomeCustom: $event }))"
+          placeholder="{{ federalForm().nomeOriginal }}" />
+      </label>
+    </div>
+
+    <div class="fp-modal-footer">
+      <button class="fp-cancel-btn" (click)="fecharModal()">Cancelar</button>
+      <button class="fp-save-btn" (click)="salvarFederal()"
+        [disabled]="!federalForm().nomeCustom.trim()">
+        Salvar nome
+      </button>
+    </div>
+  </div>
+}

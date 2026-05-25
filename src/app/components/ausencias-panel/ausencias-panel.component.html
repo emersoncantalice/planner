@@ -1,0 +1,185 @@
+<planner-card><article class="card">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="panel-head">
+    <h2>
+      <span class="abs-title-icon">🗓</span>
+      Férias &amp; Ausências
+    </h2>
+    <div class="panel-actions">
+      <div class="year-nav">
+        <button type="button" class="sec year-btn" (click)="ano = ano - 1">‹</button>
+        <span class="year-label">{{ ano }}</span>
+        <button type="button" class="sec year-btn" (click)="ano = ano + 1">›</button>
+      </div>
+      <button type="button" class="sec" (click)="openCreate()">+ Registrar ausência</button>
+    </div>
+  </div>
+
+  <!-- ── Summary chips ──────────────────────────────────────────────────── -->
+  <div class="abs-chips">
+    @for (tipo of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track tipo) {
+      <button type="button" class="abs-chip"
+        [class.active]="filterTipo === tipo"
+        [style.--chip-color]="CORES[tipo]"
+        (click)="filterTipo = filterTipo === tipo ? '' : tipo">
+        <span class="chip-dot" [style.background]="CORES[tipo]"></span>
+        {{ TIPOS[tipo] }}
+        @if (totalPorTipo(tipo) > 0) {
+          <span class="chip-count">{{ totalPorTipo(tipo) }}</span>
+        }
+      </button>
+    }
+    @if (filterTipo) {
+      <button type="button" class="abs-chip abs-chip-clear" (click)="filterTipo = ''">✕ Limpar filtro</button>
+    }
+  </div>
+
+  <!-- ── Search ─────────────────────────────────────────────────────────── -->
+  <input [(ngModel)]="searchPessoa" placeholder="Pesquisar pessoa..." class="abs-search" />
+
+  <!-- ── Form modal ─────────────────────────────────────────────────────── -->
+  @if (formOpen) {
+    <div class="abs-form-card">
+      <h3>{{ editingId ? 'Editar ausência' : 'Registrar ausência' }}</h3>
+      <div class="abs-form-grid">
+        <div class="abs-form-field">
+          <label>Pessoa</label>
+          <select [(ngModel)]="form.pessoaId" (ngModelChange)="onPessoaChange()">
+            <option value="">Selecione...</option>
+            @for (p of pessoas; track p.id) {
+              <option [value]="p.id">{{ p.nome }}</option>
+            }
+          </select>
+        </div>
+        <div class="abs-form-field">
+          <label>Tipo</label>
+          <select [(ngModel)]="form.tipo">
+            @for (t of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track t) {
+              <option [value]="t">{{ TIPOS[t] }}</option>
+            }
+          </select>
+        </div>
+        <div class="abs-form-field">
+          <label>Início</label>
+          <input type="date" [(ngModel)]="form.inicio" />
+        </div>
+        <div class="abs-form-field">
+          <label>Fim</label>
+          <input type="date" [(ngModel)]="form.fim" />
+        </div>
+        <div class="abs-form-field abs-form-full">
+          <label>Observação (opcional)</label>
+          <input [(ngModel)]="form.observacao" placeholder="Ex: férias de verão" />
+        </div>
+        <div class="abs-form-field abs-form-full abs-recorrente">
+          <label class="check-label">
+            <input type="checkbox" [(ngModel)]="form.recorrente" />
+            Recorrente — repete todo ano no mesmo período (usa apenas dia/mês)
+          </label>
+        </div>
+      </div>
+      <div class="linha">
+        <button (click)="submit()">{{ editingId ? 'Salvar' : 'Registrar' }}</button>
+        <button class="sec" type="button" (click)="cancelForm()">Cancelar</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Annual calendar ─────────────────────────────────────────────────── -->
+  @if (pessoas.length === 0) {
+    <div class="abs-empty">
+      <p>Nenhuma pessoa cadastrada. Cadastre pessoas primeiro.</p>
+    </div>
+  } @else {
+    <div class="abs-calendar-wrap">
+      <table class="abs-cal-table">
+        <thead>
+          <tr>
+            <th class="abs-col-pessoa">Pessoa</th>
+            @for (mes of MESES; track $index) {
+              <th class="abs-col-mes">{{ mes }}</th>
+            }
+            <th class="abs-col-dias">Dias</th>
+            <th class="abs-col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of pessoasFiltradas(); track p.id) {
+            <!-- main row -->
+            <tr class="abs-row" [class.abs-row-expanded]="isExpanded(p.id)">
+              <td class="abs-cell-pessoa">
+                <button type="button" class="abs-expand-btn" (click)="toggleRow(p.id)" [title]="isExpanded(p.id) ? 'Recolher' : 'Ver detalhes'">
+                  {{ isExpanded(p.id) ? '▾' : '▸' }}
+                </button>
+                <span class="abs-pessoa-nome" [title]="p.nome">{{ p.nome }}</span>
+              </td>
+              @for (mes of MESES; track $index) {
+                <td class="abs-cell-mes">
+                  <div class="abs-month-bar-wrap">
+                    @for (bar of barsForPersonMonth(p.id, $index); track bar.ab.id) {
+                      <div class="abs-bar"
+                        [style.left.%]="bar.left"
+                        [style.width.%]="bar.width"
+                        [style.background]="bar.color"
+                        [title]="bar.label + ': ' + fmtDate(bar.ab.inicio) + ' → ' + fmtDate(bar.ab.fim) + (bar.ab.observacao ? ' | ' + bar.ab.observacao : '') + (bar.ab.recorrente ? ' ↺' : '')">
+                      </div>
+                    }
+                  </div>
+                </td>
+              }
+              <td class="abs-cell-dias">
+                @if (diasAusentePorPessoa(p.id) > 0) {
+                  <span class="abs-dias-badge">{{ diasAusentePorPessoa(p.id) }}d</span>
+                } @else {
+                  <span class="abs-dias-vazio">—</span>
+                }
+              </td>
+              <td class="abs-cell-actions">
+                <button type="button" class="sec abs-add-btn" (click)="openCreate(p.id)" title="Adicionar ausência">+</button>
+              </td>
+            </tr>
+
+            <!-- expanded detail rows -->
+            @if (isExpanded(p.id)) {
+              @for (a of ausenciasDaPessoa(p.id); track a.id) {
+                <tr class="abs-detail-row">
+                  <td class="abs-detail-cell" colspan="1">
+                    <span class="abs-detail-indent"></span>
+                    <span class="abs-tipo-dot" [style.background]="CORES[a.tipo]"></span>
+                    <span class="abs-detail-tipo">{{ TIPOS[a.tipo] }}</span>
+                  </td>
+                  <td class="abs-detail-dates" colspan="12">
+                    <span class="abs-detail-period">{{ fmtDate(a.inicio) }} → {{ fmtDate(a.fim) }}</span>
+                    @if (a.recorrente) { <span class="abs-recorrente-tag">↺ recorrente</span> }
+                    @if (a.observacao) { <span class="abs-obs">{{ a.observacao }}</span> }
+                  </td>
+                  <td></td>
+                  <td class="abs-detail-actions">
+                    <button type="button" class="sec" (click)="startEdit(a)">Editar</button>
+                    <button type="button" (click)="remove.emit(a.id)">Excluir</button>
+                  </td>
+                </tr>
+              }
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Legend ──────────────────────────────────────────────────────────── -->
+    <div class="abs-legend">
+      @for (tipo of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track tipo) {
+        <span class="abs-legend-item">
+          <span class="abs-legend-dot" [style.background]="CORES[tipo]"></span>
+          {{ TIPOS[tipo] }}
+        </span>
+      }
+      <span class="abs-legend-item">
+        <span class="abs-legend-tag">↺</span>
+        Recorrente (anual)
+      </span>
+    </div>
+  }
+
+</article></planner-card>
