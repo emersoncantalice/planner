@@ -997,7 +997,10 @@ export class App {
       inicioPlanejado: this.toOffsetDateTime(item.inicioPlanejado),
       fimPlanejado: this.toOffsetDateTime(item.fimPlanejado)
     }).subscribe({
-      next: (res) => this.projetoSelecionado.set(res),
+      next: (res) => {
+        this.projetoSelecionado.set(res);
+        this.carregarAtividades();
+      },
       error: () => {}
     });
   }
@@ -1252,9 +1255,13 @@ export class App {
     }).subscribe({
       next: (res) => {
         this.projetoSelecionado.set(res);
+        this.carregarAtividades();
         if (replanejamento) {
           this.api.addReplanningEvent(this.token(), res.id, replanejamento).subscribe({
-            next: (res2) => this.projetoSelecionado.set(res2),
+            next: (res2) => {
+              this.projetoSelecionado.set(res2);
+              this.carregarAtividades();
+            },
             error: () => {}
           });
         }
@@ -1267,7 +1274,10 @@ export class App {
     if (!this.projetoSelecionado()) return;
     this.confirmarExclusao('Confirma a exclusao desta atividade do cronograma?', () => {
       this.api.deleteScheduleItem(this.token(), this.projetoSelecionado().id, itemId).subscribe({
-        next: () => this.selecionarProjeto(this.projetoSelecionado().id),
+        next: () => {
+          this.selecionarProjeto(this.projetoSelecionado().id);
+          this.carregarAtividades();
+        },
         error: () => {}
       });
     });

@@ -918,14 +918,21 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return this.dragPreview?.itemId === item.id;
   }
 
+  private isConcluida(item: any): boolean {
+    const statusConcluido = (item?.status || '').toUpperCase() === 'CONCLUIDO';
+    const pctConcluido = Number(this.effectivePct(item) || 0) >= 100;
+    return statusConcluido || pctConcluido;
+  }
+
   // ---
   isAtrasado(item: any): boolean {
     if (!item.fimPlanejado) return false;
-    if ((item.status || '').toUpperCase() === 'CONCLUIDO') return false;
+    if (this.isConcluida(item)) return false;
     return new Date(item.fimPlanejado) < new Date();
   }
 
   effectiveStatus(item: any): string {
+    if (this.isConcluida(item)) return 'CONCLUIDO';
     return this.isAtrasado(item) ? 'ATRASADO' : (item.status || 'PLANEJADO');
   }
 

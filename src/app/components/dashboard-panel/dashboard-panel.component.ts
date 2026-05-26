@@ -89,19 +89,19 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     let pool: any[];
     switch (this.filtroMonitoramento) {
       case 'riscos':
-        pool = this.riscosAbertos().map(r => ({ ...r, _tipo: 'risco' }));
+        pool = this.riscosAbertosFilt().map(r => ({ ...r, _tipo: 'risco' }));
         break;
       case 'incidentes':
-        pool = this.incidentesAbertos().map(i => ({ ...i, _tipo: 'incidente' }));
+        pool = this.incidentesAbertosFilt().map(i => ({ ...i, _tipo: 'incidente' }));
         break;
       case 'debitos':
-        pool = this.debitosAbertos().map(d => ({ ...d, _tipo: 'debito' }));
+        pool = this.debitosAbertosFilt().map(d => ({ ...d, _tipo: 'debito' }));
         break;
       default:
         pool = [
-          ...this.riscosAbertos().map(r   => ({ ...r, _tipo: 'risco' })),
-          ...this.incidentesAbertos().map(i => ({ ...i, _tipo: 'incidente' })),
-          ...this.debitosAbertos().map(d   => ({ ...d, _tipo: 'debito' })),
+          ...this.riscosAbertosFilt().map(r   => ({ ...r, _tipo: 'risco' })),
+          ...this.incidentesAbertosFilt().map(i => ({ ...i, _tipo: 'incidente' })),
+          ...this.debitosAbertosFilt().map(d   => ({ ...d, _tipo: 'debito' })),
         ];
     }
     return pool
@@ -111,10 +111,10 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
 
   totalFiltrado(): number {
     switch (this.filtroMonitoramento) {
-      case 'riscos':     return this.riscosAbertos().length;
-      case 'incidentes': return this.incidentesAbertos().length;
-      case 'debitos':    return this.debitosAbertos().length;
-      default:           return this.totalMonitoramento();
+      case 'riscos':     return this.riscosAbertosFilt().length;
+      case 'incidentes': return this.incidentesAbertosFilt().length;
+      case 'debitos':    return this.debitosAbertosFilt().length;
+      default:           return this.totalMonitoramentoFilt();
     }
   }
 
@@ -218,9 +218,12 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
 
   private orcamentoLo(lo: any): number {
     const aj = this.ajustes.filter((a: any) => a.budgetLineId === lo.id);
-    const cr = aj.filter((a: any) => a.tipo === 'CREDITO').reduce((s: number, a: any) => s + this.num(a.valor), 0);
-    const db = aj.filter((a: any) => a.tipo === 'DEBITO').reduce((s: number, a: any) => s + this.num(a.valor), 0);
-    return this.num(lo.valorTotal) + cr - db;
+    const delta = aj.reduce((s: number, a: any) => {
+      const tipo = String(a?.tipo || '').toUpperCase();
+      const valor = this.num(a?.valor);
+      return s + (tipo === 'APORTE' ? valor : -valor);
+    }, 0);
+    return this.num(lo.valorTotal) + delta;
   }
 
   orcamentoTotal(): number {
@@ -303,6 +306,18 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     return horas > 0 ? horas : 160;
   }
 
+  private categoriaDaAlocacao(a: any): 'FOLHA' | 'TERCEIRO' {
+    const pessoa = this.pessoas.find((p: any) =>
+      (p?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
+    );
+    const tv = String(pessoa?.tipoVinculo || a?.tipoVinculo || '').toUpperCase();
+    return tv === 'TERCEIRO' || tv === 'PRESTADOR' ? 'TERCEIRO' : 'FOLHA';
+  }
+
+  private horasEfetivas(monthIndex: number, categoria: 'FOLHA' | 'TERCEIRO'): number {
+    return categoria === 'FOLHA' ? 160 : this.getHorasMes(monthIndex);
+  }
+
   private debitaLoDaAlocacao(a: any): boolean {
     if (a?.debitaLo != null) return !!a.debitaLo;
     const pessoa = this.pessoas.find((p: any) =>
@@ -324,13 +339,8 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   }
 
   private custoAnualAlocacao(a: any): number {
-    const vh = this.valorHoraDaAlocacao(a);
-    if (!vh) return 0;
-    const pct = this.getPercentual(a?.id);
     let total = 0;
-    for (let mi = 0; mi < 12; mi++) {
-      total += vh * this.getHorasMes(mi) * (pct / 100);
-    }
+    for (let mi = 0; mi < 12; mi++) total += this.custoMesAlocacao(a, mi);
     return total;
   }
 
@@ -356,7 +366,8 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     if (!vh) return 0;
     const basePct = this.getPercentual(a?.id);
     const pct = st?.manualPercent != null && st?.manualPercent !== '' ? this.num(st.manualPercent) : basePct;
-    return vh * this.getHorasMes(month) * (pct / 100);
+    const categoria = this.categoriaDaAlocacao(a);
+    return vh * this.horasEfetivas(month, categoria) * (pct / 100);
   }
 
   // ── Pessoas ───────────────────────────────────────────────────────────────
@@ -376,6 +387,25 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   }
 
   riscosExibidos(): any[] { return this.riscosAbertos().slice(0, 6); }
+
+  // ── Filtro de monitoramento por usuário ───────────────────────────────────
+  private _filtraMonitoramento(items: any[]): any[] {
+    if (this.mostrarTodos) return items;
+    const user = (this.nomeUsuario || '').trim().toLowerCase();
+    if (!user) return items;
+    return items.filter(item => {
+      const resp = (item.responsavel || '').trim().toLowerCase();
+      return !resp || resp === user;
+    });
+  }
+
+  riscosAbertosFilt():     any[] { return this._filtraMonitoramento(this.riscosAbertos()); }
+  incidentesAbertosFilt(): any[] { return this._filtraMonitoramento(this.incidentesAbertos()); }
+  debitosAbertosFilt():    any[] { return this._filtraMonitoramento(this.debitosAbertos()); }
+
+  totalMonitoramentoFilt(): number {
+    return this.riscosAbertosFilt().length + this.incidentesAbertosFilt().length + this.debitosAbertosFilt().length;
+  }
 
   // ── Indicadores ───────────────────────────────────────────────────────────
   indicadoresAtivos(): any[] {
@@ -475,12 +505,21 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   }
 
   // ── Projetos ──────────────────────────────────────────────────────────────
+  mostrarTodos = false;
+  toggleMostrarTodos() { this.mostrarTodos = !this.mostrarTodos; }
+
+  private _projetosMeus(lista: any[]): any[] {
+    return lista.filter(r => !r.donoProjeto || r.donoProjeto === this.nomeUsuario);
+  }
+
   projetosAtivos(): any[] {
-    return this.resumo.filter(r => (r.status || '').toUpperCase() !== 'CONCLUIDO');
+    const ativos = this.resumo.filter(r => (r.status || '').toUpperCase() !== 'CONCLUIDO');
+    return this.mostrarTodos ? ativos : this._projetosMeus(ativos);
   }
 
   projetosConcluidos(): number {
-    return this.resumo.filter(r => (r.status || '').toUpperCase() === 'CONCLUIDO').length;
+    const concl = this.resumo.filter(r => (r.status || '').toUpperCase() === 'CONCLUIDO');
+    return (this.mostrarTodos ? concl : this._projetosMeus(concl)).length;
   }
 
   projetosExibidos(): any[] { return this.projetosAtivos().slice(0, 5); }

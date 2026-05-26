@@ -119,6 +119,21 @@
   cursor: pointer; padding: 0; white-space: nowrap;
   &:hover { text-decoration: underline; }
 }
+.dash-card-actions {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.dash-toggle-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #f0f5ff; border: 1px solid #c5d9f5; color: #4a6da6;
+  font-size: .72rem; font-weight: 700; cursor: pointer;
+  padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+  svg { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
+  &:hover { background: #dce8ff; border-color: #9bbcf0; color: #1d63da; }
+  &.active { background: #1d63da; border-color: #1a4fb5; color: #fff;
+    &:hover { background: #1a4fb5; }
+  }
+}
 
 /* ── Main 2-col grid ─────────────────────────────────────────────────────── */
 .dash-main-grid {
