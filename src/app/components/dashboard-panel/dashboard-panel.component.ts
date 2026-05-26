@@ -15,7 +15,9 @@ export class DashboardPanelComponent {
   @Input() linhasOrcamentarias: any[] = [];
   @Input() ajustes: any[] = [];
   @Input() alocacoes: any[] = [];
+  @Input() perfis: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() horasMes: any[] = [];
   @Input() ausencias: any[] = [];
   @Input() riscos: any[] = [];
   @Input() incidentes: any[] = [];
@@ -195,7 +197,7 @@ export class DashboardPanelComponent {
     const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
     return this.alocacoes
       .filter((a: any) => ids.has(a.linhaOrcamentariaId))
-      .reduce((acc: number, a: any) => acc + this.num(a.custoPlanejado), 0);
+      .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
   }
 
   saldoTotal(): number { return this.orcamentoTotal() - this.comprometidoTotal(); }
@@ -210,7 +212,7 @@ export class DashboardPanelComponent {
       const orcamento = this.orcamentoLo(lo);
       const comprometido = this.alocacoes
         .filter((a: any) => a.linhaOrcamentariaId === lo.id)
-        .reduce((acc: number, a: any) => acc + this.num(a.custoPlanejado), 0);
+        .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
       const saldo = orcamento - comprometido;
       const pct = orcamento > 0 ? Math.min(100, (comprometido / orcamento) * 100) : 0;
       const qtd = this.alocacoes.filter((a: any) => a.linhaOrcamentariaId === lo.id).length;
@@ -231,11 +233,59 @@ export class DashboardPanelComponent {
         if (tipo === 'terceiro') return tv === 'TERCEIRO' || tv === 'PRESTADOR';
         return tv !== 'TERCEIRO' && tv !== 'PRESTADOR';
       })
-      .reduce((acc: number, a: any) => acc + this.num(a.custoPlanejado), 0);
+      .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
   }
 
   comprometidoFolha(): number { return this.comprometidoPorTipo('folha'); }
   comprometidoTerceiros(): number { return this.comprometidoPorTipo('terceiro'); }
+
+  private getPercentual(allocationId: string): number {
+    try {
+      const raw = localStorage.getItem(`planner_lo_alloc_${allocationId}`);
+      if (!raw) return 100;
+      const parsed = JSON.parse(raw);
+      return Math.max(0, Math.min(100, Number(parsed?.percentual ?? 100)));
+    } catch {
+      return 100;
+    }
+  }
+
+  private getHorasMes(monthIndex: number): number {
+    const found = this.horasMes.find((h: any) => Number(h?.mes) === monthIndex + 1);
+    const horas = Number(found?.horas ?? 160);
+    return horas > 0 ? horas : 160;
+  }
+
+  private debitaLoDaAlocacao(a: any): boolean {
+    if (a?.debitaLo != null) return !!a.debitaLo;
+    const pessoa = this.pessoas.find((p: any) =>
+      (p?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
+    );
+    const perfilId = a?.perfilId || pessoa?.perfilId;
+    if (!perfilId) return true;
+    const perfil = this.perfis.find((x: any) => x.id === perfilId);
+    return perfil ? !!perfil.debitaLo : true;
+  }
+
+  private valorHoraDaAlocacao(a: any): number {
+    if (!this.debitaLoDaAlocacao(a)) return 0;
+    const pessoa = this.pessoas.find((p: any) =>
+      (p?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
+    );
+    if (pessoa?.valorHora != null) return this.num(pessoa.valorHora);
+    return this.num(a?.valorHora);
+  }
+
+  private custoAnualAlocacao(a: any): number {
+    const vh = this.valorHoraDaAlocacao(a);
+    if (!vh) return 0;
+    const pct = this.getPercentual(a?.id);
+    let total = 0;
+    for (let mi = 0; mi < 12; mi++) {
+      total += vh * this.getHorasMes(mi) * (pct / 100);
+    }
+    return total;
+  }
 
   // ── Pessoas ───────────────────────────────────────────────────────────────
   pessoasAlocadas(): number {
