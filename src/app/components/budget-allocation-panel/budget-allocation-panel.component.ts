@@ -1256,7 +1256,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       const valorMaximoPermitido = this.round2((Number(valorHoraEfetivo || 0) * horas) * (percentualRestante / 100));
       if (valorMaximoPermitido > 0 && valor > valorMaximoPermitido) {
         valor = valorMaximoPermitido;
-        this.percentualAviso = `Valor ajustado ao limite disponÃ­vel de ${percentualRestante.toFixed(2)}% em ${this.meses[month]}.`;
+        this.percentualAviso = `Valor ajustado ao limite disponível de ${percentualRestante.toFixed(2)}% em ${this.meses[month]}.`;
       }
     }
     const key = this.valorMensalManualKey(allocationId, month);
@@ -1337,7 +1337,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       }
     }
     if (valor > maxPermitido) {
-      this.percentualAviso = `Percentual ajustado para ${maxPermitido.toFixed(2)}% (limite disponÃ­vel no mÃªs ${this.meses[month]}).`;
+      this.percentualAviso = `Percentual ajustado para ${maxPermitido.toFixed(2)}% (limite disponível no mês ${this.meses[month]}).`;
     } else {
       this.percentualAviso = '';
     }
