@@ -2073,25 +2073,13 @@ button.sec {
   &:hover { background: linear-gradient(180deg, #dcfce7, #bbf7d0); }
 }
 
-/* ── Scrollbar espelho no topo da tabela de alocações ────────────────────── */
-.alloc-scroll-top {
-  width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  height: 14px;
-  margin-bottom: 2px;
-}
-
-.alloc-scroll-top-inner {
-  /* largura deve corresponder ao min-width da tabela */
-  width: 1440px;
-  height: 1px;
-}
 
 .alloc-table-wrap {
   margin-top: 4px;
   width: 100%;
-  overflow-x: auto;
+  overflow-x: scroll;   /* sempre visível */
+  overflow-y: scroll;   /* sempre visível */
+  max-height: 68vh;
   border: 1px solid #d8e6ff;
   border-radius: 12px;
   background: #fff;

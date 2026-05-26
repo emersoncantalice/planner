@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -45,27 +45,6 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   novaPctMasked = '100,00';
   private pctMaskedMap: Record<string, string> = {};
   private pctMensalMaskedMap: Record<string, string> = {};
-  @ViewChild('allocScrollTop') allocScrollTopRef?: ElementRef<HTMLDivElement>;
-  @ViewChild('allocTableWrap') allocTableWrapRef?: ElementRef<HTMLElement>;
-
-  private syncingScroll = false;
-
-  onScrollTop(e: Event) {
-    if (this.syncingScroll) return;
-    this.syncingScroll = true;
-    const left = (e.target as HTMLElement).scrollLeft;
-    if (this.allocTableWrapRef) this.allocTableWrapRef.nativeElement.scrollLeft = left;
-    this.syncingScroll = false;
-  }
-
-  onScrollBottom(e: Event) {
-    if (this.syncingScroll) return;
-    this.syncingScroll = true;
-    const left = (e.target as HTMLElement).scrollLeft;
-    if (this.allocScrollTopRef) this.allocScrollTopRef.nativeElement.scrollLeft = left;
-    this.syncingScroll = false;
-  }
-
   pessoaModalAberto = false;
   pessoaRapida = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '' };
   pessoaValorHoraMasked = '';

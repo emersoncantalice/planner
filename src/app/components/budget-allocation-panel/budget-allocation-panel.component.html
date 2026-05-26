@@ -234,12 +234,7 @@
     <button class="sec" type="button" (click)="abrirPessoaModal()">Nova pessoa</button>
   </div>
 
-  <!-- Scrollbar espelho no topo da tabela -->
-  <div class="alloc-scroll-top" #allocScrollTop (scroll)="onScrollTop($event)">
-    <div class="alloc-scroll-top-inner"></div>
-  </div>
-
-  <section class="alloc-table-wrap" #allocTableWrap (scroll)="onScrollBottom($event)">
+  <section class="alloc-table-wrap">
     <div class="table-toolbar">
       <p class="table-hint">Calculo mensal: Valor/hora x Horas do cadastro do mes x Alocacao (%).</p>
       <!-- Botão colunas -->
