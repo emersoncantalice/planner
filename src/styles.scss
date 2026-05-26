@@ -2212,6 +2212,19 @@ button.sec {
   background: #f3f8ff;
 }
 
+/* Linhas de alocação cujo perfil não debita LO */
+.alloc-table tbody tr.no-charge-row {
+  background: #eef1f5;
+}
+
+.alloc-table tbody tr.no-charge-row:nth-child(even) {
+  background: #e8edf3;
+}
+
+.alloc-table tbody tr.no-charge-row:hover {
+  background: #dde5ee;
+}
+
 .alloc-table th:first-child,
 .alloc-table td:first-child {
   position: sticky;
@@ -2221,6 +2234,18 @@ button.sec {
   min-width: 220px;
   max-width: 220px;
   box-shadow: 2px 0 0 #d8e6ff;
+}
+
+.alloc-table tbody tr.no-charge-row td:first-child {
+  background: #eef1f5;
+}
+
+.alloc-table tbody tr.no-charge-row:nth-child(even) td:first-child {
+  background: #e8edf3;
+}
+
+.alloc-table tbody tr.no-charge-row:hover td:first-child {
+  background: #dde5ee;
 }
 
 .alloc-table thead th:first-child {

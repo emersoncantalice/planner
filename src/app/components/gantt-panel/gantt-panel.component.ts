@@ -328,8 +328,6 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         : dragType === 'resize-left'  ? 'REDIMENSIONAR_INICIO'
         : 'REDIMENSIONAR_FIM';
 
-      const wasOverdue = this.isAtrasado(item);
-
       this.zone.run(() => {
   // ---
   // ---
@@ -348,7 +346,6 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
             fimNovo:        `${dateToYmd(end)}T12:00:00Z`,
           },
         } as any);
-        if (wasOverdue) this.addReplanMarker(item, start);
         this.cdr.detectChanges();
       });
     } else {
@@ -1140,21 +1137,6 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return d;
   }
 
-  /** Adds a "↻ reprogramado" marker on the timeline when an overdue item gets new dates */
-  private addReplanMarker(item: any, newStart: Date) {
-    if (!this.projetoSelecionado?.id) return;
-    const markerDate = dateToYmd(newStart);
-    const label = `↻ ${(item.titulo ?? 'Atividade').slice(0, 35)}`;
-    const desc  = `Reprogramado — anterior fim: ${this.fmt(item.fimPlanejado)}`;
-    if (this.timelineMarkers.some(m => m.date === markerDate && m.label === label)) return;
-    this.timelineMarkers.push({
-      id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`),
-      label, date: markerDate, description: desc
-    });
-    this.timelineMarkers.sort((a, b) => a.date.localeCompare(b.date));
-    this.saveMarkers();
-  }
-
   perfilNome(item: any): string {
     const perfilId = this.extractPerfilId(item?.descricao || '');
     if (!perfilId) return '';
@@ -1324,7 +1306,6 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (fim)    fim    = `${dateToYmd(this.feriados.nextBusinessDay(new Date(fim + 'T12:00:00')))}T12:00:00Z`;
     this.formError = this.validarConflitoParalelismo(inicio, fim, this.editForm.permiteParalelo, this.editingItem.id);
     if (this.formError) return;
-    const wasOverdue = this.isAtrasado(this.editingItem);
     this.updateScheduleItem.emit({
       itemId:          this.editingItem.id,
       titulo:          this.editForm.titulo,
@@ -1337,7 +1318,6 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       responsavel:     this.editForm.responsavel || undefined,
     } as any);
     this.setMeta(this.editingItem.id, { responsavel: this.editForm.responsavel, pct: this.editFormEffectivePct });
-    if (wasOverdue && inicio) this.addReplanMarker(this.editingItem, new Date(inicio));
     this.editingItem = null;
   }
 

@@ -11,6 +11,7 @@ interface WorkloadEntry {
   indicadores: string[];
   acoes: string[];
   atividades: string[];
+  atividadesConcluidas: string[];
 }
 
 @Component({
@@ -49,7 +50,8 @@ export class PersonActivityPanelComponent {
           debitos: [],
           indicadores: [],
           acoes: [],
-          atividades: []
+          atividades: [],
+          atividadesConcluidas: []
         };
         byKey.set(key, found);
       }
@@ -101,14 +103,19 @@ export class PersonActivityPanelComponent {
 
     // Atividades do cronograma
     for (const a of this.atividades) {
-      if ((a?.status || '').toUpperCase() === 'CONCLUIDO') continue;
       const row = ensure(a?.responsavel);
       if (!row) continue;
-      row.atividades.push(`[${String(a?.projetoNome ?? 'Projeto')}] ${String(a?.titulo ?? 'Atividade')}`);
+      const label = `[${String(a?.projetoNome ?? 'Projeto')}] ${String(a?.titulo ?? 'Atividade')}`;
+      if ((a?.status || '').toUpperCase() === 'CONCLUIDO') {
+        row.atividadesConcluidas.push(label);
+      } else {
+        row.atividades.push(label);
+      }
     }
 
     const list = [...byKey.values()];
     for (const row of list) {
+      // Concluídas não contam na carga, apenas exibimos no detalhamento.
       row.total = row.riscos.length + row.incidentes.length + row.debitos.length + row.indicadores.length + row.acoes.length + row.atividades.length;
     }
     return list;

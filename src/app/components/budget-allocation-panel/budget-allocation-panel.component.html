@@ -393,7 +393,7 @@
         }
 
         @for (a of alocacoesFiltradas(); track a.id) {
-          <tr>
+          <tr [class.no-charge-row]="pessoaSemCustoLo(a)">
             <td>
               @if (editingId === a.id) {
                 <input

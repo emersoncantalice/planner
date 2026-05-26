@@ -276,7 +276,9 @@ export class OverviewListComponent {
 
   canToggleSituacao(r: any): boolean {
     if (this.userRole === 'ADMIN') return true;
-    return this.currentUser && r.donoProjeto && r.donoProjeto === this.currentUser;
+    const me = String(this.currentUser || '').trim().toLowerCase();
+    const owner = String(r?.donoProjeto || '').trim().toLowerCase();
+    return !!me && !!owner && owner === me;
   }
 
   toggleSituacao(r: any) {

@@ -282,12 +282,26 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   alocacoesFiltradas() {
     const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
     const query = this.searchTerm.trim().toLowerCase();
-    return this.alocacoes.filter((a: any) => {
-      if (!idsAno.has(a.linhaOrcamentariaId)) return false;
-      if (this.loSelecionadaId && a.linhaOrcamentariaId !== this.loSelecionadaId) return false;
-      if (!query) return true;
-      return `${a?.nomePessoa ?? ''} ${a?.perfilNome ?? ''} ${a?.linhaOrcamentariaCodigo ?? ''}`.toLowerCase().includes(query);
-    });
+    return this.alocacoes
+      .filter((a: any) => {
+        if (!idsAno.has(a.linhaOrcamentariaId)) return false;
+        if (this.loSelecionadaId && a.linhaOrcamentariaId !== this.loSelecionadaId) return false;
+        if (!query) return true;
+        return `${a?.nomePessoa ?? ''} ${a?.perfilNome ?? ''} ${a?.linhaOrcamentariaCodigo ?? ''}`.toLowerCase().includes(query);
+      })
+      .sort((a: any, b: any) => {
+        const oa = this.ordemVisualAlocacao(a);
+        const ob = this.ordemVisualAlocacao(b);
+        if (oa !== ob) return oa - ob;
+        const na = String(a?.nomePessoa || '');
+        const nb = String(b?.nomePessoa || '');
+        return na.localeCompare(nb, 'pt-BR');
+      });
+  }
+
+  private ordemVisualAlocacao(a: any): number {
+    if (this.pessoaSemCustoLo(a)) return 2; // sempre no fim
+    return this.getCategoriaDaPessoa(a) === 'TERCEIRO' ? 1 : 0; // Folha -> Prestador
   }
 
   totalComprometidoLo(): number {

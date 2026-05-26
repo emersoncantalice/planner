@@ -71,6 +71,16 @@
                 </ul>
               </div>
             }
+            @if (entry.atividadesConcluidas.length) {
+              <div class="pa-group">
+                <span class="pa-group-label">✅ Atividades concluídas ({{ entry.atividadesConcluidas.length }})</span>
+                <ul class="pa-items">
+                  @for (a of entry.atividadesConcluidas; track a) {
+                    <li class="pa-item-row"><span class="pa-origin-tag tag-atividade">Concluída</span><span>{{ a }}</span></li>
+                  }
+                </ul>
+              </div>
+            }
             @if (entry.riscos.length) {
               <div class="pa-group">
                 <span class="pa-group-label">⚠️ Riscos ({{ entry.riscos.length }})</span>

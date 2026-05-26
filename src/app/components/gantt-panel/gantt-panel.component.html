@@ -67,7 +67,7 @@
                         (click)="toggleDow(novaAtividade, opt.day)">{{ opt.label }}</button>
               }
             </div>
-            @if (novaAtividade.dowConstraint?.length) {
+            @if (novaAtividade.dowConstraint.length) {
               <span class="gp-dow-hint">Início ajustado para: {{ dowLabel(novaAtividade.dowConstraint) }}</span>
             }
           </div>
@@ -114,7 +114,7 @@
           </div>
           <div class="gp-field gp-field-check">
             <label class="gp-check-label">
-              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" [disabled]="!!novaAtividade.predecessorIds?.length" />
+              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" [disabled]="!!novaAtividade.predecessorIds.length" />
               Paralela (pode rodar junto com outras)
             </label>
           </div>
@@ -224,7 +224,7 @@
                         (click)="toggleDow(editForm, opt.day)">{{ opt.label }}</button>
               }
             </div>
-            @if (editForm.dowConstraint?.length) {
+            @if (editForm.dowConstraint.length) {
               <span class="gp-dow-hint">Início ajustado para: {{ dowLabel(editForm.dowConstraint) }}</span>
             }
           </div>
@@ -278,7 +278,7 @@
           </div>
           <div class="gp-field gp-field-check">
             <label class="gp-check-label">
-              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" [disabled]="!!editForm.predecessorIds?.length" />
+              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" [disabled]="!!editForm.predecessorIds.length" />
               Paralela (pode rodar junto com outras)
             </label>
           </div>
@@ -433,7 +433,7 @@
               Gerando…
             } @else {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-              Exportar PNG HD
+              Exportar
             }
           </button>
 
@@ -518,7 +518,7 @@
               Gerando…
             } @else {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-              Exportar PNG HD
+              Exportar
             }
           </button>
         }

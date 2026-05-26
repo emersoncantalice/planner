@@ -509,7 +509,11 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   toggleMostrarTodos() { this.mostrarTodos = !this.mostrarTodos; }
 
   private _projetosMeus(lista: any[]): any[] {
-    return lista.filter(r => !r.donoProjeto || r.donoProjeto === this.nomeUsuario);
+    const me = String(this.nomeUsuario || '').trim().toLowerCase();
+    return lista.filter(r => {
+      const owner = String(r?.donoProjeto || '').trim().toLowerCase();
+      return !owner || (!!me && owner === me);
+    });
   }
 
   projetosAtivos(): any[] {
