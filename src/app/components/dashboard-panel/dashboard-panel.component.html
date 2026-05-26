@@ -38,6 +38,18 @@
     </div>
 
     <!-- Saldo -->
+    <div class="dash-kpi dash-kpi-emerald">
+      <div class="dash-kpi-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+      </div>
+      <div class="dash-kpi-body">
+        <span>Realizado nas LOs</span>
+        <strong [title]="brlFull(realizadoTotal())">{{ brl(realizadoTotal()) }}</strong>
+        <small>Meses marcados como pagos</small>
+      </div>
+    </div>
+
+    <!-- Saldo -->
     <div class="dash-kpi" [class.dash-kpi-green]="saldoTotal() >= 0" [class.dash-kpi-red]="saldoTotal() < 0">
       <div class="dash-kpi-icon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>

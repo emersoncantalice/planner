@@ -1,5 +1,6 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, Output } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { PlannerApiService } from '../../core/planner-api.service';
 
 @Component({
   selector: 'app-dashboard-panel',
@@ -9,8 +10,10 @@ import { CommonModule } from '@angular/common';
   templateUrl: './dashboard-panel.component.html',
   styleUrl: './dashboard-panel.component.scss'
 })
-export class DashboardPanelComponent {
+export class DashboardPanelComponent implements OnChanges, OnDestroy {
+  private api = inject(PlannerApiService);
   @Input() nomeUsuario = '';
+  @Input() token = '';
   @Input() resumo: any[] = [];
   @Input() linhasOrcamentarias: any[] = [];
   @Input() ajustes: any[] = [];
@@ -27,8 +30,39 @@ export class DashboardPanelComponent {
   @Output() navigate = new EventEmitter<string>();
   @Output() selectProject = new EventEmitter<string>();
   @Output() selectRisk = new EventEmitter<string>();
+  allocationPayments: any[] = [];
+  allocationMonthlyState: any[] = [];
+  private realizadoSyncTimer: ReturnType<typeof setInterval> | null = null;
 
   anoAtual = new Date().getFullYear();
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['token']) this.startRealizadoSync();
+    if (changes['alocacoes']) this.carregarRealizado();
+  }
+
+  ngOnDestroy(): void {
+    if (this.realizadoSyncTimer) {
+      clearInterval(this.realizadoSyncTimer);
+      this.realizadoSyncTimer = null;
+    }
+  }
+
+  private carregarRealizado() {
+    if (!this.token) return;
+    this.api.listAllocationPayments(this.token).subscribe({ next: (rows) => this.allocationPayments = rows || [] });
+    this.api.listAllocationMonthlyState(this.token).subscribe({ next: (rows) => this.allocationMonthlyState = rows || [] });
+  }
+
+  private startRealizadoSync() {
+    if (this.realizadoSyncTimer) {
+      clearInterval(this.realizadoSyncTimer);
+      this.realizadoSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.carregarRealizado();
+    this.realizadoSyncTimer = setInterval(() => this.carregarRealizado(), 3000);
+  }
 
   // ── Monitoramento ────────────────────────────────────────────────────────
   filtroMonitoramento: 'todos' | 'riscos' | 'incidentes' | 'debitos' = 'todos';
@@ -201,6 +235,19 @@ export class DashboardPanelComponent {
   }
 
   saldoTotal(): number { return this.orcamentoTotal() - this.comprometidoTotal(); }
+  realizadoTotal(): number {
+    const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
+    return this.alocacoes
+      .filter((a: any) => ids.has(a.linhaOrcamentariaId))
+      .reduce((acc: number, a: any) => {
+        let total = 0;
+        for (let mi = 0; mi < 12; mi++) {
+          if (!this.isPago(a?.id, mi)) continue;
+          total += this.custoMesAlocacao(a, mi);
+        }
+        return acc + total;
+      }, 0);
+  }
 
   pctComprometido(): number {
     const orc = this.orcamentoTotal();
@@ -285,6 +332,31 @@ export class DashboardPanelComponent {
       total += vh * this.getHorasMes(mi) * (pct / 100);
     }
     return total;
+  }
+
+  private isPago(allocationId: string, month: number): boolean {
+    return this.allocationPayments.some((p: any) =>
+      String(p?.allocationId || '') === String(allocationId || '') &&
+      Number(p?.month) === month &&
+      !!p?.paid
+    );
+  }
+
+  private monthlyState(allocationId: string, month: number): any | null {
+    return this.allocationMonthlyState.find((s: any) =>
+      String(s?.allocationId || '') === String(allocationId || '') && Number(s?.month) === month
+    ) || null;
+  }
+
+  private custoMesAlocacao(a: any, month: number): number {
+    const st = this.monthlyState(a?.id, month);
+    if (st?.canceled === true) return 0;
+    if (st?.manualValue != null && st?.manualValue !== '') return this.num(st.manualValue);
+    const vh = this.valorHoraDaAlocacao(a);
+    if (!vh) return 0;
+    const basePct = this.getPercentual(a?.id);
+    const pct = st?.manualPercent != null && st?.manualPercent !== '' ? this.num(st.manualPercent) : basePct;
+    return vh * this.getHorasMes(month) * (pct / 100);
   }
 
   // ── Pessoas ───────────────────────────────────────────────────────────────
