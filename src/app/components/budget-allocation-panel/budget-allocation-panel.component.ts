@@ -1,6 +1,7 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PlannerApiService } from '../../core/planner-api.service';
 
 @Component({
   selector: 'app-budget-allocation-panel',
@@ -10,7 +11,7 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './budget-allocation-panel.component.html',
   styleUrl: './budget-allocation-panel.component.scss'
 })
-export class BudgetAllocationPanelComponent implements OnChanges {
+export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   @Input() linhasOrcamentarias: any[] = [];
   @Input() ajustes: any[] = [];
   @Input() horasMes: any[] = [];
@@ -19,6 +20,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   @Input() consultorias: any[] = [];
   @Input() alocacoes: any[] = [];
   @Input() atividades: any[] = [];
+  @Input() token = '';
   @Output() create = new EventEmitter<{ linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number }>();
   @Output() update = new EventEmitter<{ id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number }>();
   @Output() remove = new EventEmitter<string>();
@@ -37,6 +39,15 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   private planoAlocacao: Record<string, { percentual: number }> = {};
   private realizadoMensal: Record<string, number> = {};
   private pagoMensal: Record<string, boolean> = {};
+  private api = inject(PlannerApiService);
+  private paymentsSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private presenceSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private monthlyStateSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private cursorSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private lastCursorSendAt = 0;
+  private latestCursorPos: { x: number; y: number } | null = null;
+  cursoresOutros: Array<{ username: string; x: number; y: number }> = [];
+  usuariosLoAberta: Array<{ username: string }> = [];
   private canceladoMensal: Record<string, boolean> = {};
   private valorMensalManual: Record<string, number> = {};
   private percentualMensalManual: Record<string, number> = {};
@@ -127,7 +138,46 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     if (changes['alocacoes']) {
       // Aplica percentual pendente às alocações recém-criadas (antes de terem config no localStorage)
       this.aplicarConfigsPendentes();
+      this.loadPagamentosDoBackend();
     }
+    if (changes['token']) {
+      this.startPaymentsRealtimeSync();
+      this.startPresenceRealtimeSync();
+      this.startMonthlyStateRealtimeSync();
+      this.startCursorRealtimeSync();
+    }
+    if (changes['linhasOrcamentarias']) this.heartbeatLoAberta();
+  }
+
+  ngOnDestroy(): void {
+    if (this.paymentsSyncTimer) {
+      clearInterval(this.paymentsSyncTimer);
+      this.paymentsSyncTimer = null;
+    }
+    if (this.presenceSyncTimer) {
+      clearInterval(this.presenceSyncTimer);
+      this.presenceSyncTimer = null;
+    }
+    if (this.monthlyStateSyncTimer) {
+      clearInterval(this.monthlyStateSyncTimer);
+      this.monthlyStateSyncTimer = null;
+    }
+    if (this.cursorSyncTimer) {
+      clearInterval(this.cursorSyncTimer);
+      this.cursorSyncTimer = null;
+    }
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (!this.token || !this.loSelecionadaId) return;
+    const w = Math.max(1, window.innerWidth);
+    const h = Math.max(1, window.innerHeight);
+    const x = Math.max(0, Math.min(1, event.clientX / w));
+    const y = Math.max(0, Math.min(1, event.clientY / h));
+    this.latestCursorPos = { x, y };
+    const now = Date.now();
+    if (now - this.lastCursorSendAt >= 120) this.pushCursor();
   }
 
   anosDisponiveis(): number[] {
@@ -599,10 +649,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
 
   isPago(allocationId: string, month: number): boolean {
     const key = this.pagoKey(allocationId, month);
-    if (this.pagoMensal[key] == null) {
-      this.pagoMensal[key] = localStorage.getItem(key) === '1';
-    }
-    return this.pagoMensal[key];
+    return !!this.pagoMensal[key];
   }
 
   /**
@@ -619,8 +666,15 @@ export class BudgetAllocationPanelComponent implements OnChanges {
       }
     }
     const key = this.pagoKey(allocationId, month);
+    const prev = !!this.pagoMensal[key];
     this.pagoMensal[key] = checked;
-    localStorage.setItem(key, checked ? '1' : '0');
+    if (!this.token) return;
+    this.api.upsertAllocationPayment(this.token, allocationId, month, checked).subscribe({
+      error: () => {
+        this.pagoMensal[key] = prev;
+        this.percentualAviso = 'Falha ao salvar pagamento no servidor.';
+      }
+    });
   }
 
   private pagoKey(allocationId: string, month: number): string {
@@ -629,27 +683,187 @@ export class BudgetAllocationPanelComponent implements OnChanges {
 
   isCancelado(allocationId: string, month: number): boolean {
     const key = this.canceladoKey(allocationId, month);
-    if (this.canceladoMensal[key] == null) {
-      this.canceladoMensal[key] = localStorage.getItem(key) === '1';
-    }
-    return this.canceladoMensal[key];
+    return !!this.canceladoMensal[key];
   }
 
   /** Cancela o mês: zera custo, libera o percentual e remove o pago/lançado. */
   setCancelado(allocationId: string, month: number, checked: boolean) {
     const key = this.canceladoKey(allocationId, month);
+    const prev = !!this.canceladoMensal[key];
     this.canceladoMensal[key] = checked;
-    localStorage.setItem(key, checked ? '1' : '0');
+    if (this.token) {
+      this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { canceled: checked }).subscribe({
+        error: () => {
+          this.canceladoMensal[key] = prev;
+          this.percentualAviso = 'Falha ao salvar cancelamento no servidor.';
+        }
+      });
+    }
     if (checked) {
       // Cancelar limpa pago — libera o mês para outras linhas
       const pagoKey = this.pagoKey(allocationId, month);
       this.pagoMensal[pagoKey] = false;
-      localStorage.setItem(pagoKey, '0');
+      if (this.token) {
+        this.api.upsertAllocationPayment(this.token, allocationId, month, false).subscribe();
+      }
     }
   }
 
   private canceladoKey(allocationId: string, month: number): string {
     return `planner_lo_cancelado_${allocationId}_${month}`;
+  }
+
+  private startPaymentsRealtimeSync() {
+    if (this.paymentsSyncTimer) {
+      clearInterval(this.paymentsSyncTimer);
+      this.paymentsSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.loadPagamentosDoBackend();
+    this.paymentsSyncTimer = setInterval(() => this.loadPagamentosDoBackend(), 3000);
+  }
+
+  private startPresenceRealtimeSync() {
+    if (this.presenceSyncTimer) {
+      clearInterval(this.presenceSyncTimer);
+      this.presenceSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.loadLoPresence();
+    this.heartbeatLoAberta();
+    this.presenceSyncTimer = setInterval(() => {
+      this.heartbeatLoAberta();
+      this.loadLoPresence();
+    }, 3000);
+  }
+
+  private heartbeatLoAberta() {
+    if (!this.token || !this.loSelecionadaId) return;
+    this.api.upsertLoPresence(this.token, this.loSelecionadaId).subscribe({ error: () => {} });
+  }
+
+  private loadLoPresence() {
+    if (!this.token) return;
+    this.api.listLoPresence(this.token).subscribe({
+      next: (rows: any[]) => {
+        const loId = this.loSelecionadaId;
+        const mine = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
+        const users = (rows || [])
+          .filter((r: any) => String(r?.loId || '') === loId)
+          .map((r: any) => String(r?.username || '').trim())
+          .filter((u: string) => !!u);
+        const unique = Array.from(new Set(users.map((u) => u.toLowerCase())))
+          .map((uLower) => users.find((u) => u.toLowerCase() === uLower) || uLower);
+        unique.sort((a, b) => (a.toLowerCase() === mine ? -1 : b.toLowerCase() === mine ? 1 : a.localeCompare(b)));
+        this.usuariosLoAberta = unique.map((u) => ({ username: u }));
+      }
+    });
+  }
+
+  private startMonthlyStateRealtimeSync() {
+    if (this.monthlyStateSyncTimer) {
+      clearInterval(this.monthlyStateSyncTimer);
+      this.monthlyStateSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.loadMonthlyStateFromBackend();
+    this.monthlyStateSyncTimer = setInterval(() => this.loadMonthlyStateFromBackend(), 3000);
+  }
+
+  private startCursorRealtimeSync() {
+    if (this.cursorSyncTimer) {
+      clearInterval(this.cursorSyncTimer);
+      this.cursorSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.loadAllocationCursors();
+    this.cursorSyncTimer = setInterval(() => {
+      this.pushCursor();
+      this.loadAllocationCursors();
+    }, 900);
+  }
+
+  private pushCursor() {
+    if (!this.token || !this.loSelecionadaId || !this.latestCursorPos) return;
+    const pos = this.latestCursorPos;
+    this.lastCursorSendAt = Date.now();
+    this.api.upsertAllocationCursor(this.token, { loId: this.loSelecionadaId, x: pos.x, y: pos.y }).subscribe({ error: () => {} });
+  }
+
+  private loadAllocationCursors() {
+    if (!this.token || !this.loSelecionadaId) return;
+    const mine = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
+    this.api.listAllocationCursors(this.token, this.loSelecionadaId).subscribe({
+      next: (rows: any[]) => {
+        this.cursoresOutros = (rows || [])
+          .map((r: any) => ({
+            username: String(r?.username || '').trim(),
+            x: Number(r?.x),
+            y: Number(r?.y)
+          }))
+          .filter((r: any) => !!r.username && r.username.toLowerCase() !== mine && !Number.isNaN(r.x) && !Number.isNaN(r.y));
+      }
+    });
+  }
+
+  private loadMonthlyStateFromBackend() {
+    if (!this.token) return;
+    this.api.listAllocationMonthlyState(this.token).subscribe({
+      next: (rows: any[]) => {
+        const nextCancelado: Record<string, boolean> = {};
+        const nextValorManual: Record<string, number> = {};
+        const nextPctManual: Record<string, number> = {};
+        for (const r of rows || []) {
+          const allocId = String(r?.allocationId || '').trim();
+          const month = Number(r?.month);
+          if (!allocId || month < 0 || month > 11) continue;
+          const cKey = this.canceladoKey(allocId, month);
+          const vKey = this.valorMensalManualKey(allocId, month);
+          const pKey = this.percentualMensalManualKey(allocId, month);
+          if (r?.canceled === true) nextCancelado[cKey] = true;
+          if (r?.manualValue != null && r?.manualValue !== '') {
+            const n = Number(r.manualValue);
+            if (!Number.isNaN(n) && n >= 0) nextValorManual[vKey] = this.round2(n);
+          }
+          if (r?.manualPercent != null && r?.manualPercent !== '') {
+            const p = Number(r.manualPercent);
+            if (!Number.isNaN(p)) nextPctManual[pKey] = Math.max(0, Math.min(100, p));
+          }
+        }
+        this.canceladoMensal = nextCancelado;
+        this.valorMensalManual = nextValorManual;
+        this.percentualMensalManual = nextPctManual;
+      }
+    });
+  }
+
+  userInitials(username: string): string {
+    const clean = String(username || '').trim();
+    if (!clean) return '?';
+    const parts = clean.split(/[.\s_-]+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return clean.slice(0, 2).toUpperCase();
+  }
+
+  isUsuarioAtual(username: string): boolean {
+    const mine = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
+    return !!mine && String(username || '').trim().toLowerCase() === mine;
+  }
+
+  private loadPagamentosDoBackend() {
+    if (!this.token) return;
+    this.api.listAllocationPayments(this.token).subscribe({
+      next: (rows: any[]) => {
+        const nextState: Record<string, boolean> = {};
+        for (const r of rows || []) {
+          const allocId = String(r?.allocationId || '').trim();
+          const month = Number(r?.month);
+          if (!allocId || month < 0 || month > 11) continue;
+          nextState[this.pagoKey(allocId, month)] = !!r?.paid;
+        }
+        this.pagoMensal = nextState;
+      }
+    });
   }
 
   /** Retorna true se OUTRA linha da mesma pessoa tem lançamento ou pagamento no mês. */
@@ -704,7 +918,13 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     if (!this.editingId) {
       this.form.linhaOrcamentariaId = loId;
     }
+    this.heartbeatLoAberta();
+    this.loadLoPresence();
+    this.loadAllocationCursors();
   }
+
+  cursorLeft(c: { x: number; y: number }): string { return `${Math.max(0, Math.min(100, c.x * 100))}vw`; }
+  cursorTop(c: { x: number; y: number }): string { return `${Math.max(0, Math.min(100, c.y * 100))}vh`; }
 
   saveEdit() {
     if (!this.editingId) return;
@@ -1013,13 +1233,6 @@ export class BudgetAllocationPanelComponent implements OnChanges {
 
   getValorMensalManual(allocationId: string, month: number): number | null {
     const key = this.valorMensalManualKey(allocationId, month);
-    if (this.valorMensalManual[key] == null) {
-      const raw = localStorage.getItem(key);
-      if (raw == null || raw === '') return null;
-      const parsed = Number(raw);
-      if (Number.isNaN(parsed)) return null;
-      this.valorMensalManual[key] = this.round2(Math.max(0, parsed));
-    }
     return this.valorMensalManual[key] ?? null;
   }
 
@@ -1047,14 +1260,25 @@ export class BudgetAllocationPanelComponent implements OnChanges {
       }
     }
     const key = this.valorMensalManualKey(allocationId, month);
+    const prev = this.valorMensalManual[key];
     this.valorMensalManual[key] = valor;
-    localStorage.setItem(key, String(valor));
+    if (this.token) {
+      this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualValue: valor }).subscribe({
+        error: () => {
+          if (prev == null) delete this.valorMensalManual[key];
+          else this.valorMensalManual[key] = prev;
+          this.percentualAviso = 'Falha ao salvar valor manual no servidor.';
+        }
+      });
+    }
   }
 
   limparValorMensalManual(allocationId: string, month: number, valorHora: number) {
     const key = this.valorMensalManualKey(allocationId, month);
     delete this.valorMensalManual[key];
-    localStorage.removeItem(key);
+    if (this.token) {
+      this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualValue: null }).subscribe();
+    }
     this.setValorMensalDigitavel(allocationId, month, this.custoMensalCalculado(allocationId, valorHora, month));
   }
 
@@ -1065,7 +1289,9 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   reabrirMes(allocationId: string, month: number) {
     const key = this.pagoKey(allocationId, month);
     this.pagoMensal[key] = false;
-    localStorage.setItem(key, '0');
+    if (this.token) {
+      this.api.upsertAllocationPayment(this.token, allocationId, month, false).subscribe();
+    }
   }
 
   private custoMensalCalculado(allocationId: string, valorHora: number, month: number): number {
@@ -1094,10 +1320,21 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     const key = this.percentualMensalManualKey(allocationId, month);
     if (Math.abs(valorAjustado - base) < 0.0001) {
       delete this.percentualMensalManual[key];
-      localStorage.removeItem(key);
+      if (this.token) {
+        this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualPercent: null }).subscribe();
+      }
     } else {
+      const prev = this.percentualMensalManual[key];
       this.percentualMensalManual[key] = valorAjustado;
-      localStorage.setItem(key, String(valorAjustado));
+      if (this.token) {
+        this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualPercent: valorAjustado }).subscribe({
+          error: () => {
+            if (prev == null) delete this.percentualMensalManual[key];
+            else this.percentualMensalManual[key] = prev;
+            this.percentualAviso = 'Falha ao salvar percentual mensal no servidor.';
+          }
+        });
+      }
     }
     if (valor > maxPermitido) {
       this.percentualAviso = `Percentual ajustado para ${maxPermitido.toFixed(2)}% (limite disponível no mês ${this.meses[month]}).`;
@@ -1112,13 +1349,6 @@ export class BudgetAllocationPanelComponent implements OnChanges {
 
   private getPercentualMensalManual(allocationId: string, month: number): number | null {
     const key = this.percentualMensalManualKey(allocationId, month);
-    if (this.percentualMensalManual[key] == null) {
-      const raw = localStorage.getItem(key);
-      if (raw == null || raw === '') return null;
-      const parsed = Number(raw);
-      if (Number.isNaN(parsed)) return null;
-      this.percentualMensalManual[key] = Math.max(0, Math.min(100, parsed));
-    }
     return this.percentualMensalManual[key] ?? null;
   }
 

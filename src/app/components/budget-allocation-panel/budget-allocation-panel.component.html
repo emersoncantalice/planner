@@ -1,9 +1,17 @@
-<planner-card><article class="card">
+﻿<planner-card><article class="card">
+  <div class="lo-live-cursors">
+    @for (c of cursoresOutros; track c.username) {
+            <div class="lo-live-cursor" [style.left]="cursorLeft(c)" [style.top]="cursorTop(c)">
+        <span class="lo-live-dot"></span>
+        <span class="lo-live-name">{{ c.username }}</span>
+      </div>
+    }
+  </div>
   <section class="lo-overview">
     <div class="lo-overview-header">
       <h3 class="lo-overview-title">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
-        Visão Geral das LOs — {{ anoSelecionado }}
+        VisÃ£o Geral das LOs â€” {{ anoSelecionado }}
       </h3>
     </div>
     <div class="lo-overview-grid">
@@ -13,7 +21,7 @@
           <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Total Orçamento</span>
+          <span class="lo-card-label">Total OrÃ§amento</span>
           <strong class="lo-card-value">{{ currency(totalOrcamentoGeralLos()) }}</strong>
           <span class="lo-card-sub">{{ numLosAno() }} LO{{ numLosAno() !== 1 ? 's' : '' }} em {{ anoSelecionado }}</span>
         </div>
@@ -26,7 +34,7 @@
         <div class="lo-card-body">
           <span class="lo-card-label">Total Comprometido</span>
           <strong class="lo-card-value">{{ currency(totalComprometidoGeralLos()) }}</strong>
-          <span class="lo-card-sub">{{ numAlocacoesAno() }} alocaç{{ numAlocacoesAno() !== 1 ? 'ões' : 'ão' }} no período</span>
+          <span class="lo-card-sub">{{ numAlocacoesAno() }} alocaÃ§{{ numAlocacoesAno() !== 1 ? 'Ãµes' : 'Ã£o' }} no perÃ­odo</span>
         </div>
       </div>
 
@@ -35,9 +43,9 @@
           <svg viewBox="0 0 24 24"><path d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.34 8-7 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-2h2v2zm0-4h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2h-2c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Saldo Disponível</span>
+          <span class="lo-card-label">Saldo DisponÃ­vel</span>
           <strong class="lo-card-value">{{ currency(saldoGeralLos()) }}</strong>
-          <span class="lo-card-sub">{{ saldoGeralLos() >= 0 ? 'Dentro do orçamento' : 'Orçamento extrapolado' }}</span>
+          <span class="lo-card-sub">{{ saldoGeralLos() >= 0 ? 'Dentro do orÃ§amento' : 'OrÃ§amento extrapolado' }}</span>
         </div>
       </div>
 
@@ -46,7 +54,7 @@
           <svg viewBox="0 0 24 24"><path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Orçamento Utilizado</span>
+          <span class="lo-card-label">OrÃ§amento Utilizado</span>
           <strong class="lo-card-value">{{ percentualUtilizadoGeral() | number:'1.1-1' }}%</strong>
           <div class="lo-progress">
             <div class="lo-progress-bar" [style.width.%]="clampPct(percentualUtilizadoGeral())"></div>
@@ -59,7 +67,7 @@
           <svg viewBox="0 0 24 24"><path d="M3 5v14h19V5H3zm7 12H5v-5h5v5zm0-7H5V7h5v3zm7 7h-5v-5h5v5zm0-7h-5V7h5v3z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Linhas Orçamentárias</span>
+          <span class="lo-card-label">Linhas OrÃ§amentÃ¡rias</span>
           <strong class="lo-card-value lo-card-value-count">{{ numLosAno() }}</strong>
           <span class="lo-card-sub">LOs ativas em {{ anoSelecionado }}</span>
         </div>
@@ -81,9 +89,9 @@
           <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Média Comprometida/LO</span>
+          <span class="lo-card-label">MÃ©dia Comprometida/LO</span>
           <strong class="lo-card-value">{{ currency(mediaComprometidoPorLo()) }}</strong>
-          <span class="lo-card-sub">Comprometimento médio por LO</span>
+          <span class="lo-card-sub">Comprometimento mÃ©dio por LO</span>
         </div>
       </div>
 
@@ -114,7 +122,7 @@
 
   <div class="lo-export-row">
     <h2 style="margin:0">Painel de alocacoes por LO</h2>
-    <button type="button" class="lo-export-btn" (click)="exportarExcel()" title="Exportar alocações em Excel (Por Pessoa, Por LO, Por Atividade)">
+    <button type="button" class="lo-export-btn" (click)="exportarExcel()" title="Exportar alocaÃ§Ãµes em Excel (Por Pessoa, Por LO, Por Atividade)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
       Exportar Excel
     </button>
@@ -131,12 +139,12 @@
       <input
         class="lo-search-input"
         type="text"
-        placeholder="Buscar LO…"
+        placeholder="Buscar LOâ€¦"
         [(ngModel)]="searchLoTerm"
-        aria-label="Buscar linha orçamentária"
+        aria-label="Buscar linha orÃ§amentÃ¡ria"
       />
       @if (searchLoTerm) {
-        <button class="lo-search-clear" type="button" (click)="searchLoTerm = ''" aria-label="Limpar busca">×</button>
+        <button class="lo-search-clear" type="button" (click)="searchLoTerm = ''" aria-label="Limpar busca">Ã—</button>
       }
     </div>
   </div>
@@ -180,12 +188,24 @@
             <span class="lo-meta-pill lo-meta-pill-gray">Ano: {{ anoSelecionado }}</span>
           </div>
         </div>
-        <span class="lo-summary-badge">{{ numAlocacoesNaLoSelecionada() }} alocaç{{ numAlocacoesNaLoSelecionada() !== 1 ? 'ões' : 'ão' }}</span>
+        <div class="lo-summary-right">
+          @if (usuariosLoAberta.length) {
+            <div class="lo-presence-wrap" title="Usuários com esta LO aberta">
+              @for (u of usuariosLoAberta; track u.username) {
+                <div class="lo-presence-user" [class.me]="isUsuarioAtual(u.username)">
+                  <span class="lo-presence-avatar">{{ userInitials(u.username) }}</span>
+                  <span class="lo-presence-name">{{ isUsuarioAtual(u.username) ? 'Você' : u.username }}</span>
+                </div>
+              }
+            </div>
+          }
+          <span class="lo-summary-badge">{{ numAlocacoesNaLoSelecionada() }} alocações</span>
+        </div>
       </div>
 
       <div class="lo-summary-kpis">
         <div class="lo-summary-kpi lo-summary-kpi-blue">
-          <span class="lo-summary-kpi-label">Orçamento</span>
+          <span class="lo-summary-kpi-label">OrÃ§amento</span>
           <strong class="lo-summary-kpi-value">{{ currency(orcamentoLoSelecionada()) }}</strong>
         </div>
         <div class="lo-summary-kpi lo-summary-kpi-amber">
@@ -199,7 +219,7 @@
         <div class="lo-summary-kpi" [class]="saldoLo() >= 0 ? 'lo-summary-kpi-green' : 'lo-summary-kpi-red'">
           <span class="lo-summary-kpi-label">Saldo</span>
           <strong class="lo-summary-kpi-value">{{ currency(saldoLo()) }}</strong>
-          <span class="lo-summary-kpi-sub">{{ saldoLo() >= 0 ? 'Dentro do orçamento' : 'Orçamento extrapolado' }}</span>
+          <span class="lo-summary-kpi-sub">{{ saldoLo() >= 0 ? 'Dentro do orÃ§amento' : 'OrÃ§amento extrapolado' }}</span>
         </div>
         <div class="lo-summary-kpi lo-summary-kpi-teal">
           <span class="lo-summary-kpi-label">Pago (Realizado)</span>
@@ -215,7 +235,7 @@
 
       <div class="lo-summary-progress-wrap">
         <div class="lo-summary-progress-labels">
-          <span>Utilização do orçamento</span>
+          <span>UtilizaÃ§Ã£o do orÃ§amento</span>
           <span><strong>{{ percentualUtilizadoLo() | number:'1.1-1' }}%</strong></span>
         </div>
         <div class="lo-summary-progress-bar-track">
@@ -237,7 +257,7 @@
   <section class="alloc-table-wrap">
     <div class="table-toolbar">
       <p class="table-hint">Calculo mensal: Valor/hora x Horas do cadastro do mes x Alocacao (%).</p>
-      <!-- Botão colunas -->
+      <!-- BotÃ£o colunas -->
       <div class="col-picker-wrap">
         <button type="button" class="col-picker-btn" (click)="toggleColPicker()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
@@ -328,7 +348,7 @@
             @if (col('valorH')) {
               <td>
                 @if (novaPessoaSemCustoLo()) {
-                  <span class="sem-custo-lo">Não cobra da LO</span>
+                  <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                 } @else {
                   {{ currency(valorHoraPessoaSelecionadaNova()) }}
                 }
@@ -352,13 +372,13 @@
                   } @else if (mesParcialmenteDisponivelNovaPessoa($index)) {
                     <span class="month-partial-pct">{{ percentualDisponivelNovaPessoa($index) | number:'1.0-1' }}% disp.</span>
                     @if (novaPessoaSemCustoLo()) {
-                      <span class="sem-custo-lo">Não cobra da LO</span>
+                      <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                     } @else {
                       <s class="month-partial-full">{{ currency(custoMensalNovaPessoa($index)) }}</s>
                       <strong class="month-partial-efetivo">{{ currency(custoMensalNovaPessoaDisponivel($index)) }}</strong>
                     }
                   } @else if (novaPessoaSemCustoLo()) {
-                    <span class="sem-custo-lo">Não cobra da LO</span>
+                    <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                   } @else {
                     <strong>{{ currency(custoMensalNovaPessoa($index)) }}</strong>
                   }
@@ -433,7 +453,7 @@
             @if (col('valorH')) {
               <td>
                 @if (pessoaSemCustoLo(a)) {
-                  <span class="sem-custo-lo">Não cobra da LO</span>
+                  <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                 } @else if (editingId === a.id) {
                   {{ currency(valorHoraPessoaSelecionadaEdicao()) }}
                 } @else {
@@ -449,7 +469,7 @@
                 [class.cancelado]="isCancelado(a.id, monthIndex)"
                 [class.bloqueado]="mesIndisponivelParaAlocacao(a.id, monthIndex)">
                 @if (mesIndisponivelParaAlocacao(a.id, monthIndex)) {
-                  <!-- Bloqueado por outra linha da mesma pessoa que tem lançamento/pagamento -->
+                  <!-- Bloqueado por outra linha da mesma pessoa que tem lanÃ§amento/pagamento -->
                   <button
                     type="button"
                     class="month-unavailable"
@@ -463,7 +483,7 @@
                     @if (percentualLivreMesAlocacao(a.id, monthIndex) > 0) {
                       <small class="month-percent-info">+{{ percentualLivreMesAlocacao(a.id, monthIndex) | number:'1.0-2' }}% livre</small>
                     }
-                    <!-- % do mês (sobrescreve o padrão da linha) — bloqueado quando pago -->
+                    <!-- % do mÃªs (sobrescreve o padrÃ£o da linha) â€” bloqueado quando pago -->
                     <input
                       class="month-percent-input"
                       type="text"
@@ -472,13 +492,13 @@
                       [disabled]="isCancelado(a.id, monthIndex) || isPago(a.id, monthIndex)"
                       [ngModel]="getPctMensalMasked(a.id, monthIndex)"
                       (ngModelChange)="onPctMensalMaskedChange($event, a.id, monthIndex)"
-                      title="Alocação (%) do mês" />
+                      title="AlocaÃ§Ã£o (%) do mÃªs" />
                     @if (isPercentualMesSobrescrito(a.id, monthIndex)) {
-                      <small class="month-percent-override">Mês {{ getPercentualMensalDigitavel(a.id, monthIndex) | number:'1.0-2' }}%</small>
+                      <small class="month-percent-override">MÃªs {{ getPercentualMensalDigitavel(a.id, monthIndex) | number:'1.0-2' }}%</small>
                     }
-                    <!-- Valor do mês — badge quando sem custo, readonly quando pago/lançado -->
+                    <!-- Valor do mÃªs â€” badge quando sem custo, readonly quando pago/lanÃ§ado -->
                     @if (pessoaSemCustoLo(a)) {
-                      <span class="sem-custo-lo sem-custo-lo-mes">Não cobra da LO</span>
+                      <span class="sem-custo-lo sem-custo-lo-mes">NÃ£o cobra da LO</span>
                     } @else {
                       <input
                         type="number"
@@ -491,11 +511,11 @@
                         (ngModelChange)="setValorMensalDigitavel(a.id, monthIndex, $event)"
                         (blur)="setValorMensalDigitavel(a.id, monthIndex, getValorMensalDigitavel(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a)))" />
                       @if (!isCancelado(a.id, monthIndex) && valorMaximoMes(a, monthIndex) > 0) {
-                        <small class="month-max-hint">máx {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
+                        <small class="month-max-hint">mÃ¡x {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
                       }
                     }
                     @if (!pessoaSemCustoLo(a)) {
-                      <!-- Pago / Lançado: marca o mês como comprometido (futuro ou confirmado) -->
+                      <!-- Pago / LanÃ§ado: marca o mÃªs como comprometido (futuro ou confirmado) -->
                       <label class="paid-check">
                         <input
                           type="checkbox"
@@ -505,7 +525,7 @@
                         Pago
                       </label>
                     }
-                    <!-- Cancelado: zera o custo e libera o mês para outras linhas -->
+                    <!-- Cancelado: zera o custo e libera o mÃªs para outras linhas -->
                     <label class="paid-check cancel-check">
                       <input
                         type="checkbox"
@@ -613,5 +633,8 @@
     <button type="button" (click)="salvarPessoaRapida()">Cadastrar pessoa</button>
   </div>
 }
+
+
+
 
 

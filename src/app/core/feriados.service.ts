@@ -6,8 +6,9 @@
  *   'planner_feriados_federal' – overrides on federal holidays (rename / disable)
  *   'planner_dias_uteis'       – which weekdays are business days
  */
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { dateToYmd } from './business-days';
+import { PlannerApiService } from './planner-api.service';
 
 export interface FeriadoCustom {
   id: string;
@@ -76,6 +77,9 @@ export function federalHolidaysForYear(year: number): { data: string; nome: stri
 
 @Injectable({ providedIn: 'root' })
 export class FeriadosService {
+  private _api = inject(PlannerApiService);
+  private _token = '';
+
   // ── Signals ────────────────────────────────────────────────────────────────
   feriados        = signal<FeriadoCustom[]>(this._loadFeriados());
   diasUteis       = signal<DiasUteisConfig>(this._loadDiasUteis());
@@ -101,9 +105,47 @@ export class FeriadosService {
     catch { return {}; }
   }
 
-  private _saveFeriados()         { localStorage.setItem(KEY_FERIADOS, JSON.stringify(this.feriados())); }
-  private _saveDiasUteis()        { localStorage.setItem(KEY_DIAS_UTEIS, JSON.stringify(this.diasUteis())); }
-  private _saveFederalOverrides() { localStorage.setItem(KEY_FEDERAL_OVERRIDE, JSON.stringify(this.federalOverrides())); }
+  /** Set the auth token so mutations can be persisted to the backend. */
+  setToken(token: string): void { this._token = token; }
+
+  /**
+   * Load config from the backend (overrides localStorage values).
+   * Call this once after login.
+   */
+  syncFromApi(token: string): void {
+    if (!token) return;
+    this._token = token;
+    this._api.getFeriadosConfig(token).subscribe({
+      next: (cfg: any) => {
+        if (cfg?.feriados && Array.isArray(cfg.feriados)) {
+          this.feriados.set(cfg.feriados);
+          localStorage.setItem(KEY_FERIADOS, JSON.stringify(cfg.feriados));
+        }
+        if (cfg?.federalOverrides && typeof cfg.federalOverrides === 'object') {
+          this.federalOverrides.set(cfg.federalOverrides);
+          localStorage.setItem(KEY_FEDERAL_OVERRIDE, JSON.stringify(cfg.federalOverrides));
+        }
+        if (cfg?.diasUteis && Array.isArray(cfg.diasUteis) && cfg.diasUteis.length === 7) {
+          this.diasUteis.set(cfg.diasUteis);
+          localStorage.setItem(KEY_DIAS_UTEIS, JSON.stringify(cfg.diasUteis));
+        }
+      },
+      error: () => { /* keep localStorage data on error */ }
+    });
+  }
+
+  private _syncToApi(): void {
+    if (!this._token) return;
+    this._api.saveFeriadosConfig(this._token, {
+      feriados: this.feriados(),
+      federalOverrides: this.federalOverrides(),
+      diasUteis: this.diasUteis()
+    }).subscribe({ error: (e: any) => console.warn('Falha ao salvar feriados no backend', e) });
+  }
+
+  private _saveFeriados()         { localStorage.setItem(KEY_FERIADOS, JSON.stringify(this.feriados())); this._syncToApi(); }
+  private _saveDiasUteis()        { localStorage.setItem(KEY_DIAS_UTEIS, JSON.stringify(this.diasUteis())); this._syncToApi(); }
+  private _saveFederalOverrides() { localStorage.setItem(KEY_FEDERAL_OVERRIDE, JSON.stringify(this.federalOverrides())); this._syncToApi(); }
 
   // ── Custom holiday CRUD ───────────────────────────────────────────────────
   addFeriado(f: Omit<FeriadoCustom, 'id'>): void {

@@ -186,6 +186,43 @@ export class PlannerApiService {
     return this.http.put<any>(`${this.api}/monthly-hours/${month}`, { horas: hours }, { headers: this.headers(token) });
   }
 
+  listAllocationPayments(token: string) {
+    return this.http.get<any[]>(`${this.api}/allocation-payments`, { headers: this.headers(token) });
+  }
+
+  upsertAllocationPayment(token: string, allocationId: string, month: number, paid: boolean) {
+    return this.http.put<any>(`${this.api}/allocation-payments/${allocationId}/${month}`, { paid }, { headers: this.headers(token) });
+  }
+
+  listLoPresence(token: string) {
+    return this.http.get<any[]>(`${this.api}/lo-presence`, { headers: this.headers(token) });
+  }
+
+  upsertLoPresence(token: string, loId: string) {
+    return this.http.put<any>(`${this.api}/lo-presence`, { loId }, { headers: this.headers(token) });
+  }
+
+  listAllocationMonthlyState(token: string) {
+    return this.http.get<any[]>(`${this.api}/allocation-monthly-state`, { headers: this.headers(token) });
+  }
+
+  upsertAllocationMonthlyState(
+    token: string,
+    allocationId: string,
+    month: number,
+    payload: { canceled?: boolean | null; manualValue?: number | null; manualPercent?: number | null }
+  ) {
+    return this.http.put<any>(`${this.api}/allocation-monthly-state/${allocationId}/${month}`, payload, { headers: this.headers(token) });
+  }
+
+  listAllocationCursors(token: string, loId: string) {
+    return this.http.get<any[]>(`${this.api}/allocation-cursors?loId=${encodeURIComponent(loId)}`, { headers: this.headers(token) });
+  }
+
+  upsertAllocationCursor(token: string, payload: { loId: string; x: number; y: number }) {
+    return this.http.put<any>(`${this.api}/allocation-cursors`, payload, { headers: this.headers(token) });
+  }
+
   listRisks(token: string) {
     return this.http.get<any[]>(`${this.api}/risks`, { headers: this.headers(token) });
   }
@@ -452,5 +489,23 @@ export class PlannerApiService {
   }
   deleteAbsence(token: string, absenceId: string) {
     return this.http.delete<void>(`${this.api}/absences/${absenceId}`, { headers: this.headers(token) });
+  }
+
+  // ── Feriados config ───────────────────────────────────────────────────────
+  getFeriadosConfig(token: string) {
+    return this.http.get<any>(`${this.api}/feriados`, { headers: this.headers(token) });
+  }
+
+  saveFeriadosConfig(token: string, config: { feriados: any[]; federalOverrides: Record<string, any>; diasUteis: boolean[] }) {
+    return this.http.put<any>(`${this.api}/feriados`, config, { headers: this.headers(token) });
+  }
+
+  // ── Gantt config ──────────────────────────────────────────────────────────
+  getGanttConfig(token: string, projectId: string) {
+    return this.http.get<any>(`${this.api}/gantt-configs/${projectId}`, { headers: this.headers(token) });
+  }
+
+  saveGanttConfig(token: string, projectId: string, config: { markers: any[]; meta: Record<string, any> }) {
+    return this.http.put<any>(`${this.api}/gantt-configs/${projectId}`, config, { headers: this.headers(token) });
   }
 }

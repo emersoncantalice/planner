@@ -1429,6 +1429,7 @@ export class App {
         this.carregarHorasMes();
         this.carregarConsultorias();
         this.carregarAusencias();
+        this.feriados.syncFromApi(this.token());
       },
       error: (err) => {
         if (!this.token()) return;

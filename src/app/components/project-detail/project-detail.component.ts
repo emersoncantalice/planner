@@ -25,6 +25,7 @@ export class ProjectDetailComponent implements OnChanges {
   @Input() projeto: any = null;
   @Input() perfis: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() token = '';
   @Output() addScheduleItem    = new EventEmitter<{ titulo: string; descricao: string; inicioPlanejado: string | null; fimPlanejado: string | null; permiteParalelo: boolean }>();
   @Output() updateScheduleItem = new EventEmitter<{ itemId: string; titulo?: string; descricao?: string; inicioPlanejado?: string | null; fimPlanejado?: string | null; permiteParalelo?: boolean; status?: string }>();
   @Output() deleteScheduleItem = new EventEmitter<string>();

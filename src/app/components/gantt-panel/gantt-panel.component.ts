@@ -7,6 +7,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { dateToYmd } from '../../core/business-days';
 import { FeriadosService } from '../../core/feriados.service';
+import { PlannerApiService } from '../../core/planner-api.service';
 
   // ---
 type GStatus = 'PLANEJADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'ATRASADO' | 'BLOQUEADO';
@@ -51,12 +52,18 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   private feriados = inject(FeriadosService);
   private cdr      = inject(ChangeDetectorRef);
   private zone     = inject(NgZone);
+  private api      = inject(PlannerApiService);
 
   @Input() resumo: any[] = [];
   @Input() projetoSelecionado: any = null;
   @Input() perfis: any[] = [];
   @Input() pessoas: any[] = [];
   @Input() embedded = false;
+  @Input() token = '';
+
+  // ── Gantt API persistence ─────────────────────────────────────────────────
+  private _metaCache: Record<string, { responsavel: string; pct: number }> = {};
+  private _apiSaveTimer: any = null;
 
   @Output() selectProject      = new EventEmitter<string>();
   @Output() addScheduleItem    = new EventEmitter<{ titulo: string; descricao: string; inicioPlanejado: string | null; fimPlanejado: string | null; permiteParalelo: boolean }>();
@@ -152,11 +159,13 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   ngOnChanges(c: SimpleChanges) {
     if (c['projetoSelecionado'] && this.projetoSelecionado) {
       this.projetoId = this.projetoSelecionado.id ?? this.projetoId;
+      this._metaCache = {};   // clear cache for new project
       this.loadMarkers();
     }
   }
 
   ngOnDestroy() {
+    if (this._apiSaveTimer) clearTimeout(this._apiSaveTimer);
     this._removeListeners();
   }
 
@@ -650,6 +659,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   loadMarkers() {
+    // 1. Load from localStorage as immediate fallback
     try {
       const raw = localStorage.getItem(this.markersKey());
       const items = raw ? JSON.parse(raw) : [];
@@ -657,10 +667,29 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     } catch {
       this.timelineMarkers = [];
     }
+
+    // 2. Load from backend (overrides localStorage when available)
+    const projectId = this.projetoSelecionado?.id;
+    if (this.token && projectId) {
+      this.api.getGanttConfig(this.token, projectId).subscribe({
+        next: (cfg: any) => {
+          if (cfg?.markers && Array.isArray(cfg.markers)) {
+            this.timelineMarkers = cfg.markers;
+            localStorage.setItem(this.markersKey(), JSON.stringify(cfg.markers));
+          }
+          if (cfg?.meta && typeof cfg.meta === 'object') {
+            this._metaCache = cfg.meta;
+          }
+          this.cdr.markForCheck();
+        },
+        error: () => { /* keep localStorage data */ }
+      });
+    }
   }
 
   saveMarkers() {
     localStorage.setItem(this.markersKey(), JSON.stringify(this.timelineMarkers));
+    this._scheduleApiSave();
   }
 
   addMarker() {
@@ -923,14 +952,36 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   getMeta(itemId: string): { responsavel: string; pct: number } {
+    // Return from cache if available (populated from API on project load)
+    if (this._metaCache[itemId] !== undefined) return this._metaCache[itemId];
+    // Fallback: read from localStorage (backward compat)
     try {
       const r = localStorage.getItem(this.metaKey(itemId));
-      return r ? JSON.parse(r) : { responsavel: '', pct: 0 };
+      const val = r ? JSON.parse(r) : { responsavel: '', pct: 0 };
+      this._metaCache[itemId] = val;
+      return val;
     } catch { return { responsavel: '', pct: 0 }; }
   }
 
   setMeta(itemId: string, meta: Partial<{ responsavel: string; pct: number }>) {
-    localStorage.setItem(this.metaKey(itemId), JSON.stringify({ ...this.getMeta(itemId), ...meta }));
+    const updated = { ...this.getMeta(itemId), ...meta };
+    this._metaCache[itemId] = updated;
+    localStorage.setItem(this.metaKey(itemId), JSON.stringify(updated));
+    this._scheduleApiSave();
+  }
+
+  private _scheduleApiSave() {
+    if (this._apiSaveTimer) clearTimeout(this._apiSaveTimer);
+    this._apiSaveTimer = setTimeout(() => this._saveToApi(), 600);
+  }
+
+  private _saveToApi() {
+    const projectId = this.projetoSelecionado?.id;
+    if (!this.token || !projectId) return;
+    this.api.saveGanttConfig(this.token, projectId, {
+      markers: this.timelineMarkers,
+      meta: this._metaCache
+    }).subscribe({ error: (e: any) => console.warn('Falha ao salvar configuração do Gantt no backend', e) });
   }
 
   // ---
@@ -1319,5 +1370,3 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return d > 0 ? `${d}d` : '—';
   }
 }
-
-
