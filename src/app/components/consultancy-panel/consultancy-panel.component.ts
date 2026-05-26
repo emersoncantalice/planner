@@ -33,6 +33,7 @@ export class ConsultancyPanelComponent {
   submit() {
     this.create.emit(this.consultoria);
     this.consultoria = { nome: '', descricao: '', telefone: '', email: '' };
+    this.formExpanded = false;
   }
 
   startEdit(c: any) {

@@ -114,77 +114,89 @@ $surface   : #fff;
   align-self: center;
 }
 
-/* Segmented period buttons */
-.gp-segmented {
+/* ── Unified control pill (period + zoom in one container) ───────────────── */
+.gp-ctrl-pill {
   display: inline-flex;
+  align-items: center;
+  height: 34px;
   border: 1.5px solid $border;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fff;
+  border-radius: 20px;
+  background: #f0f5ff;
+  padding: 3px 6px 3px 3px;
+  gap: 2px;
 }
 
+.gp-ctrl-pill-sep {
+  width: 1px;
+  height: 16px;
+  background: #c0d0f0;
+  flex-shrink: 0;
+  margin: 0 5px;
+}
+
+/* Segmented period buttons (work inside .gp-ctrl-pill) */
 .gp-seg-btn {
-  padding: 4px 14px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 13px;
   font-size: .75rem;
   font-weight: 700;
   color: #4a6da6;
   background: transparent;
   border: none;
+  border-radius: 14px;
   cursor: pointer;
-  transition: background .1s, color .1s;
+  transition: background .12s, color .12s, box-shadow .12s;
   white-space: nowrap;
-  line-height: 1.6;
 
-  & + & { border-left: 1px solid $border; }
-  &:hover:not(.gp-seg-active) { background: #eef4ff; }
+  &:hover:not(.gp-seg-active) { background: rgba(29,99,218,.1); color: #1d63da; }
 
   &.gp-seg-active {
     background: #1d63da;
     color: #fff;
     pointer-events: none;
+    box-shadow: 0 1px 6px rgba(29,99,218,.28);
   }
 }
 
-/* Zoom control */
-.gp-zoom-ctrl {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+/* Zoom step buttons */
 .gp-zoom-step {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1.5px solid $border;
-  border-radius: 7px;
-  background: #fff;
-  color: #1a3a7a;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #1d63da;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background .12s, border-color .12s;
+  transition: background .12s;
 
-  svg { width: 16px; height: 16px; fill: currentColor; }
-  &:hover:not(:disabled) { background: #eef4ff; border-color: #7aaef5; }
-  &:disabled { opacity: .38; cursor: default; }
+  svg { width: 18px; height: 18px; fill: currentColor; }
+  &:hover:not(:disabled) { background: rgba(29,99,218,.14); }
+  &:disabled { opacity: .35; cursor: default; }
 }
 
-.gp-zoom-track { width: 96px; display: flex; align-items: center; }
-
 .gp-zoom-range {
-  width: 100%;
+  width: 88px;
   accent-color: #1d63da;
   cursor: pointer;
 }
 
 .gp-zoom-val {
-  font-size: .75rem;
+  font-size: .74rem;
   font-weight: 800;
   color: #1a3a7a;
-  min-width: 38px;
+  min-width: 34px;
   text-align: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 2px 7px;
+  border: 1px solid $border;
+  line-height: 1.4;
 }
 
 /* Marker controls */
@@ -546,7 +558,6 @@ $surface   : #fff;
   label {
     font-size: .68rem;
     font-weight: 700;
-    color: #4a6da6;
     text-transform: uppercase;
     letter-spacing: .03em;
   }
@@ -631,6 +642,27 @@ $surface   : #fff;
 }
 
 .gp-pct-val  { font-size: .8rem; font-weight: 700; color: $text-main; min-width: 32px; }
+
+.gp-pct-auto-label {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: .62rem;
+  font-weight: 600;
+  color: #1d63da;
+  background: #eef4ff;
+  border: 1px solid #c8d8fb;
+  border-radius: 999px;
+  padding: 1px 7px;
+  letter-spacing: .01em;
+  text-transform: none;
+  vertical-align: middle;
+}
+
+.gp-range:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+  filter: grayscale(.6);
+}
 
 .gp-form-actions {
   display: flex;
@@ -1471,14 +1503,14 @@ $surface   : #fff;
   pointer-events: none;
   z-index: 0;
 
-  &.gp-holiday-band { background: rgba(217, 119, 6, .10); }
+  &.gp-holiday-band { background: rgba(217, 119, 6, .1); }
 }
 
 .gp-nonwork-row-band {
   position: absolute;
   top: 0;
   height: 100%;
-  background: rgba(0, 0, 0, .03);
+  background: rgba(0, 0, 0, .07);
   pointer-events: none;
   z-index: 1;
 
@@ -1538,6 +1570,171 @@ $surface   : #fff;
   font-size: .62rem;
   cursor: pointer;
   padding: 0;
+}
+
+/* ── Overdue chip in gantt row ──────────────────────────────────────────────── */
+.gr-overdue-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: .57rem;
+  font-weight: 700;
+  background: #fff1f1;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: 999px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  letter-spacing: .02em;
+  animation: overdue-pulse 2s ease-in-out infinite;
+}
+
+@keyframes overdue-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .65; }
+}
+
+/* ── Predecessor search + multi-select ─────────────────────────────────────── */
+.gp-pred-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 32px;
+  border: 1.5px solid $border;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 8px;
+  margin-bottom: 6px;
+  transition: border-color .15s;
+
+  &:focus-within { border-color: #1d63da; }
+}
+
+.gp-pred-search-icon {
+  width: 14px; height: 14px;
+  fill: #8aa0c8;
+  flex-shrink: 0;
+}
+
+.gp-pred-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: .78rem;
+  color: $text-main;
+  padding: 0 6px;
+  min-width: 0;
+
+  &::placeholder { color: #b0c0d8; }
+}
+
+.gp-pred-search-clear {
+  border: none;
+  background: none;
+  color: #8aa0c8;
+  font-size: .72rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+
+  &:hover { color: #dc2626; }
+}
+
+.gp-pred-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 0;
+}
+
+.gp-pred-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1.5px solid #c8d8fb;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 600;
+  color: #4a6da6;
+  background: #f4f8ff;
+  cursor: pointer;
+  transition: background .1s, border-color .1s, color .1s;
+  user-select: none;
+
+  input[type=checkbox] { display: none; }
+
+  &:hover { background: #e0ecff; border-color: #93b7f5; }
+
+  &.gp-pred-chip-on {
+    background: #1d63da;
+    border-color: #1550b8;
+    color: #fff;
+  }
+
+  &.gp-pred-chip-cyclic {
+    background: #fff8f0;
+    border-color: #fbbf7a;
+    border-style: dashed;
+    color: #9a5020;
+    cursor: not-allowed;
+    opacity: .7;
+
+    &:hover { background: #fff0e0; border-color: #f59638; }
+  }
+}
+
+.gp-pred-cyclic-icon {
+  font-size: .8rem;
+  margin-right: 1px;
+  opacity: .85;
+}
+
+.gp-pred-empty {
+  font-size: .74rem;
+  color: #8aa0c8;
+  font-style: italic;
+}
+
+/* ── Day-of-week picker ─────────────────────────────────────────────────────── */
+.gp-dow-picker {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.gp-dow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 28px;
+  border: 1.5px solid #c8d8fb;
+  border-radius: 8px;
+  background: #f4f8ff;
+  color: #4a6da6;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .1s, border-color .1s, color .1s;
+
+  &:hover { background: #dce8ff; border-color: #7aaef5; }
+
+  &.gp-dow-active {
+    background: #1d63da;
+    border-color: #1550b8;
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(29,99,218,.3);
+  }
+}
+
+.gp-dow-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: .68rem;
+  color: #4a6da6;
+  font-style: italic;
 }
 
 /* ── Etapas badge in gantt row ──────────────────────────────────────────────── */

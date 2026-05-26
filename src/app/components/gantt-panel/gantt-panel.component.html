@@ -35,14 +35,41 @@
             <input type="date" [(ngModel)]="novaAtividade.fimPlanejado"
                    (change)="validateDate(novaAtividade, 'fimPlanejado')" />
           </div>
-          <div class="gp-field">
-            <label>Predecessora</label>
-            <select [(ngModel)]="novaAtividade.predecessorId" (ngModelChange)="onPredecessorChange('nova')">
-              <option value="">Sem predecessora</option>
-              @for (pred of predecessorasDisponiveis(); track pred.id) {
-                <option [value]="pred.id">{{ pred.titulo }}</option>
+          <div class="gp-field gp-field-wide">
+            <label>Predecessoras</label>
+            <div class="gp-pred-search-wrap">
+              <svg class="gp-pred-search-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+              <input class="gp-pred-search-input" type="text" [(ngModel)]="predSearch"
+                     placeholder="Pesquisar atividade…" autocomplete="off" />
+              @if (predSearch) {
+                <button class="gp-pred-search-clear" type="button" (click)="predSearch = ''">✕</button>
               }
-            </select>
+            </div>
+            @if (predecessorasFiltradas().length === 0) {
+              <span class="gp-pred-empty">{{ predSearch ? 'Nenhuma atividade encontrada' : 'Nenhuma atividade disponível como predecessora' }}</span>
+            } @else {
+              <div class="gp-pred-list">
+                @for (pred of predecessorasFiltradas(); track pred.id) {
+                  <label class="gp-pred-chip" [class.gp-pred-chip-on]="hasPredecessor(novaAtividade, pred.id)"
+                         (click)="togglePredecessor(novaAtividade, pred.id, 'nova')">
+                    <input type="checkbox" [checked]="hasPredecessor(novaAtividade, pred.id)" (click)="$event.stopPropagation()" />
+                    {{ pred.titulo }}
+                  </label>
+                }
+              </div>
+            }
+          </div>
+          <div class="gp-field">
+            <label>Iniciar somente em</label>
+            <div class="gp-dow-picker">
+              @for (opt of dowOptions; track opt.day) {
+                <button type="button" class="gp-dow-btn" [class.gp-dow-active]="hasDow(novaAtividade, opt.day)"
+                        (click)="toggleDow(novaAtividade, opt.day)">{{ opt.label }}</button>
+              }
+            </div>
+            @if (novaAtividade.dowConstraint?.length) {
+              <span class="gp-dow-hint">Início ajustado para: {{ dowLabel(novaAtividade.dowConstraint) }}</span>
+            }
           </div>
           <div class="gp-field">
             <label>Perfil</label>
@@ -87,7 +114,7 @@
           </div>
           <div class="gp-field gp-field-check">
             <label class="gp-check-label">
-              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" [disabled]="!!novaAtividade.predecessorId" />
+              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" [disabled]="!!novaAtividade.predecessorIds?.length" />
               Paralela (pode rodar junto com outras)
             </label>
           </div>
@@ -161,14 +188,45 @@
               }
             </select>
           </div>
-          <div class="gp-field">
-            <label>Predecessora</label>
-            <select [(ngModel)]="editForm.predecessorId" (ngModelChange)="onPredecessorChange('edit')">
-              <option value="">Sem predecessora</option>
-              @for (pred of predecessorasDisponiveis(editingItem.id); track pred.id) {
-                <option [value]="pred.id">{{ pred.titulo }}</option>
+          <div class="gp-field gp-field-wide">
+            <label>Predecessoras</label>
+            <div class="gp-pred-search-wrap">
+              <svg class="gp-pred-search-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+              <input class="gp-pred-search-input" type="text" [(ngModel)]="predSearch"
+                     placeholder="Pesquisar atividade…" autocomplete="off" />
+              @if (predSearch) {
+                <button class="gp-pred-search-clear" type="button" (click)="predSearch = ''">✕</button>
               }
-            </select>
+            </div>
+            @if (predecessorasFiltradas(editingItem.id).length === 0) {
+              <span class="gp-pred-empty">{{ predSearch ? 'Nenhuma atividade encontrada' : 'Nenhuma atividade disponível como predecessora' }}</span>
+            } @else {
+              <div class="gp-pred-list">
+                @for (pred of predecessorasFiltradas(editingItem.id); track pred.id) {
+                  <label class="gp-pred-chip"
+                         [class.gp-pred-chip-on]="hasPredecessor(editForm, pred.id)"
+                         [class.gp-pred-chip-cyclic]="isCyclicPredecessor(pred.id)"
+                         [title]="isCyclicPredecessor(pred.id) ? '⚠ Dependência cíclica — ' + pred.titulo + ' já depende (direta ou indiretamente) desta atividade' : ''"
+                         (click)="togglePredecessor(editForm, pred.id, 'edit')">
+                    <input type="checkbox" [checked]="hasPredecessor(editForm, pred.id)" (click)="$event.stopPropagation()" />
+                    @if (isCyclicPredecessor(pred.id)) { <span class="gp-pred-cyclic-icon">⊘</span> }
+                    {{ pred.titulo }}
+                  </label>
+                }
+              </div>
+            }
+          </div>
+          <div class="gp-field">
+            <label>Iniciar somente em</label>
+            <div class="gp-dow-picker">
+              @for (opt of dowOptions; track opt.day) {
+                <button type="button" class="gp-dow-btn" [class.gp-dow-active]="hasDow(editForm, opt.day)"
+                        (click)="toggleDow(editForm, opt.day)">{{ opt.label }}</button>
+              }
+            </div>
+            @if (editForm.dowConstraint?.length) {
+              <span class="gp-dow-hint">Início ajustado para: {{ dowLabel(editForm.dowConstraint) }}</span>
+            }
           </div>
           <div class="gp-field">
             <label>Perfil</label>
@@ -180,11 +238,18 @@
             </select>
           </div>
           <div class="gp-field gp-field-wide">
-            <label>% Conclusão — {{ editForm.pct }}%</label>
+            <label>
+              % Conclusão — {{ editFormEffectivePct }}%
+              @if (editForm.etapas.length) {
+                <span class="gp-pct-auto-label">calculado pelas etapas</span>
+              }
+            </label>
             <div class="gp-pct-wrap">
-              <input type="range" min="0" max="100" step="5" [(ngModel)]="editForm.pct" class="gp-range" />
+              <input type="range" min="0" max="100" step="5" [(ngModel)]="editForm.pct" class="gp-range"
+                     [disabled]="!!editForm.etapas.length"
+                     [title]="editForm.etapas.length ? 'Desabilitado: o percentual é calculado automaticamente pelas etapas' : ''" />
               <div class="gp-pct-bar">
-                <div class="gp-pct-bar-fill" [style.width.%]="editForm.pct"></div>
+                <div class="gp-pct-bar-fill" [style.width.%]="editFormEffectivePct"></div>
               </div>
             </div>
           </div>
@@ -213,7 +278,7 @@
           </div>
           <div class="gp-field gp-field-check">
             <label class="gp-check-label">
-              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" [disabled]="!!editForm.predecessorId" />
+              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" [disabled]="!!editForm.predecessorIds?.length" />
               Paralela (pode rodar junto com outras)
             </label>
           </div>
@@ -362,13 +427,13 @@
           <button class="gp-export-btn"
                   (click)="exportarImagem()"
                   [disabled]="exportandoImagem || atividades().length === 0"
-                  [title]="exportandoImagem ? 'Gerando imagem…' : 'Exportar cronograma completo como PNG'">
+                  [title]="exportandoImagem ? 'Gerando imagem…' : 'Exportar cronograma em PNG horizontal (alta definição)'">
             @if (exportandoImagem) {
               <span class="gp-export-spinner"></span>
               Gerando…
             } @else {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-              Exportar PNG
+              Exportar PNG HD
             }
           </button>
 
@@ -389,35 +454,22 @@
       @if (projetoSelecionado) {
         <div class="gp-tb-row gp-tb-controls">
 
-          <!-- Período -->
-          <div class="gp-ctrl-group">
-            <span class="gp-ctrl-label">Período</span>
-            <div class="gp-segmented">
-              <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"    (click)="timelineScale = 'DIA'">Dia</button>
-              <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'" (click)="timelineScale = 'SEMANA'">Semana</button>
-              <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"    (click)="timelineScale = 'MES'">Mês</button>
-            </div>
-          </div>
-
-          <span class="gp-ctrl-sep"></span>
-
-          <!-- Zoom -->
-          <div class="gp-ctrl-group">
-            <span class="gp-ctrl-label">Zoom</span>
-            <div class="gp-zoom-ctrl">
-              <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Diminuir zoom (−)">
-                <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
-              </button>
-              <div class="gp-zoom-track" title="Zoom: {{ zoomLabel() }}">
-                <input type="range" class="gp-zoom-range"
-                       min="0" [max]="zoomLevelCount - 1" step="1"
-                       [ngModel]="zoomIndex" (ngModelChange)="setZoomIndex(+$event)" />
-              </div>
-              <span class="gp-zoom-val">{{ zoomLabel() }}</span>
-              <button class="gp-zoom-step" (click)="zoomIn()" [disabled]="!canZoomIn()" title="Aumentar zoom (+)">
-                <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-              </button>
-            </div>
+          <!-- Período + Zoom — pill unificada -->
+          <div class="gp-ctrl-pill" role="group" aria-label="Escala e zoom da linha do tempo">
+            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"    (click)="timelineScale = 'DIA'">Dia</button>
+            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'" (click)="timelineScale = 'SEMANA'">Semana</button>
+            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"    (click)="timelineScale = 'MES'">Mês</button>
+            <span class="gp-ctrl-pill-sep"></span>
+            <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Diminuir zoom">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zM7 9h5v1H7z"/></svg>
+            </button>
+            <input type="range" class="gp-zoom-range"
+                   min="0" [max]="zoomLevelCount - 1" step="1"
+                   [ngModel]="zoomIndex" (ngModelChange)="setZoomIndex(+$event)" />
+            <button class="gp-zoom-step" (click)="zoomIn()" [disabled]="!canZoomIn()" title="Aumentar zoom">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm2.5-4h-2v2H9v-2H7V9h2V7h1v2h2v1z"/></svg>
+            </button>
+            <span class="gp-zoom-val">{{ zoomLabel() }}</span>
           </div>
 
           <span class="gp-ctrl-sep"></span>
@@ -456,6 +508,20 @@
           <span class="gp-proj-badge">{{ projetoSelecionado.nome }}</span>
         }
         <div class="gp-tb-spacer"></div>
+        @if (projetoSelecionado) {
+          <button class="gp-export-btn"
+                  (click)="exportarImagem()"
+                  [disabled]="exportandoImagem || atividades().length === 0"
+                  [title]="exportandoImagem ? 'Gerando imagem…' : 'Exportar cronograma em PNG horizontal (alta definição)'">
+            @if (exportandoImagem) {
+              <span class="gp-export-spinner"></span>
+              Gerando…
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              Exportar PNG HD
+            }
+          </button>
+        }
         <button class="gp-add-btn" (click)="toggleForm()">
           @if (formVisible) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -466,28 +532,24 @@
           }
         </button>
       </div>
-      <!-- Row 2: period segmented + zoom slider -->
+      <!-- Row 2: período + zoom — pill unificada -->
       <div class="gp-tb-row gp-tb-controls">
-        <!-- Period segmented -->
-        <div class="gp-segmented" role="group" aria-label="Escala da linha do tempo">
-          <button class="gp-seg-btn" [class.active]="timelineScale === 'DIA'"
+        <div class="gp-ctrl-pill" role="group" aria-label="Escala e zoom da linha do tempo">
+          <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"
                   (click)="timelineScale = 'DIA'">Dia</button>
-          <button class="gp-seg-btn" [class.active]="timelineScale === 'SEMANA'"
+          <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'"
                   (click)="timelineScale = 'SEMANA'">Semana</button>
-          <button class="gp-seg-btn" [class.active]="timelineScale === 'MES'"
+          <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"
                   (click)="timelineScale = 'MES'">Mês</button>
-        </div>
-        <!-- Zoom -->
-        <div class="gp-zoom-ctrl">
+          <span class="gp-ctrl-pill-sep"></span>
           <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Reduzir zoom">
-            <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zM7 9h5v1H7z"/></svg>
           </button>
           <input class="gp-zoom-range" type="range"
                  [min]="0" [max]="zoomLevelCount - 1" [step]="1"
-                 [value]="zoomIndex" (input)="setZoomIndex(+$any($event.target).value)"
-                 [title]="zoomLabel()" />
+                 [value]="zoomIndex" (input)="setZoomIndex(+$any($event.target).value)" />
           <button class="gp-zoom-step" (click)="zoomIn()" [disabled]="!canZoomIn()" title="Aumentar zoom">
-            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm2.5-4h-2v2H9v-2H7V9h2V7h1v2h2v1z"/></svg>
           </button>
           <span class="gp-zoom-val">{{ zoomLabel() }}</span>
         </div>
@@ -638,15 +700,18 @@
                   @if (perfilNome(item)) {
                     <span class="gr-resp">{{ perfilNome(item) }}</span>
                   }
+                  @if (isAtrasado(item)) {
+                    <span class="gr-overdue-chip" title="Atividade atrasada — arraste a barra ou edite para reprogramar">↻ reprogramar</span>
+                  }
                 </div>
                 <span class="gr-status-dot"
                       [class]="'dot-' + statusColor(effectiveStatus(item))"
                       [title]="statusLabel(effectiveStatus(item))"></span>
-                <div class="gr-pct-wrap">
+                <div class="gr-pct-wrap" [title]="etapasProgress(item) ? 'Calculado pelas etapas' : ''">
                   <div class="gr-pct-track">
-                    <div class="gr-pct-fill" [style.width.%]="getMeta(item.id).pct"></div>
+                    <div class="gr-pct-fill" [style.width.%]="effectivePct(item)"></div>
                   </div>
-                  <span class="gr-pct-num">{{ getMeta(item.id).pct }}%</span>
+                  <span class="gr-pct-num">{{ effectivePct(item) }}%</span>
                 </div>
                 <span class="gr-dur">{{ duracao(item) }}</span>
               </div>
@@ -678,10 +743,9 @@
                     </div>
                   }
                   <!-- Bar with handles -->
-                  <div class="gp-bar"
-                       [class]="item.cor ? 'gb-custom' : 'gb-' + statusColor(effectiveStatus(item))"
+                  <div class="gp-bar gb-custom"
                        [class.gp-bar-dragging]="isDragging(item)"
-                       [style.--bar-custom-color]="item.cor || null"
+                       [style.--bar-custom-color]="autoBarColor(item, i)"
                        (click)="$event.stopPropagation(); onRowClick(item)"
                        [style.left.px]="barLeft(item)"
                        [style.width.px]="barWidth(item)">
@@ -695,7 +759,7 @@
                     <div class="gp-bar-body"
                          (mousedown)="onBarMouseDown($event, item, 'move')"
                          [title]="item.titulo + ' · ' + fmt(item.inicioPlanejado) + ' → ' + fmt(item.fimPlanejado)">
-                      <div class="gp-bar-fill" [style.width.%]="getMeta(item.id).pct"></div>
+                      <div class="gp-bar-fill" [style.width.%]="effectivePct(item)"></div>
                       <span class="gp-bar-label">{{ item.titulo }}</span>
                     </div>
 

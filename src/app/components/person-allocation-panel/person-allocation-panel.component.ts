@@ -110,7 +110,7 @@ export class PersonAllocationPanelComponent {
           if (!a) return sum;
           const manual = this.getValorMensalManual(a.id, month);
           if (manual > 0) return sum + Number(manual.toFixed(2));
-          const vh = Number(a.valorHora || 0);
+          const vh = this.getValorHoraDaAlocacao(a);
           return sum + Number((vh * this.getHorasMesByIndex(month) * (l.percentual / 100)).toFixed(2));
         }, 0);
       }
@@ -191,10 +191,14 @@ export class PersonAllocationPanelComponent {
     if (this.isCancelado(owner?.id, month)) return 0;
     const manual = this.getValorMensalManual(owner?.id, month);
     if (manual > 0) return Number(manual.toFixed(2));
-    const valorHora = Number(owner?.valorHora || 0);
+    const valorHora = this.getValorHoraDaAlocacao(owner);
     const horas = this.getHorasMesByIndex(month);
     const percentual = this.getPercentualEfetivoMes(owner.id, month);
     return Number((valorHora * horas * (percentual / 100)).toFixed(2));
+  }
+
+  private getValorHoraDaAlocacao(a: any): number {
+    return a?.debitaLo === false ? 0 : Number(a?.valorHora || 0);
   }
 
   currency(value: number): string {

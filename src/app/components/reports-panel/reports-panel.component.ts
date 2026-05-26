@@ -52,6 +52,17 @@ export class ReportsPanelComponent {
     return p?.valorHora != null ? Number(p.valorHora) : Number(fallback);
   }
 
+  private debitaLoDaAlocacao(a: any): boolean {
+    if (a?.debitaLo != null) return !!a.debitaLo;
+    const pessoa = this.pessoas.find(
+      (x: any) => (x?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
+    );
+    const perfilId = a?.perfilId || pessoa?.perfilId;
+    if (!perfilId) return true;
+    const perfil = this.perfis.find((x: any) => x.id === perfilId);
+    return perfil ? !!perfil.debitaLo : true;
+  }
+
   private getTipoVinculo(nomePessoa: string): string {
     const p = this.pessoas.find(
       (x: any) => (x?.nome || '').trim().toLowerCase() === (nomePessoa || '').trim().toLowerCase()
@@ -95,6 +106,7 @@ export class ReportsPanelComponent {
   }
 
   private custoMensalAlloc(a: any, monthIndex: number): number {
+    if (!this.debitaLoDaAlocacao(a)) return 0;
     const pct = this.getPercentual(a.id);
     const vh = this.getValorHora(a.nomePessoa, Number(a.valorHora || 0));
     return vh * this.getHorasMes(monthIndex) * (pct / 100);

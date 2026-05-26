@@ -3,7 +3,27 @@
 .architecture-check { display: block; margin: 10px 0 6px; }
 .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .linha > div { display: grid; gap: 4px; }
-.lo-cta-btn { margin: 4px 0 10px; display: inline-flex; }
+.lo-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.lo-label-row label {
+  margin: 0;
+}
+
+.lo-cta-btn {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: .78rem;
+  line-height: 1;
+}
 
 .percent-field {
   position: relative;
@@ -12,7 +32,6 @@
 }
 
 .percent-input {
-  padding-right: 34px;
 }
 
 .percent-suffix {

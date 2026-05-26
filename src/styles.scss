@@ -86,6 +86,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overflow: hidden;         /* evita sidebar crescer além de 100vh */
 }
 
 .sb-brand {
@@ -120,6 +121,16 @@ body {
 .sb-nav {
   display: grid;
   gap: 6px;
+  flex: 1;
+  min-height: 0;            /* permite que o flex item encolha abaixo do conteúdo */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.18) transparent;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
 }
 
 .sb-nav a {
@@ -2160,7 +2171,7 @@ button.sec {
   border-radius: 999px;
   background: #e8f0ff;
   border: 1px solid #c8dafc;
-  color: #1f4f9f;
+  color: #1f9f3c;
   font-size: .58rem;
   font-weight: 800;
   line-height: 1.1;
@@ -2300,33 +2311,39 @@ button.sec {
 }
 
 .month-unavailable {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 999px;
+  display: block;
+  width: 100%;
+  padding: 3px 6px;
+  border-radius: 6px;
   background: #f3d9dd;
   color: #7a1f2a;
-  font-size: .62rem;
+  font-size: .6rem;
   font-weight: 700;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  line-height: 1.3;
+  box-sizing: border-box;
+  border: none;
 }
 
 .month-unavailable-reason {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 4px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: .6rem;
-  line-height: 1.2;
-  font-weight: 700;
-  background: linear-gradient(180deg, #2a63c8, #1a4ea8);
-  color: #ffffff;
-  border: 1px solid #184796;
-  box-shadow: 0 2px 6px rgba(16, 63, 140, .25);
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: block;
+  width: 100%;
+  margin-top: 3px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: .58rem;
+  line-height: 1.3;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.72);
+  color: #6a2030;
+  border: 1px solid #ddb0ba;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  cursor: default;
+  box-sizing: border-box;
 }
 
 /* Indicativo de alocação sem custo na LO (folha sem repasse, etc.) */
@@ -2353,20 +2370,19 @@ button.sec {
 /* Converte motivo de bloqueio em link navegável para a LO */
 .month-unavailable-link {
   cursor: pointer;
-  text-decoration: none;
-  text-underline-offset: 0;
-  background: linear-gradient(180deg, #2f6dd8, #1c57ba);
-  border: 1px solid #1a4ea8;
-  padding: 3px 8px;
   font: inherit;
-  color: #fff;
-  text-align: center;
-  border-radius: 999px;
-  box-shadow: 0 2px 6px rgba(16, 63, 140, .28);
-  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  color: #1a3e88;
+  background: rgba(232, 240, 255, 0.82);
+  border-color: #a8bde8;
+  transition: background .1s ease, border-color .1s ease;
 
-  &:hover  { transform: translateY(-1px); filter: brightness(1.06); }
-  &:active { transform: translateY(0); filter: brightness(.96); }
+  &:hover  {
+    background: #d4e3ff;
+    border-color: #7aa2e0;
+    text-decoration: underline;
+    text-decoration-color: rgba(26, 62, 136, .45);
+  }
+  &:active { background: #c4d6ff; }
 }
 .readonly-cell {
   display: inline-block;
@@ -2379,13 +2395,91 @@ button.sec {
 }
 .toolbar-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   margin: 8px 0;
+}
+.toolbar-row label {
+  white-space: nowrap;
+  font-size: .82rem;
+  color: #3a5f96;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.toolbar-row select {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #c8d9fb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: .82rem;
+  color: #1a3a7a;
+  cursor: pointer;
+  appearance: auto;
 }
 .toolbar-row input {
   flex: 1;
 }
+
+// ── LO tab search ──────────────────────────────────────────────────────────
+.lo-search-wrap {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #c8d9fb;
+  border-radius: 8px;
+  padding: 0 8px;
+  height: 32px;
+  flex: 1;
+  min-width: 140px;
+  font-size: .82rem;
+  transition: border-color .12s;
+
+  &:focus-within {
+    border-color: #1d63da;
+    box-shadow: 0 0 0 2px rgba(29, 99, 218, .12);
+  }
+}
+
+.lo-search-icon {
+  width: 15px;
+  height: 15px;
+  fill: #8aaad8;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.lo-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: .82rem;
+  color: #1a3a7a;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+
+  &::placeholder { color: #a0b8d8; }
+}
+
+.lo-search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #8aaad8;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+
+  &:hover { color: #3a5f96; }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2516,10 +2610,13 @@ button.sec {
   min-width: 190px;
   width: max-content;
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 12px 32px rgba(8,30,70,.55), 0 2px 6px rgba(0,0,0,.18);
   display: grid;
   gap: 3px;
+  align-content: start;
   pointer-events: all;
 }
 /* sem seta — posição dinâmica via fixed torna a seta imprecisa */
@@ -2624,6 +2721,7 @@ button.sec {
   padding: 12px 10px;
   margin: 0;
   border-radius: 0;
+  height: 100vh;
   height: 100dvh;
   flex-shrink: 0;
   display: grid;
@@ -2634,6 +2732,7 @@ button.sec {
   position: sticky;
   top: 0;
   z-index: 10;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 .sidebar.collapsed { width: 90px; }
 .sidebar.collapsed .sb-brand h2,
@@ -2772,6 +2871,8 @@ button.sec {
   overflow-y: auto;
   overflow-x: visible;
   padding-right: 2px;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   scrollbar-width: thin;
   scrollbar-color: rgba(173, 204, 255, .55) transparent;
 }

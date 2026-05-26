@@ -103,6 +103,22 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     { value: '#ea580c', label: 'Laranja' },
     { value: '#0d9488', label: 'Verde-água' },
   ];
+
+  /** 15-color palette for automatic sequential assignment (no status dependency) */
+  readonly autoPalette: string[] = [
+    '#1d63da', '#16a34a', '#d97706', '#7c3aed', '#0ea5e9',
+    '#db2777', '#ea580c', '#0d9488', '#6366f1', '#059669',
+    '#b45309', '#0891b2', '#65a30d', '#c026d3', '#0f766e',
+  ];
+
+  /**
+   * Returns the bar fill color for a given activity.
+   * Priority: user's custom color → auto-palette by row index.
+   */
+  autoBarColor(item: any, index: number): string {
+    if (item.cor) return item.cor;
+    return this.autoPalette[index % this.autoPalette.length];
+  }
   markerDate = '';
   markerLabel = '';
   markerDescription = '';
@@ -171,23 +187,40 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   private _onMouseMove(event: MouseEvent) {
     if (!this.dragState) return;
 
-    const deltaX    = event.clientX - this.dragState.startX;
-    const deltaDays = deltaX / this.PX_PER_DAY;
-    const dayMs = 86_400_000;
+    const deltaX     = event.clientX - this.dragState.startX;
+    const dayMs      = 86_400_000;
+    // Snap to whole days — no fractional positioning
+    const snappedDays = Math.round(deltaX / this.PX_PER_DAY);
 
     const { type, origStart, origEnd } = this.dragState;
     let newStart = new Date(origStart.getTime());
     let newEnd   = new Date(origEnd.getTime());
 
+    const dowConstraint = this.extractDowConstraint(this.dragState.item.descricao || '');
     if (type === 'move') {
-      newStart = new Date(origStart.getTime() + deltaDays * dayMs);
-      newEnd   = new Date(origEnd.getTime()   + deltaDays * dayMs);
+      // Move start candidate, snap to next valid day (business + DOW constraint)
+      const candStart = new Date(origStart.getTime() + snappedDays * dayMs);
+      candStart.setHours(0, 0, 0, 0);
+      const snappedStart = this.nextValidDay(candStart, dowConstraint);
+      // Preserve original duration — shift end by the same real offset
+      const offsetMs = snappedStart.getTime() - origStart.getTime();
+      newStart = snappedStart;
+      newEnd   = new Date(origEnd.getTime() + offsetMs);
+      newEnd.setHours(0, 0, 0, 0);
     } else if (type === 'resize-left') {
-      newStart = new Date(origStart.getTime() + deltaDays * dayMs);
-      if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - dayMs);
+      const candStart = new Date(origStart.getTime() + snappedDays * dayMs);
+      candStart.setHours(0, 0, 0, 0);
+      newStart = this.nextValidDay(candStart, dowConstraint);
+      // Must stay at least 1 day before end
+      const minEnd = new Date(newEnd.getTime() - dayMs);
+      minEnd.setHours(0, 0, 0, 0);
+      if (newStart >= newEnd) newStart = this.nextValidDay(minEnd, dowConstraint);
     } else {
-      newEnd = new Date(origEnd.getTime() + deltaDays * dayMs);
-      if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + dayMs);
+      const candEnd = new Date(origEnd.getTime() + snappedDays * dayMs);
+      candEnd.setHours(0, 0, 0, 0);
+      newEnd = this.feriados.nextBusinessDay(candEnd);
+      // Must be at least 1 day after start
+      if (newEnd <= newStart) newEnd = this.feriados.nextBusinessDay(new Date(newStart.getTime() + dayMs));
     }
 
     // Keep model in sync for mouseup
@@ -196,9 +229,12 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     // --- Direct DOM update: bypasses Angular CD entirely → frame-perfect response ---
     const r = this.dateRange();
     if (r && this._dragBarEl) {
-      const left     = Math.max(0, (newStart.getTime() - r.min.getTime()) / dayMs * this.PX_PER_DAY);
-      const rawDays  = (newEnd.getTime() - newStart.getTime()) / dayMs + 1;
-      const width    = Math.max(this.PX_PER_DAY * 0.6, rawDays * this.PX_PER_DAY);
+      // Integer day-index for pixel-perfect grid alignment
+      const startDayIdx = Math.round((newStart.getTime() - r.min.getTime()) / dayMs);
+      const endDayIdx   = Math.round((newEnd.getTime()   - r.min.getTime()) / dayMs);
+      const left        = Math.max(0, startDayIdx * this.PX_PER_DAY);
+      const rawDays     = Math.max(1, endDayIdx - startDayIdx + 1);
+      const width       = rawDays * this.PX_PER_DAY;
 
       this._dragBarEl.style.left  = `${left}px`;
       this._dragBarEl.style.width = `${width}px`;
@@ -219,6 +255,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   private _onMouseUp(event: MouseEvent) {
     this._removeListeners();
+    // Save before nulling — needed for visual rollback on conflict
+    const savedBarEl     = this._dragBarEl;
+    const savedTooltipEl = this._dragTooltipEl;
     this._dragBarEl     = null;
     this._dragTooltipEl = null;
 
@@ -254,6 +293,20 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         item.id
       );
       if (conflito) {
+        // Roll back bar to its original position visually (inline styles bypass Angular CD)
+        if (savedBarEl) {
+          const r = this.dateRange();
+          if (r) {
+            const dayMs    = 86_400_000;
+            const startIdx = Math.round((origStart.getTime() - r.min.getTime()) / dayMs);
+            const endIdx   = Math.round((origEnd.getTime()   - r.min.getTime()) / dayMs);
+            const left     = Math.max(0, startIdx * this.PX_PER_DAY);
+            const width    = Math.max(1, endIdx - startIdx + 1) * this.PX_PER_DAY;
+            savedBarEl.style.left  = `${left}px`;
+            savedBarEl.style.width = `${width}px`;
+          }
+        }
+        if (savedTooltipEl) savedTooltipEl.style.display = 'none';
         this.zone.run(() => {
           this.dateWarning = conflito;
           this.cdr.detectChanges();
@@ -265,6 +318,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         dragType === 'move'         ? 'MOVER'
         : dragType === 'resize-left'  ? 'REDIMENSIONAR_INICIO'
         : 'REDIMENSIONAR_FIM';
+
+      const wasOverdue = this.isAtrasado(item);
 
       this.zone.run(() => {
   // ---
@@ -284,6 +339,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
             fimNovo:        `${dateToYmd(end)}T12:00:00Z`,
           },
         } as any);
+        if (wasOverdue) this.addReplanMarker(item, start);
         this.cdr.detectChanges();
       });
     } else {
@@ -329,9 +385,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return {
       titulo: '', descricao: '', inicioPlanejado: '', fimPlanejado: '',
       status: 'PLANEJADO' as GStatus, responsavel: '', pct: 0,
-      permiteParalelo: false, predecessorId: '', perfilId: '',
+      permiteParalelo: false, predecessorIds: [] as string[], perfilId: '',
       etapas: [] as Etapa[], newEtapaLabel: '',
-      cor: ''
+      cor: '',
+      dowConstraint: [] as number[]
     };
   }
 
@@ -360,6 +417,24 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   etapasDoneCount(etapas: Etapa[]): number { return etapas.filter(e => e.done).length; }
   toggleEtapa(etapa: Etapa)                { etapa.done = !etapa.done; }
+
+  /** Percentage derived from etapas (0–100), or 0 if no etapas */
+  etapasPct(etapas: Etapa[]): number {
+    if (!etapas.length) return 0;
+    return Math.round((etapas.filter(e => e.done).length / etapas.length) * 100);
+  }
+
+  /** Effective % for the edit form: auto from etapas if any, otherwise manual slider value */
+  get editFormEffectivePct(): number {
+    return this.editForm.etapas.length ? this.etapasPct(this.editForm.etapas) : this.editForm.pct;
+  }
+
+  /** Effective % for a Gantt row: auto from etapas if any, otherwise stored meta value */
+  effectivePct(item: any): number {
+    const etapas = this.extractEtapas(item.descricao ?? '');
+    if (etapas.length) return this.etapasPct(etapas);
+    return this.getMeta(item.id).pct;
+  }
 
   addNewEtapa() {
     const label = this.editForm.newEtapaLabel.trim();
@@ -706,7 +781,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       document.body.appendChild(wrap);
 
       const canvas = await html2canvas(clone, {
-        scale:           2,           // 2× = retina quality
+        scale:           3,           // 3× → alta definição (~300 DPI equivalente)
         useCORS:         true,
         allowTaint:      false,
         backgroundColor: '#ffffff',
@@ -717,6 +792,20 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
       document.body.removeChild(wrap);
 
+      // Força composição horizontal (landscape), preservando alta definição.
+      const landscapeRatio = 1.6; // ~16:10
+      const horizontalW = Math.max(canvas.width, Math.ceil(canvas.height * landscapeRatio));
+      const horizontalH = canvas.height;
+      const horizontalCanvas = document.createElement('canvas');
+      horizontalCanvas.width = horizontalW;
+      horizontalCanvas.height = horizontalH;
+      const ctx = horizontalCanvas.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, horizontalW, horizontalH);
+      const offsetX = Math.floor((horizontalW - canvas.width) / 2);
+      ctx.drawImage(canvas, offsetX, 0);
+
   // ---
       const nome = (this.projetoSelecionado as any)?.nome ?? 'cronograma';
   // ---
@@ -726,8 +815,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         .trim().replace(/\s+/g, '_') || 'cronograma';
 
       const link = document.createElement('a');
-      link.download = `${safe}_cronograma.png`;
-      link.href     = canvas.toDataURL('image/png');
+      link.download = `${safe}_cronograma_horizontal_hd.png`;
+      link.href     = horizontalCanvas.toDataURL('image/png');
       link.click();
 
     } catch (err) {
@@ -781,15 +870,19 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (!r) return 0;
     const dates = this._effectiveDates(item);
     if (!dates) return 0;
-    const rawDays = (dates.start.getTime() - r.min.getTime()) / 86_400_000;
-    return Math.max(0, rawDays * this.PX_PER_DAY);
+    // Integer day index → pixel-perfect grid alignment
+    const dayIdx = Math.round((dates.start.getTime() - r.min.getTime()) / 86_400_000);
+    return Math.max(0, dayIdx * this.PX_PER_DAY);
   }
 
   barWidth(item: any): number {
+    const r = this.dateRange();
     const dates = this._effectiveDates(item);
     if (!dates) return this.PX_PER_DAY * 3;
-    const rawDays = ((dates.end.getTime() - dates.start.getTime()) / 86_400_000) + 1;
-    return Math.max(this.PX_PER_DAY * 0.6, rawDays * this.PX_PER_DAY);
+    const startIdx = r ? Math.round((dates.start.getTime() - r.min.getTime()) / 86_400_000) : 0;
+    const endIdx   = r ? Math.round((dates.end.getTime()   - r.min.getTime()) / 86_400_000) : startIdx + 2;
+    const days = Math.max(1, endIdx - startIdx + 1);
+    return days * this.PX_PER_DAY;
   }
 
   isDragging(item: any): boolean {
@@ -841,13 +934,31 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   // ---
-  private predecessorTag(itemId: string) { return `##PRED:${itemId}##`; }
   private readonly perfilTagPrefix = '##PERFILID:';
   private readonly perfilTagRegex  = /##PERFILID:([a-zA-Z0-9\-]+)##/;
+  private readonly DOW_TAG_REGEX   = /##DOW:([0-6,]+)##/;
 
-  private extractPredecessorId(descricao?: string | null): string {
-    const m = String(descricao ?? '').match(/##PRED:([a-zA-Z0-9\-]+)##/);
-    return m?.[1] ?? '';
+  /** Encodes a list of predecessor IDs into the description tag */
+  private encodePredecessors(ids: string[]): string {
+    const f = ids.filter(Boolean);
+    return f.length ? `##PRED:${f.join(',')}##` : '';
+  }
+
+  /** Extracts all predecessor IDs (supports legacy single-id and new comma-separated) */
+  private extractPredecessorIds(descricao?: string | null): string[] {
+    const m = String(descricao ?? '').match(/##PRED:([a-zA-Z0-9\-,]+)##/);
+    return m?.[1] ? m[1].split(',').filter(Boolean) : [];
+  }
+
+  /** Extracts day-of-week constraint (0=Sun … 6=Sat) from description tag */
+  private extractDowConstraint(descricao?: string | null): number[] {
+    const m = String(descricao ?? '').match(this.DOW_TAG_REGEX);
+    return m?.[1] ? m[1].split(',').map(Number).filter(n => n >= 0 && n <= 6) : [];
+  }
+
+  private encodeDow(days: number[]): string {
+    const s = [...days].sort((a, b) => a - b);
+    return s.length ? `##DOW:${s.join(',')}##` : '';
   }
 
   private extractPerfilId(descricao?: string | null): string {
@@ -857,20 +968,133 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   private cleanDescricao(descricao?: string | null): string {
     let s = String(descricao ?? '');
-    s = s.replace(/##PRED:[a-zA-Z0-9\-]+##/g, '');
+    s = s.replace(/##PRED:[a-zA-Z0-9\-,]+##/g, '');
     s = s.replace(this.perfilTagRegex, '');
+    s = s.replace(this.DOW_TAG_REGEX, '');
     const etIdx = s.indexOf(this.ET_TAG);
     if (etIdx >= 0) s = s.slice(0, etIdx);
     return s.trim();
   }
 
-  private composeDescricaoComPerfil(descricao: string, predecessorId: string, perfilId: string, etapas: Etapa[]): string {
+  private composeDescricao(descricao: string, predecessorIds: string[], perfilId: string, etapas: Etapa[], dowConstraint: number[]): string {
     let result = this.cleanDescricao(descricao);
-    if (predecessorId) result = `${result}\n${this.predecessorTag(predecessorId)}`.trim();
-    if (perfilId)      result = `${result}\n${this.perfilTagPrefix}${perfilId}##`.trim();
+    const predStr = this.encodePredecessors(predecessorIds);
+    if (predStr) result = `${result}\n${predStr}`.trim();
+    if (perfilId) result = `${result}\n${this.perfilTagPrefix}${perfilId}##`.trim();
+    const dowStr = this.encodeDow(dowConstraint);
+    if (dowStr) result = `${result}\n${dowStr}`.trim();
     const enc = this.encodeEtapas(etapas);
-    if (enc)           result = `${result}\n${enc}`.trim();
+    if (enc) result = `${result}\n${enc}`.trim();
     return result;
+  }
+
+  // ---
+  /** Day-of-week options shown in the form (Mon–Fri) */
+  readonly dowOptions = [
+    { day: 1, label: 'Seg' }, { day: 2, label: 'Ter' }, { day: 3, label: 'Qua' },
+    { day: 4, label: 'Qui' }, { day: 5, label: 'Sex' }
+  ];
+
+  toggleDow(form: any, day: number) {
+    const idx = (form.dowConstraint as number[]).indexOf(day);
+    if (idx >= 0) form.dowConstraint.splice(idx, 1);
+    else form.dowConstraint.push(day);
+  }
+
+  hasDow(form: any, day: number): boolean {
+    return (form.dowConstraint as number[]).includes(day);
+  }
+
+  dowLabel(days: number[]): string {
+    if (!days?.length) return '';
+    const n = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return days.map(d => n[d] ?? '').join(', ');
+  }
+
+  /** Search term for filtering the predecessor chip list */
+  predSearch = '';
+
+  predecessorasFiltradas(excludeId = ''): any[] {
+    const q = this.predSearch.trim().toLowerCase();
+    return this.atividades().filter((a: any) =>
+      a.id !== excludeId && (!q || (a.titulo ?? '').toLowerCase().includes(q))
+    );
+  }
+
+  /**
+   * BFS from `predId` through the SAVED predecessor graph.
+   * Returns true if `currentId` is reachable → adding this predecessor would create a cycle.
+   */
+  private wouldCreateCycle(currentId: string, predId: string): boolean {
+    if (!currentId || !predId || currentId === predId) return false;
+    const visited = new Set<string>();
+    const queue   = [predId];
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (id === currentId) return true;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const act = this.atividades().find((a: any) => a.id === id);
+      if (!act) continue;
+      for (const p of this.extractPredecessorIds(act.descricao ?? '')) queue.push(p);
+    }
+    return false;
+  }
+
+  /** Public: called from template to grey-out chips that would form a cycle (edit mode only) */
+  isCyclicPredecessor(predId: string): boolean {
+    return this.wouldCreateCycle(this.editingItem?.id ?? '', predId);
+  }
+
+  /** Toggle a predecessor in/out of the multi-list — blocks cyclic additions */
+  togglePredecessor(form: any, id: string, mode: 'nova' | 'edit') {
+    const list = form.predecessorIds as string[];
+    const idx  = list.indexOf(id);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+    } else {
+      if (mode === 'edit' && this.isCyclicPredecessor(id)) return; // cycle guard
+      list.push(id);
+    }
+    this.onPredecessorChange(mode);
+  }
+
+  hasPredecessor(form: any, id: string): boolean {
+    return (form.predecessorIds as string[]).includes(id);
+  }
+
+  /** Returns human-readable predecessor titles for a list of IDs */
+  predecessorTitles(ids: string[]): string {
+    return ids.map(id => this.findById(id)?.titulo ?? id).join(' → ');
+  }
+
+  /** Snap to the nearest future day that is a business day AND in the allowed DOW list */
+  private nextValidDay(date: Date, dowConstraint: number[]): Date {
+    let d = this.feriados.nextBusinessDay(date);
+    if (!dowConstraint.length) return d;
+    let attempts = 0;
+    while (attempts < 14) {
+      if (dowConstraint.includes(d.getDay()) && !this.feriados.nonWorkingReason(d)) return d;
+      d = new Date(d.getTime() + this.DAY_MS);
+      d.setHours(0, 0, 0, 0);
+      attempts++;
+    }
+    return d;
+  }
+
+  /** Adds a "↻ reprogramado" marker on the timeline when an overdue item gets new dates */
+  private addReplanMarker(item: any, newStart: Date) {
+    if (!this.projetoSelecionado?.id) return;
+    const markerDate = dateToYmd(newStart);
+    const label = `↻ ${(item.titulo ?? 'Atividade').slice(0, 35)}`;
+    const desc  = `Reprogramado — anterior fim: ${this.fmt(item.fimPlanejado)}`;
+    if (this.timelineMarkers.some(m => m.date === markerDate && m.label === label)) return;
+    this.timelineMarkers.push({
+      id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`),
+      label, date: markerDate, description: desc
+    });
+    this.timelineMarkers.sort((a, b) => a.date.localeCompare(b.date));
+    this.saveMarkers();
   }
 
   perfilNome(item: any): string {
@@ -880,7 +1104,15 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   private normalizeParaleloByDependency(form: any) {
-    if (form.predecessorId) form.permiteParalelo = false;
+    if ((form.predecessorIds as string[] | undefined)?.length) form.permiteParalelo = false;
+  }
+
+  private validarDependencias(predecessorIds: string[], inicioPlanejado: string, currentItemId = ''): string {
+    for (const id of predecessorIds) {
+      const err = this.validarDependencia(id, inicioPlanejado, currentItemId);
+      if (err) return err;
+    }
+    return '';
   }
 
   onPredecessorChange(mode: 'nova' | 'edit') {
@@ -900,12 +1132,15 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (!predecessorId) return '';
     if (currentItemId && predecessorId === currentItemId) return 'A predecessora não pode ser a própria atividade.';
     const pred = this.findById(predecessorId);
-    if (!pred)             return 'Predecessora não encontrada.';
+    if (!pred)              return 'Predecessora não encontrada.';
     if (!pred.fimPlanejado) return 'A predecessora precisa ter data de fim.';
     if (!inicioPlanejado)   return 'Informe a data de início da atividade.';
-    const predFim     = new Date(pred.fimPlanejado); predFim.setHours(0, 0, 0, 0);
-    const inicioAtual = new Date(inicioPlanejado);   inicioAtual.setHours(0, 0, 0, 0);
-    if (inicioAtual.getTime() <= predFim.getTime()) {
+    // Compare as YYYY-MM-DD strings in LOCAL timezone to avoid UTC-offset artefacts.
+    // `toDateInput` normalizes any ISO timestamp to a local-date string; the form value is
+    // already a date-only string ("YYYY-MM-DD") so we just take the first 10 chars.
+    const predFimStr = this.toDateInput(pred.fimPlanejado); // e.g. "2026-06-29"
+    const inicioStr  = inicioPlanejado.slice(0, 10);         // e.g. "2026-06-30"
+    if (inicioStr <= predFimStr) {
       return `Início deve ser após o fim da predecessora (${this.fmt(pred.fimPlanejado)}).`;
     }
     return '';
@@ -962,21 +1197,25 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.formVisible = !this.formVisible;
     this.formError   = '';
     this.dateWarning = '';
+    this.predSearch  = '';
     if (this.formVisible) this.editingItem = null;
   }
 
   submitNova() {
     if (!this.novaAtividade.titulo.trim()) return;
     this.normalizeParaleloByDependency(this.novaAtividade);
-    this.formError = this.validarDependencia(this.novaAtividade.predecessorId, this.novaAtividade.inicioPlanejado);
+    this.formError = this.validarDependencias(this.novaAtividade.predecessorIds ?? [], this.novaAtividade.inicioPlanejado);
     if (this.formError) return;
-    const inicioNorm = this.novaAtividade.inicioPlanejado ? `${dateToYmd(this.feriados.nextBusinessDay(new Date(this.novaAtividade.inicioPlanejado + 'T12:00:00')))}T12:00:00Z` : null;
-    const fimNorm = this.novaAtividade.fimPlanejado ? `${dateToYmd(this.feriados.nextBusinessDay(new Date(this.novaAtividade.fimPlanejado + 'T12:00:00')))}T12:00:00Z` : null;
+    const dow = this.novaAtividade.dowConstraint ?? [];
+    const inicioNorm = this.novaAtividade.inicioPlanejado
+      ? `${dateToYmd(this.nextValidDay(new Date(this.novaAtividade.inicioPlanejado + 'T12:00:00'), dow))}T12:00:00Z` : null;
+    const fimNorm = this.novaAtividade.fimPlanejado
+      ? `${dateToYmd(this.feriados.nextBusinessDay(new Date(this.novaAtividade.fimPlanejado + 'T12:00:00')))}T12:00:00Z` : null;
     this.formError = this.validarConflitoParalelismo(inicioNorm, fimNorm, this.novaAtividade.permiteParalelo);
     if (this.formError) return;
     this.addScheduleItem.emit({
       titulo:          this.novaAtividade.titulo.trim(),
-      descricao:       this.composeDescricaoComPerfil(this.novaAtividade.descricao.trim(), this.novaAtividade.predecessorId, this.novaAtividade.perfilId, []),
+      descricao:       this.composeDescricao(this.novaAtividade.descricao.trim(), this.novaAtividade.predecessorIds ?? [], this.novaAtividade.perfilId, [], dow),
       inicioPlanejado: inicioNorm,
       fimPlanejado:    fimNorm,
       permiteParalelo: this.novaAtividade.permiteParalelo,
@@ -1005,11 +1244,12 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       responsavel:     item.responsavel || meta.responsavel || '',
       pct:             meta.pct,
       permiteParalelo: !!item.permiteParalelo,
-      predecessorId:   this.extractPredecessorId(item.descricao || ''),
+      predecessorIds:  this.extractPredecessorIds(item.descricao || ''),
       perfilId:        this.extractPerfilId(item.descricao || ''),
       etapas:          this.extractEtapas(item.descricao || ''),
       newEtapaLabel:   '',
       cor:             item.cor || '',
+      dowConstraint:   this.extractDowConstraint(item.descricao || ''),
     };
     this.normalizeParaleloByDependency(this.editForm);
   }
@@ -1017,18 +1257,20 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   saveEdit() {
     if (!this.editingItem) return;
     this.normalizeParaleloByDependency(this.editForm);
-    this.formError = this.validarDependencia(this.editForm.predecessorId, this.editForm.inicioPlanejado, this.editingItem.id);
+    this.formError = this.validarDependencias(this.editForm.predecessorIds ?? [], this.editForm.inicioPlanejado, this.editingItem.id);
     if (this.formError) return;
     let inicio = this.editForm.inicioPlanejado || null;
-    let fim = this.editForm.fimPlanejado || null;
-    if (inicio) inicio = `${dateToYmd(this.feriados.nextBusinessDay(new Date(inicio + 'T12:00:00')))}T12:00:00Z`;
-    if (fim) fim = `${dateToYmd(this.feriados.nextBusinessDay(new Date(fim + 'T12:00:00')))}T12:00:00Z`;
+    let fim    = this.editForm.fimPlanejado    || null;
+    const dow  = this.editForm.dowConstraint   ?? [];
+    if (inicio) inicio = `${dateToYmd(this.nextValidDay(new Date(inicio + 'T12:00:00'), dow))}T12:00:00Z`;
+    if (fim)    fim    = `${dateToYmd(this.feriados.nextBusinessDay(new Date(fim + 'T12:00:00')))}T12:00:00Z`;
     this.formError = this.validarConflitoParalelismo(inicio, fim, this.editForm.permiteParalelo, this.editingItem.id);
     if (this.formError) return;
+    const wasOverdue = this.isAtrasado(this.editingItem);
     this.updateScheduleItem.emit({
       itemId:          this.editingItem.id,
       titulo:          this.editForm.titulo,
-      descricao:       this.composeDescricaoComPerfil(this.editForm.descricao, this.editForm.predecessorId, this.editForm.perfilId, this.editForm.etapas),
+      descricao:       this.composeDescricao(this.editForm.descricao, this.editForm.predecessorIds ?? [], this.editForm.perfilId, this.editForm.etapas, dow),
       inicioPlanejado: inicio,
       fimPlanejado:    fim,
       permiteParalelo: this.editForm.permiteParalelo,
@@ -1036,11 +1278,12 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       cor:             this.editForm.cor || undefined,
       responsavel:     this.editForm.responsavel || undefined,
     } as any);
-    this.setMeta(this.editingItem.id, { responsavel: this.editForm.responsavel, pct: this.editForm.pct });
+    this.setMeta(this.editingItem.id, { responsavel: this.editForm.responsavel, pct: this.editFormEffectivePct });
+    if (wasOverdue && inicio) this.addReplanMarker(this.editingItem, new Date(inicio));
     this.editingItem = null;
   }
 
-  cancelEdit() { this.editingItem = null; this.formError = ''; this.dateWarning = ''; }
+  cancelEdit() { this.editingItem = null; this.formError = ''; this.dateWarning = ''; this.predSearch = ''; }
 
   quickStatus(item: any, status: string) {
     this.updateScheduleItem.emit({ itemId: item.id, status, permiteParalelo: !!item.permiteParalelo });
@@ -1076,6 +1319,5 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return d > 0 ? `${d}d` : '—';
   }
 }
-
 
 

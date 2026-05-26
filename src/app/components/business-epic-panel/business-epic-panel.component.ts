@@ -31,6 +31,8 @@ export class BusinessEpicPanelComponent {
 
   submit() {
     this.create.emit(this.epic);
+    this.epic = { nome: '', aliasLink: '', jiraUrl: '', inicio: null, fim: null };
+    this.formExpanded = false;
   }
 
   startEdit(e: any) {

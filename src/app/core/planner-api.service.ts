@@ -260,6 +260,12 @@ export class PlannerApiService {
   addIndicatorCycle(token: string, id: string, payload: any) {
     return this.http.post<any>(`${this.api}/indicators/${id}/cycles`, payload, { headers: this.headers(token) });
   }
+  updateIndicatorCycle(token: string, id: string, cycleId: string, payload: any) {
+    return this.http.put<any>(`${this.api}/indicators/${id}/cycles/${cycleId}`, payload, { headers: this.headers(token) });
+  }
+  deleteIndicatorCycle(token: string, id: string, cycleId: string) {
+    return this.http.delete<any>(`${this.api}/indicators/${id}/cycles/${cycleId}`, { headers: this.headers(token) });
+  }
   addIndicatorAction(token: string, id: string, payload: any) {
     return this.http.post<any>(`${this.api}/indicators/${id}/actions`, payload, { headers: this.headers(token) });
   }

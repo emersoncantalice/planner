@@ -208,3 +208,40 @@
   background: #f8fbff;
   font-size: .84rem;
 }
+
+/* ── Formulário de edição expandido ─────────────────────────── */
+.proj-edit-form {
+  display: grid;
+  gap: 8px;
+
+  label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #1e3a6a;
+    margin-top: 6px;
+  }
+
+  input, select, textarea {
+    margin: 0;
+    font-size: .87rem;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  .percent-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .percent-input { max-width: 120px; }
+    .percent-suffix { font-size: .87rem; color: #3a5b90; }
+  }
+
+  p {
+    font-size: .8rem;
+    color: #4f6b98;
+    margin: 0;
+  }
+}

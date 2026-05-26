@@ -1,0 +1,87 @@
+<planner-card><article class="dt-card">
+  <h2>Exportar / Importar Cadastros</h2>
+  <p class="dt-subtitle">
+    Faça backup de todos os dados ou restaure a partir de um arquivo exportado anteriormente.
+  </p>
+
+  <div class="dt-grid">
+
+    <!-- ── Exportar ──────────────────────────────────────────────────────── -->
+    <section class="dt-block">
+      <div class="dt-block-header">
+        <span class="dt-icon dt-icon-export" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+        </span>
+        <div>
+          <strong>Exportar</strong>
+          <small>Gera um arquivo <code>.json</code> com todos os cadastros e configurações de alocação.</small>
+        </div>
+      </div>
+
+      <ul class="dt-list">
+        <li><span class="dt-count">{{ perfis.length }}</span> Perfis</li>
+        <li><span class="dt-count">{{ pessoas.length }}</span> Pessoas</li>
+        <li><span class="dt-count">{{ consultorias.length }}</span> Consultorias</li>
+        <li><span class="dt-count">{{ pontosFocais.length }}</span> Pontos Focais</li>
+        <li><span class="dt-count">{{ linhasOrcamentarias.length }}</span> Linhas Orçamentárias</li>
+        <li><span class="dt-count">{{ alocacoes.length }}</span> Alocações (+ configs)</li>
+        <li><span class="dt-count">{{ horasMes.length }}</span> Horas mensais</li>
+        <li><span class="dt-count">{{ businessEpics.length }}</span> Business Epics</li>
+      </ul>
+
+      <button class="dt-btn dt-btn-primary" (click)="exportar()" [disabled]="totalCadastros === 0">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+        Baixar backup (.json)
+      </button>
+    </section>
+
+    <!-- ── Importar ──────────────────────────────────────────────────────── -->
+    <section class="dt-block">
+      <div class="dt-block-header">
+        <span class="dt-icon dt-icon-import" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 15h4v6h6v-6h4l-7-7zM19 6V4H5v2z"/></svg>
+        </span>
+        <div>
+          <strong>Importar</strong>
+          <small>Lê um arquivo <code>.json</code> exportado e recria os cadastros via API. Itens já existentes são ignorados.</small>
+        </div>
+      </div>
+
+      <ul class="dt-list dt-list-info">
+        <li>Perfis → Pessoas → Consultorias → Pontos Focais</li>
+        <li>Linhas Orçamentárias → Alocações</li>
+        <li>Horas mensais + Configs de alocação (% / pago / cancelado)</li>
+        <li>IDs são remapeados automaticamente para os novos registros</li>
+      </ul>
+
+      @if (importando) {
+        <div class="dt-progress">
+          <div class="dt-spinner" aria-hidden="true"></div>
+          <span>{{ importProgress }}</span>
+        </div>
+      }
+
+      @if (importErros.length > 0) {
+        <details class="dt-erros">
+          <summary>{{ importErros.length }} item(ns) ignorados</summary>
+          <ul>
+            @for (e of importErros; track e) {
+              <li>{{ e }}</li>
+            }
+          </ul>
+        </details>
+      }
+
+      <button class="dt-btn dt-btn-secondary" (click)="abrirImport()" [disabled]="importando">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15h4v6h6v-6h4l-7-7zM19 6V4H5v2z"/></svg>
+        {{ importando ? 'Importando…' : 'Selecionar arquivo (.json)' }}
+      </button>
+    </section>
+
+  </div>
+
+  <p class="dt-warning">
+    ⚠️ A importação <strong>não sobrescreve</strong> registros existentes — novos registros são adicionados.
+    Para uma restauração completa, use em uma instância limpa.
+  </p>
+</article></planner-card>

@@ -31,6 +31,7 @@ import { IncidentPanelComponent } from './components/incident-panel/incident-pan
 import { TechnicalDebtPanelComponent } from './components/technical-debt-panel/technical-debt-panel.component';
 import { IndicatorsPanelComponent } from './components/indicators-panel/indicators-panel.component';
 import { PersonActivityPanelComponent } from './components/person-activity-panel/person-activity-panel.component';
+import { DataTransferPanelComponent } from './components/data-transfer-panel/data-transfer-panel.component';
 
 @Component({
   selector: 'app-root',
@@ -59,7 +60,8 @@ import { PersonActivityPanelComponent } from './components/person-activity-panel
     IncidentPanelComponent,
     TechnicalDebtPanelComponent,
     IndicatorsPanelComponent,
-    PersonActivityPanelComponent
+    PersonActivityPanelComponent,
+    DataTransferPanelComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './app.html',
@@ -96,12 +98,14 @@ export class App {
   alocacoesExpanded = signal(false);
   riscosExpanded = signal(false);
   flyoutTop = signal(0);
+  flyoutBottom = signal<number | null>(null);
+  flyoutMaxHeight = signal<number | null>(null);
   projectCreateModalOpen = signal(false);
   confirmModalOpen = signal(false);
   confirmModalMessage = signal('');
   authSubmitting = signal(false);
   mobileSidebarOpen = signal(false);
-  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios'>('dashboard');
+  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados'>('dashboard');
   riscoEmFocoId = signal('');
 
   get authLoading() {
@@ -211,19 +215,25 @@ export class App {
   }
 
   toggleCadastrosMenu(event?: MouseEvent) {
+    const willOpen = !this.cadastrosExpanded();
+    this.alocacoesExpanded.set(false);
+    this.riscosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.setFlyoutTop(el, 520);
+      this.setFlyoutTop(el, 10); // Cadastros possui 10 itens
     }
-    this.cadastrosExpanded.update(v => !v);
+    this.cadastrosExpanded.set(willOpen);
   }
 
   toggleAlocacoesMenu(event?: MouseEvent) {
+    const willOpen = !this.alocacoesExpanded();
+    this.cadastrosExpanded.set(false);
+    this.riscosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.setFlyoutTop(el, 260);
+      this.setFlyoutTop(el, 3);
     }
-    this.alocacoesExpanded.update(v => !v);
+    this.alocacoesExpanded.set(willOpen);
   }
 
   toggleMobileSidebar() {
@@ -240,7 +250,7 @@ export class App {
     this.selecionarSecao('conta');
   }
 
-  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios') {
+  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados') {
     this.secaoAtiva.set(secao);
     if (secao !== 'riscos') this.riscoEmFocoId.set('');
     if (secao !== 'projetos') this.projectCreateModalOpen.set(false);
@@ -252,20 +262,43 @@ export class App {
   }
 
   toggleRiscosMenu(event?: MouseEvent) {
+    const willOpen = !this.riscosExpanded();
+    this.cadastrosExpanded.set(false);
+    this.alocacoesExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.setFlyoutTop(el, 280);
+      this.setFlyoutTop(el, 3);
     }
-    this.riscosExpanded.update(v => !v);
+    this.riscosExpanded.set(willOpen);
   }
 
-  private setFlyoutTop(anchorEl: HTMLElement, estimatedHeight: number) {
-    const viewportH = window.innerHeight || 900;
-    const margin = 12;
+  private setFlyoutTop(anchorEl: HTMLElement, itemCount: number) {
+    const visualViewportHeight = window.visualViewport?.height;
+    const viewportH = Number(visualViewportHeight || window.innerHeight || 900);
+    const marginTop = 12;
+    const marginBottom = 72; // folga extra para barra de tarefas/área não visível
+    const headerHeight = 32; // label + respiros
+    const rowHeight = 42;    // item médio no flyout
+    const estimatedHeight = headerHeight + (Math.max(0, itemCount) * rowHeight);
     const desiredTop = anchorEl.getBoundingClientRect().top;
-    const maxTop = Math.max(margin, viewportH - estimatedHeight - margin);
-    const clampedTop = Math.min(Math.max(desiredTop, margin), maxTop);
-    this.flyoutTop.set(clampedTop);
+
+    // A partir de 6 itens, trava a altura visual em 6 linhas e habilita scroll interno.
+    if (itemCount >= 6) {
+      const visibleRows = 6;
+      const desiredMaxHeight = headerHeight + (visibleRows * rowHeight);
+      const maxTop = Math.max(marginTop, viewportH - estimatedHeight - marginBottom);
+      const clampedTop = Math.min(Math.max(desiredTop, marginTop), maxTop);
+      const maxHeightByViewport = Math.max(180, viewportH - clampedTop - marginBottom);
+      const maxHeight = Math.min(desiredMaxHeight, maxHeightByViewport);
+      this.flyoutTop.set(clampedTop);
+      this.flyoutBottom.set(marginBottom);
+      this.flyoutMaxHeight.set(maxHeight);
+      return;
+    }
+
+    this.flyoutTop.set(Math.max(desiredTop, marginTop));
+    this.flyoutBottom.set(null);
+    this.flyoutMaxHeight.set(null);
   }
 
   private confirmAction: (() => void) | null = null;
@@ -356,27 +389,49 @@ export class App {
     this.api.createProject(this.token(), { nome: projeto.nome, descricao: descricaoExpandida }).subscribe({
       next: (created) => {
         if (projeto.precisaArquitetura && created?.id) {
-          // â”€â”€ Calcula datas em dias Ãºteis (feriados BR + customizados) â”€â”€â”€â”€â”€â”€â”€
-          const hoje          = this.feriados.nextBusinessDay(new Date());
-          const discoveryFim  = this.feriados.nthBusinessDay(hoje, 5);  // 5 dias Ãºteis
+          // ── Calcula datas em dias úteis ──────────────────────────────────
+          const hoje         = this.feriados.nextBusinessDay(new Date());
+          const discoveryFim = this.feriados.nthBusinessDay(hoje, 5);     // 5 dias úteis
 
-          const desenhoInicio = this.feriados.nextBusinessDay(
+          const ansInicio = this.feriados.nextBusinessDay(
             new Date(discoveryFim.getFullYear(), discoveryFim.getMonth(), discoveryFim.getDate() + 1)
           );
-          const desenhoFim    = this.feriados.nthBusinessDay(desenhoInicio, 20); // 20 dias Ãºteis
+          const ansFim = this.feriados.nthBusinessDay(ansInicio, 10);     // 10 dias úteis
 
-          const toISO = (d: Date) => `${dateToYmd(d)}T00:00:00Z`;
+          const aswInicio = this.feriados.nextBusinessDay(
+            new Date(ansFim.getFullYear(), ansFim.getMonth(), ansFim.getDate() + 1)
+          );
+          const aswFim = this.feriados.nthBusinessDay(aswInicio, 10);     // 10 dias úteis
 
-          // Etapas do Desenho de Arquitetura codificadas na descricao
-          const etapasDesenho = [
-            { id: crypto.randomUUID(), label: 'Desenho de Contexto',   done: false },
-            { id: crypto.randomUUID(), label: 'Desenho de Container',  done: false },
-            { id: crypto.randomUUID(), label: 'Desenho TÃ©cnico',       done: false },
-            { id: crypto.randomUUID(), label: 'Defesa no FÃ³rum',       done: false },
-          ];
-          const descricaoDesenho = `##ETAPAS:${JSON.stringify(etapasDesenho)}##`;
+          // Próxima Terça (2) ou Quinta (4) após o fim de ASW
+          const findNextTueThu = (from: Date): Date => {
+            let d = this.feriados.nextBusinessDay(new Date(from.getTime() + 86_400_000));
+            for (let i = 0; i < 14; i++) {
+              if (d.getDay() === 2 || d.getDay() === 4) return d;
+              const next = new Date(d.getTime() + 86_400_000);
+              next.setHours(0, 0, 0, 0);
+              d = this.feriados.nextBusinessDay(next);
+            }
+            return d;
+          };
+          const defesaInicio = findNextTueThu(aswFim);
 
-          // Cria Discovery, depois Desenho de Arquitetura dependente de Discovery
+          const toISO  = (d: Date) => `${dateToYmd(d)}T00:00:00Z`;
+          // Extrai o ID do último item adicionado ao cronograma (API retorna o projeto inteiro)
+          const lastId = (proj: any): string => {
+            const arr: any[] = proj?.cronograma ?? [];
+            return arr[arr.length - 1]?.id ?? '';
+          };
+
+          const etapasAns = JSON.stringify([
+            { id: crypto.randomUUID(), label: 'Desenho de Contexto',  done: false },
+            { id: crypto.randomUUID(), label: 'Desenho de Container', done: false },
+          ]);
+          const etapasAsw = JSON.stringify([
+            { id: crypto.randomUUID(), label: 'Desenho Técnico', done: false },
+          ]);
+
+          // Cadeia: Discovery → Arquitetura ANS → Arquitetura ASW → Defesa no Fórum
           this.api.addScheduleItem(this.token(), created.id, {
             titulo: 'Discovery',
             descricao: '',
@@ -384,16 +439,41 @@ export class App {
             fimPlanejado:    toISO(discoveryFim),
             permiteParalelo: false,
           }).pipe(
-            concatMap((discovery: any) => this.api.addScheduleItem(this.token(), created.id, {
-              titulo: 'Desenho de Arquitetura',
-              descricao: `${discovery?.id ? `##PRED:${discovery.id}##\n` : ''}${descricaoDesenho}`.trim(),
-              inicioPlanejado: toISO(desenhoInicio),
-              fimPlanejado:    toISO(desenhoFim),
-              permiteParalelo: false,
-            }))
+            concatMap((proj1: any) => {
+              const discovId = lastId(proj1);
+              return this.api.addScheduleItem(this.token(), created.id, {
+                titulo: 'Arquitetura ANS',
+                descricao: `${discovId ? `##PRED:${discovId}##\n` : ''}##ETAPAS:${etapasAns}##`,
+                inicioPlanejado: toISO(ansInicio),
+                fimPlanejado:    toISO(ansFim),
+                permiteParalelo: false,
+              });
+            }),
+            concatMap((proj2: any) => {
+              const ansId = lastId(proj2);
+              return this.api.addScheduleItem(this.token(), created.id, {
+                titulo: 'Arquitetura ASW',
+                descricao: `${ansId ? `##PRED:${ansId}##\n` : ''}##ETAPAS:${etapasAsw}##`,
+                inicioPlanejado: toISO(aswInicio),
+                fimPlanejado:    toISO(aswFim),
+                permiteParalelo: false,
+              });
+            }),
+            concatMap((proj3: any) => {
+              const aswId = lastId(proj3);
+              return this.api.addScheduleItem(this.token(), created.id, {
+                titulo: 'Defesa no Fórum',
+                descricao: `${aswId ? `##PRED:${aswId}##\n` : ''}##DOW:2,4##`,
+                inicioPlanejado: toISO(defesaInicio),
+                fimPlanejado:    toISO(defesaInicio), // 1 dia
+                permiteParalelo: false,
+              });
+            })
           ).subscribe({
             next: () => {
-              this.mensagem.set('Projeto criado com Discovery (5 dias Ãºteis) e Desenho de Arquitetura (20 dias Ãºteis) no cronograma.');
+              this.mensagem.set(
+                'Projeto criado com Discovery (5 dias) + Arquitetura ANS (10 dias) + Arquitetura ASW (10 dias) + Defesa no Fórum (1 dia — Ter/Qui).'
+              );
               this.projectCreateModalOpen.set(false);
               this.carregarResumo();
             },
@@ -1062,6 +1142,22 @@ export class App {
     });
   }
 
+  atualizarCicloIndicador(event: { indicatorId: string; cycleId: string; payload: any }) {
+    this.api.updateIndicatorCycle(this.token(), event.indicatorId, event.cycleId, event.payload).subscribe({
+      next: () => { this.mensagem.set('Ciclo atualizado.'); this.carregarIndicadores(); },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar ciclo.')
+    });
+  }
+
+  excluirCicloIndicador(event: { indicatorId: string; cycleId: string }) {
+    this.confirmarExclusao('Confirma a exclusão deste ciclo?', () => {
+      this.api.deleteIndicatorCycle(this.token(), event.indicatorId, event.cycleId).subscribe({
+        next: () => { this.mensagem.set('Ciclo excluído.'); this.carregarIndicadores(); },
+        error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir ciclo.')
+      });
+    });
+  }
+
   adicionarAcaoIndicador(event: { indicatorId: string; payload: any }) {
     this.api.addIndicatorAction(this.token(), event.indicatorId, event.payload).subscribe({
       next: () => { this.mensagem.set('Ação criada.'); this.carregarIndicadores(); },
@@ -1306,7 +1402,7 @@ export class App {
     this.inicializarSessao();
   }
 
-  private inicializarSessao() {
+  inicializarSessao() {
     this.dadosCriticosCarregados = 0; // reset for each new session load
     this.api.me(this.token()).subscribe({
       next: (res) => {

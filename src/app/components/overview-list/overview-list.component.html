@@ -79,11 +79,70 @@
               <button type="button" (click)="deleteProject.emit(r.id)">Excluir</button>
             </div>
           } @else {
-            <input [(ngModel)]="projectForm.nome" placeholder="Nome do projeto" />
-            <textarea [(ngModel)]="projectForm.descricao" rows="2" placeholder="Descricao do projeto"></textarea>
-            <div class="linha">
-              <button type="button" (click)="saveEditProject()">Salvar edicao</button>
-              <button class="sec" type="button" (click)="cancelEditProject()">Cancelar</button>
+            <!-- ── Formulário de edição completo (espelha o cadastro) ─── -->
+            <div class="proj-edit-form">
+              <label>Nome do projeto *</label>
+              <input [(ngModel)]="projectForm.nome" placeholder="Ex.: Implantação do e-commerce" />
+
+              <label>Cliente/área solicitante</label>
+              <input [(ngModel)]="projectForm.cliente" placeholder="Ex.: Comercial" />
+
+              <label>Responsável</label>
+              <input [(ngModel)]="projectForm.responsavel" placeholder="Ex.: Maria Souza" />
+
+              <div class="linha">
+                <div>
+                  <label>Início previsto</label>
+                  <input [(ngModel)]="projectForm.inicioPrevisto" type="date" />
+                </div>
+                <div>
+                  <label>Fim previsto</label>
+                  <input [(ngModel)]="projectForm.fimPrevisto" type="date" />
+                </div>
+              </div>
+
+              <label>Prioridade</label>
+              <select [(ngModel)]="projectForm.prioridade">
+                <option value="MEDIA">Prioridade média</option>
+                <option value="ALTA">Prioridade alta</option>
+                <option value="BAIXA">Prioridade baixa</option>
+              </select>
+
+              <label>LO vinculada</label>
+              <select [(ngModel)]="projectForm.linhaOrcamentariaId">
+                <option value="">Selecione a LO vinculada</option>
+                @for (lo of linhasOrcamentarias; track lo.id) {
+                  <option [value]="lo.id">{{ lo.codigo }} - {{ lo.nome }} (R$ {{ lo.valorTotal }})</option>
+                }
+              </select>
+
+              <label>% da LO para este projeto</label>
+              <div class="percent-field">
+                <input class="percent-input"
+                       [ngModel]="projectForm.percentualLo"
+                       (ngModelChange)="onPercentualLoEditChange($event)"
+                       type="number" min="0" max="100" step="0.01"
+                       placeholder="Ex.: 35,00" />
+                <span class="percent-suffix">%</span>
+              </div>
+              <p>Orçamento previsto derivado: <strong>{{ currency(orcamentoPrevistoDerivadoEdit()) }}</strong></p>
+
+              <label>Business Epic vinculado</label>
+              <select [(ngModel)]="projectForm.businessEpicId">
+                <option value="">Selecione o Business Epic vinculado</option>
+                @for (e of businessEpics; track e.id) {
+                  <option [value]="e.id">{{ e.nome }}</option>
+                }
+              </select>
+
+              <label>Descrição</label>
+              <textarea [(ngModel)]="projectForm.descricao" rows="3"
+                        placeholder="Descrição do projeto"></textarea>
+
+              <div class="linha">
+                <button type="button" (click)="saveEditProject()" [disabled]="!projectForm.nome.trim()">Salvar edição</button>
+                <button class="sec" type="button" (click)="cancelEditProject()">Cancelar</button>
+              </div>
             </div>
           }
         </div>

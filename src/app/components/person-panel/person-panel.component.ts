@@ -82,6 +82,10 @@ export class PersonPanelComponent {
       this.pessoa.valorHora = null;
     }
     this.create.emit({ ...this.pessoa, valorMensal: this.valorMensalMedioDaPessoa(this.pessoa) });
+    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true };
+    this.valorHoraMasked = '';
+    this.valorMensalMasked = '';
+    this.formExpanded = false;
   }
 
   onTipoVinculoChange(tipo: string) {

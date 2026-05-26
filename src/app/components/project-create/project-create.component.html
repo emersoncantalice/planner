@@ -36,14 +36,16 @@
       <option value="BAIXA">Prioridade baixa</option>
     </select>
 
-    <label>LO vinculada</label>
+    <div class="lo-label-row">
+      <label>LO vinculada</label>
+      <button class="sec lo-cta-btn" type="button" (click)="openBudgetLines.emit()">Cadastrar LO</button>
+    </div>
     <select [(ngModel)]="projeto.linhaOrcamentariaId">
       <option value="">Selecione a LO vinculada</option>
       @for (lo of linhasOrcamentarias; track lo.id) {
         <option [value]="lo.id">{{ lo.codigo }} - {{ lo.nome }} (R$ {{ lo.valorTotal }})</option>
       }
     </select>
-    <button class="sec lo-cta-btn" type="button" (click)="openBudgetLines.emit()">Cadastrar LO</button>
 
     <label>% da LO para este projeto</label>
     <div class="percent-field">
@@ -62,16 +64,16 @@
       Orcamento previsto derivado: <strong>{{ currency(orcamentoPrevistoDerivado()) }}</strong>
     </p>
 
-    <label>Business Epic vinculado</label>
+    <div class="lo-label-row">
+      <label>Business Epic vinculado</label>
+      <button class="sec lo-cta-btn" type="button" (click)="openBusinessEpics.emit()">Cadastrar Business Epic</button>
+    </div>
     <select [(ngModel)]="projeto.businessEpicId">
       <option value="">Selecione o Business Epic vinculado</option>
       @for (e of businessEpics; track e.id) {
         <option [value]="e.id">{{ e.nome }}</option>
       }
     </select>
-    <div class="action-row">
-      <button class="sec" type="button" (click)="openBusinessEpics.emit()">Cadastrar Business Epic</button>
-    </div>
 
     <label class="check architecture-check">
       <input [(ngModel)]="projeto.precisaArquitetura" type="checkbox" />

@@ -33,6 +33,7 @@ export class FocalPointPanelComponent {
   submit() {
     this.create.emit(this.pontoFocal);
     this.pontoFocal = { area: '', responsavelPor: '', email: '', telefone: '' };
+    this.formExpanded = false;
   }
 
   startEdit(p: any) {

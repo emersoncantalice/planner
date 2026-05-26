@@ -1,0 +1,198 @@
+.dt-card {
+  max-width: 900px;
+
+  h2 { margin-bottom: 4px; }
+}
+
+.dt-subtitle {
+  font-size: .82rem;
+  color: #5a7ab2;
+  margin-bottom: 20px;
+}
+
+// ── Two-column grid ──────────────────────────────────────────────────────────
+.dt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  @media (max-width: 680px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Block ────────────────────────────────────────────────────────────────────
+.dt-block {
+  border: 1px solid #d9e7ff;
+  border-radius: 12px;
+  padding: 18px;
+  background: #f8fbff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dt-block-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  strong {
+    display: block;
+    font-size: .95rem;
+    color: #1a3a7a;
+    margin-bottom: 2px;
+  }
+  small {
+    font-size: .74rem;
+    color: #6080a8;
+    line-height: 1.4;
+  }
+}
+
+.dt-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg { width: 20px; height: 20px; fill: #fff; }
+
+  &.dt-icon-export { background: #1d63da; }
+  &.dt-icon-import { background: #2e7d32; }
+}
+
+// ── Item list ────────────────────────────────────────────────────────────────
+.dt-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: .78rem;
+  color: #3a5f96;
+  flex: 1;
+
+  li { display: flex; align-items: center; gap: 8px; }
+}
+
+.dt-list-info {
+  li {
+    &::before {
+      content: '→';
+      color: #7aa0d8;
+      font-size: .72rem;
+    }
+  }
+}
+
+.dt-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 20px;
+  background: #e8f0ff;
+  border: 1px solid #c4d9ff;
+  border-radius: 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  color: #1d63da;
+  padding: 0 5px;
+}
+
+// ── Buttons ──────────────────────────────────────────────────────────────────
+.dt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: .8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background .12s, opacity .12s;
+  align-self: flex-start;
+
+  svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+
+.dt-btn-primary {
+  background: #1d63da;
+  color: #fff;
+  &:hover:not(:disabled) { background: #1550b8; }
+}
+
+.dt-btn-secondary {
+  background: #2e7d32;
+  color: #fff;
+  &:hover:not(:disabled) { background: #1b5e20; }
+}
+
+// ── Progress ─────────────────────────────────────────────────────────────────
+.dt-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .78rem;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.dt-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #c8e6c9;
+  border-top-color: #2e7d32;
+  border-radius: 50%;
+  animation: dt-spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes dt-spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── Errors summary ────────────────────────────────────────────────────────────
+.dt-erros {
+  font-size: .74rem;
+  color: #7a4a00;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  padding: 8px 12px;
+
+  summary {
+    cursor: pointer;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  ul {
+    margin: 6px 0 0 12px;
+    padding: 0;
+    list-style: disc;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+// ── Warning ──────────────────────────────────────────────────────────────────
+.dt-warning {
+  font-size: .75rem;
+  color: #7a5a00;
+  background: #fffbf0;
+  border: 1px solid #ffe08a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}

@@ -175,6 +175,7 @@
 .ind-main-row {
   cursor: pointer;
   transition: background .1s;
+  background: white;
 
   &:hover td { background: #f0f6ff; }
   &.row-expanded > td { background: #e8f0fe; border-bottom: none; }

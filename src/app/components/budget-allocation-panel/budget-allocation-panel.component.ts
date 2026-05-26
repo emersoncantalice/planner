@@ -30,6 +30,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   anoSelecionado = new Date().getFullYear();
   meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   searchTerm = '';
+  searchLoTerm = '';
   pessoaNovaNome = '';
   pessoaEdicaoNome = '';
   private planoAlocacao: Record<string, { percentual: number }> = {};
@@ -135,6 +136,16 @@ export class BudgetAllocationPanelComponent implements OnChanges {
 
   linhasDoAnoSelecionado() {
     return this.linhasOrcamentarias.filter((lo: any) => Number(lo?.ano) === Number(this.anoSelecionado));
+  }
+
+  linhasDoAnoFiltradas() {
+    const q = this.searchLoTerm.trim().toLowerCase();
+    if (!q) return this.linhasDoAnoSelecionado();
+    return this.linhasDoAnoSelecionado().filter((lo: any) =>
+      (lo.codigo || '').toLowerCase().includes(q) ||
+      (lo.nome || '').toLowerCase().includes(q) ||
+      (lo.tipo || '').toLowerCase().includes(q)
+    );
   }
 
   selecionarAno(ano: number) {
@@ -265,6 +276,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   }
 
   getValorHoraDaAlocacao(a: any): number {
+    if (!this.debitaLoDaAlocacao(a)) return 0;
     const pessoa = this.pessoas.find(
       (p: any) => this.normalized(p?.nome || '') === this.normalized(a?.nomePessoa || '')
     );
@@ -274,6 +286,17 @@ export class BudgetAllocationPanelComponent implements OnChanges {
       if (perfil?.valorHora != null) return Number(perfil.valorHora);
     }
     return Number(a?.valorHora || 0);
+  }
+
+  private debitaLoDaAlocacao(a: any): boolean {
+    if (a?.debitaLo != null) return !!a.debitaLo;
+    const pessoa = this.pessoas.find(
+      (p: any) => this.normalized(p?.nome || '') === this.normalized(a?.nomePessoa || '')
+    );
+    const perfilId = a?.perfilId || pessoa?.perfilId;
+    if (!perfilId) return true;
+    const perfil = this.perfis.find((x: any) => x.id === perfilId);
+    return perfil ? !!perfil.debitaLo : true;
   }
 
   totalComprometidoGeralLos(): number {

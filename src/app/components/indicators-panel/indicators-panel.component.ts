@@ -12,13 +12,16 @@ import { FormsModule } from '@angular/forms';
 export class IndicatorsPanelComponent {
   @Input() indicadores: any[] = [];
   @Input() pessoas: any[] = [];
-  @Output() create       = new EventEmitter<any>();
-  @Output() update       = new EventEmitter<any>();
-  @Output() remove       = new EventEmitter<string>();
-  @Output() addCycle     = new EventEmitter<{ indicatorId: string; payload: any }>();
-  @Output() addAction    = new EventEmitter<{ indicatorId: string; payload: any }>();
-  @Output() updateAction = new EventEmitter<{ indicatorId: string; actionId: string; payload: any }>();
-  @Output() removeAction = new EventEmitter<{ indicatorId: string; actionId: string }>();
+  @Input() isAdmin = false;
+  @Output() create        = new EventEmitter<any>();
+  @Output() update        = new EventEmitter<any>();
+  @Output() remove        = new EventEmitter<string>();
+  @Output() addCycle      = new EventEmitter<{ indicatorId: string; payload: any }>();
+  @Output() updateCycle   = new EventEmitter<{ indicatorId: string; cycleId: string; payload: any }>();
+  @Output() removeCycle   = new EventEmitter<{ indicatorId: string; cycleId: string }>();
+  @Output() addAction     = new EventEmitter<{ indicatorId: string; payload: any }>();
+  @Output() updateAction  = new EventEmitter<{ indicatorId: string; actionId: string; payload: any }>();
+  @Output() removeAction  = new EventEmitter<{ indicatorId: string; actionId: string }>();
 
   // ── view state ────────────────────────────────────────────────────────────
   selectedId    = '';
@@ -34,6 +37,10 @@ export class IndicatorsPanelComponent {
   batchOpen     = false;
   actionModalId = '';   // nova ação
   editingActionId = '';
+  // cycle edit modal (admin only)
+  cycleEditModalIndId = '';
+  cycleEditModalCicloId = '';
+  cycleEditForm: { valor: string; observacao: string; dataReferencia: string } = { valor: '', observacao: '', dataReferencia: '' };
 
   // forms
   indForm = this.emptyIndForm();
@@ -347,6 +354,42 @@ export class IndicatorsPanelComponent {
 
   batchUpdateCount(): number {
     return this.batchEntries.filter(e => this.hasVal(e.novoValor)).length;
+  }
+
+  // ── cycle edit/delete (admin) ─────────────────────────────────────────────
+  openCycleEdit(indId: string, ciclo: any) {
+    this.cycleEditModalIndId = indId;
+    this.cycleEditModalCicloId = ciclo.id;
+    const dr = ciclo.dataReferencia ? new Date(ciclo.dataReferencia).toISOString().slice(0, 10) : '';
+    this.cycleEditForm = {
+      valor: ciclo.valor != null ? String(ciclo.valor) : '',
+      observacao: ciclo.observacao ?? '',
+      dataReferencia: dr,
+    };
+  }
+
+  closeCycleEdit() {
+    this.cycleEditModalIndId = '';
+    this.cycleEditModalCicloId = '';
+    this.cycleEditForm = { valor: '', observacao: '', dataReferencia: '' };
+  }
+
+  submitCycleEdit() {
+    if (!this.cycleEditForm.valor && this.cycleEditForm.valor !== '0') return;
+    this.updateCycle.emit({
+      indicatorId: this.cycleEditModalIndId,
+      cycleId: this.cycleEditModalCicloId,
+      payload: {
+        valor: Number(this.cycleEditForm.valor),
+        observacao: this.cycleEditForm.observacao || null,
+        dataReferencia: this.cycleEditForm.dataReferencia ? `${this.cycleEditForm.dataReferencia}T00:00:00Z` : null,
+      },
+    });
+    this.closeCycleEdit();
+  }
+
+  excluirCiclo(indicatorId: string, cycleId: string) {
+    this.removeCycle.emit({ indicatorId, cycleId });
   }
 
   // ── action CRUD ───────────────────────────────────────────────────────────

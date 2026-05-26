@@ -39,6 +39,9 @@ export class ProfilePanelComponent {
 
   submit() {
     this.create.emit(this.perfil);
+    this.perfil = { nomePerfil: '', valorHora: 0, nivel: '', departamento: '', observacoes: '', debitaLo: true };
+    this.valorHoraMasked = '';
+    this.formExpanded = false;
   }
 
   startEdit(p: any) {

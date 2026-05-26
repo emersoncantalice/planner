@@ -314,6 +314,7 @@
                                 <th>Status</th>
                                 <th>Observação</th>
                                 <th>Registrado em</th>
+                                @if (isAdmin) { <th class="col-ops"></th> }
                               </tr>
                             </thead>
                             <tbody>
@@ -338,6 +339,16 @@
                                   </td>
                                   <td class="ind-cycle-obs">{{ ciclo.observacao || '—' }}</td>
                                   <td>{{ formatDate(ciclo.criadoEm) }}</td>
+                                  @if (isAdmin) {
+                                    <td class="col-ops" (click)="$event.stopPropagation()">
+                                      <button class="ind-row-btn" (click)="openCycleEdit(ind.id, ciclo)" title="Editar ciclo">
+                                        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                      </button>
+                                      <button class="ind-row-btn ind-row-btn-del" (click)="excluirCiclo(ind.id, ciclo.id)" title="Excluir ciclo">
+                                        <svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                      </button>
+                                    </td>
+                                  }
                                 </tr>
                               }
                             </tbody>
@@ -559,6 +570,37 @@
         <span class="ind-batch-count">{{ batchUpdateCount() }} de {{ batchEntries.length }} indicadores serão atualizados</span>
         <button class="ind-btn-sec" (click)="closeBatch()">Cancelar</button>
         <button class="ind-btn-pri" (click)="submitBatch()" [disabled]="!batchHasUpdates()">Salvar revisão</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Cycle Edit Modal (Admin) ─────────────────────────────────────────── -->
+  @if (cycleEditModalIndId) {
+    <div class="modal-backdrop" (click)="closeCycleEdit()"></div>
+    <div class="ind-modal ind-modal-sm" (click)="$event.stopPropagation()">
+      <div class="ind-modal-head">
+        <h3>Editar Ciclo</h3>
+        <button class="ind-modal-close" (click)="closeCycleEdit()" aria-label="Fechar">×</button>
+      </div>
+      <div class="ind-modal-body">
+        <div class="ind-form-grid">
+          <div class="ind-form-field">
+            <label>Valor *</label>
+            <input type="number" [(ngModel)]="cycleEditForm.valor" placeholder="0" step="any" />
+          </div>
+          <div class="ind-form-field">
+            <label>Data de referência</label>
+            <input type="date" [(ngModel)]="cycleEditForm.dataReferencia" [max]="today" />
+          </div>
+          <div class="ind-form-field full">
+            <label>Observação</label>
+            <textarea [(ngModel)]="cycleEditForm.observacao" rows="2" placeholder="Observação deste ciclo…"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="ind-modal-foot">
+        <button class="ind-btn-sec" (click)="closeCycleEdit()">Cancelar</button>
+        <button class="ind-btn-pri" (click)="submitCycleEdit()" [disabled]="!cycleEditForm.valor && cycleEditForm.valor !== '0'">Salvar</button>
       </div>
     </div>
   }

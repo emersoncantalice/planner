@@ -26,11 +26,23 @@ export class OverviewListComponent {
   @Output() select = new EventEmitter<string>();
   @Output() openCreateProject = new EventEmitter<void>();
   @Output() exportJira = new EventEmitter<void>();
+  @Input() businessEpics: any[] = [];
   @Output() updateProject = new EventEmitter<{ id: string; nome: string; descricao: string }>();
   @Output() deleteProject = new EventEmitter<string>();
   @Output() updateProjectSituacao = new EventEmitter<{ id: string; situacao: 'DRAFT' | 'PUBLISHED' }>();
   editingProjectId = '';
-  projectForm = { nome: '', descricao: '' };
+  projectForm = {
+    nome: '',
+    descricao: '',
+    cliente: '',
+    responsavel: '',
+    inicioPrevisto: '',
+    fimPrevisto: '',
+    prioridade: 'MEDIA',
+    linhaOrcamentariaId: '',
+    businessEpicId: '',
+    percentualLo: null as number | null,
+  };
   anoSelecionado = new Date().getFullYear();
   searchTerm = '';
 
@@ -101,14 +113,101 @@ export class OverviewListComponent {
     return values.length ? Math.max(...values, 1) : 1;
   }
 
+  private parseDetailLine(text: string, key: string): string {
+    const m = text.match(new RegExp(`- ${key}: (.+)`));
+    return m?.[1]?.trim() ?? '';
+  }
+
+  private parsePlainLine(text: string, key: string): string {
+    const m = text.match(new RegExp(`^${key}: (.+)`, 'm'));
+    return m?.[1]?.trim() ?? '';
+  }
+
   startEditProject(r: any) {
     this.editingProjectId = r.id;
-    this.projectForm = { nome: r.nome ?? '', descricao: r.descricao ?? '' };
+    const raw = r.descricao ?? '';
+
+    const detailsIdx = raw.indexOf('Detalhes do projeto');
+    const freeText   = (detailsIdx >= 0 ? raw.slice(0, detailsIdx) : raw).trim();
+    const detailsText = detailsIdx >= 0 ? raw.slice(detailsIdx) : '';
+
+    // LO: "LO vinculada: CODIGO - Nome"
+    const loStr  = this.parseDetailLine(detailsText, 'LO vinculada');
+    const loCode = loStr.split(' - ')[0]?.trim() ?? '';
+    const lo     = this.linhasOrcamentarias.find((x: any) => x.codigo === loCode);
+
+    // Business Epic: search block after "Business Epic"
+    const epicIdx  = raw.indexOf('Business Epic');
+    const epicText = epicIdx >= 0 ? raw.slice(epicIdx) : '';
+    const epicName = this.parsePlainLine(epicText, 'Nome');
+    const epic     = this.businessEpics.find((x: any) => x.nome === epicName);
+
+    // percentualLo: "Percentual da LO: X%"
+    const pctStr    = this.parseDetailLine(detailsText, 'Percentual da LO').replace('%', '').trim();
+    const percentualLo = pctStr ? (parseFloat(pctStr) || null) : null;
+
+    this.projectForm = {
+      nome:                r.nome ?? '',
+      descricao:           freeText,
+      cliente:             this.parseDetailLine(detailsText, 'Cliente/Area'),
+      responsavel:         this.parseDetailLine(detailsText, 'Responsavel'),
+      inicioPrevisto:      this.parseDetailLine(detailsText, 'Inicio previsto'),
+      fimPrevisto:         this.parseDetailLine(detailsText, 'Fim previsto'),
+      prioridade:          this.parseDetailLine(detailsText, 'Prioridade') || 'MEDIA',
+      linhaOrcamentariaId: lo?.id ?? '',
+      businessEpicId:      epic?.id ?? '',
+      percentualLo,
+    };
+  }
+
+  orcamentoPrevistoDerivadoEdit(): number {
+    const lo = this.linhasOrcamentarias.find((x: any) => x.id === this.projectForm.linhaOrcamentariaId);
+    const totalLo   = Number(lo?.valorTotal ?? 0);
+    const percentual = Number(this.projectForm.percentualLo ?? 0);
+    if (!Number.isFinite(totalLo) || !Number.isFinite(percentual) || percentual <= 0) return 0;
+    return (totalLo * percentual) / 100;
+  }
+
+  onPercentualLoEditChange(value: number | string | null) {
+    if (value === null || value === '') { this.projectForm.percentualLo = null; return; }
+    const parsed = Number(value);
+    this.projectForm.percentualLo = !Number.isFinite(parsed) ? null : Math.min(100, Math.max(0, parsed));
   }
 
   saveEditProject() {
     if (!this.editingProjectId) return;
-    this.updateProject.emit({ id: this.editingProjectId, ...this.projectForm });
+
+    const lo   = this.linhasOrcamentarias.find((x: any) => x.id === this.projectForm.linhaOrcamentariaId);
+    const epic = this.businessEpics.find((x: any) => x.id === this.projectForm.businessEpicId);
+
+    const detalhes: string[] = [];
+    if (lo)                              detalhes.push(`LO vinculada: ${lo.codigo} - ${lo.nome}`);
+    if (this.projectForm.cliente)        detalhes.push(`Cliente/Area: ${this.projectForm.cliente}`);
+    if (this.projectForm.responsavel)    detalhes.push(`Responsavel: ${this.projectForm.responsavel}`);
+    if (this.projectForm.inicioPrevisto) detalhes.push(`Inicio previsto: ${this.projectForm.inicioPrevisto}`);
+    if (this.projectForm.fimPrevisto)    detalhes.push(`Fim previsto: ${this.projectForm.fimPrevisto}`);
+    if (this.projectForm.prioridade)     detalhes.push(`Prioridade: ${this.projectForm.prioridade}`);
+    if (this.projectForm.percentualLo != null) detalhes.push(`Percentual da LO: ${this.projectForm.percentualLo}%`);
+    const orcamento = this.orcamentoPrevistoDerivadoEdit();
+    if (orcamento > 0) {
+      detalhes.push(`Orcamento previsto: ${orcamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
+    }
+
+    const epicTexto = epic ? [
+      'Business Epic',
+      `Nome: ${epic.nome}`,
+      `Alias: ${epic.aliasLink || '-'}`,
+      `Jira: ${epic.jiraUrl || '-'}`,
+      `Janela: ${epic.inicio || '-'} ate ${epic.fim || '-'}`
+    ].join('\n') : '';
+
+    const descricaoFinal = [
+      this.projectForm.descricao?.trim() || '',
+      detalhes.length ? ['Detalhes do projeto', ...detalhes.map(d => `- ${d}`)].join('\n') : '',
+      epicTexto
+    ].filter(Boolean).join('\n\n');
+
+    this.updateProject.emit({ id: this.editingProjectId, nome: this.projectForm.nome, descricao: descricaoFinal });
     this.editingProjectId = '';
   }
 

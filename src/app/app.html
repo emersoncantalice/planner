@@ -162,7 +162,7 @@
               <span class="sb-text"><strong>Por atividade</strong></span>
             </a>
           } @else if (alocacoesExpanded() && sidebarCollapsed()) {
-            <div class="sb-flyout" [style.top.px]="flyoutTop()">
+            <div class="sb-flyout" [style.top.px]="flyoutTop()" [style.bottom]="flyoutBottom() !== null ? flyoutBottom() + 'px' : null" [style.max-height]="flyoutMaxHeight() !== null ? flyoutMaxHeight() + 'px' : null">
               <p class="sb-flyout-label">Alocações</p>
               <a [class.active]="secaoAtiva() === 'alocacoes_lo'" (click)="selecionarSecao('alocacoes_lo')">
                 <span class="sb-subicon" aria-hidden="true">
@@ -215,7 +215,7 @@
               <span class="sb-text"><strong>Débitos Técnicos</strong></span>
             </a>
           } @else if (riscosExpanded() && sidebarCollapsed()) {
-            <div class="sb-flyout" [style.top.px]="flyoutTop()">
+            <div class="sb-flyout" [style.top.px]="flyoutTop()" [style.bottom]="flyoutBottom() !== null ? flyoutBottom() + 'px' : null" [style.max-height]="flyoutMaxHeight() !== null ? flyoutMaxHeight() + 'px' : null">
               <p class="sb-flyout-label">Riscos</p>
               <a [class.active]="secaoAtiva() === 'riscos'" (click)="selecionarSecao('riscos')">
                 <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg></span>
@@ -239,7 +239,7 @@
           <span class="sb-text"><strong>Indicadores</strong></span>
         </a>
         <div class="sb-group">
-          <a [class.active]="secaoAtiva() === 'perfis' || secaoAtiva() === 'orcamento' || secaoAtiva() === 'epicos' || secaoAtiva() === 'pessoas' || secaoAtiva() === 'horas_mes' || secaoAtiva() === 'prestadores' || secaoAtiva() === 'pontos_focais' || secaoAtiva() === 'feriados' || secaoAtiva() === 'ausencias'" (click)="toggleCadastrosMenu($event)" title="Cadastros">
+          <a [class.active]="secaoAtiva() === 'perfis' || secaoAtiva() === 'orcamento' || secaoAtiva() === 'epicos' || secaoAtiva() === 'pessoas' || secaoAtiva() === 'horas_mes' || secaoAtiva() === 'prestadores' || secaoAtiva() === 'pontos_focais' || secaoAtiva() === 'feriados' || secaoAtiva() === 'ausencias' || secaoAtiva() === 'dados'" (click)="toggleCadastrosMenu($event)" title="Cadastros">
             <span class="sb-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M5 3h14v4H5zm0 7h14v11H5zm3 2v2h8v-2zm0 4v2h6v-2z"/></svg>
             </span>
@@ -291,8 +291,12 @@
               <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6c1.1 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.35 17.13 5.18 17.5 4 17.5v1.99c1.55 0 2.93-.56 4-1.48 1.07.92 2.45 1.48 4 1.48s2.93-.56 4-1.48c1.07.92 2.45 1.48 4 1.48V17.5c-1.18 0-2.35-.37-3.4-1.51zM20 8H4C2.9 8 2 8.9 2 10v3h20v-3c0-1.1-.9-2-2-2z"/></svg></span>
               <span class="sb-text"><strong>Férias</strong></span>
             </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'dados'" (click)="selecionarSecao('dados')" title="Exportar / Importar">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg></span>
+              <span class="sb-text"><strong>Exp./Imp.</strong></span>
+            </a>
           } @else if (cadastrosExpanded() && sidebarCollapsed()) {
-            <div class="sb-flyout" [style.top.px]="flyoutTop()">
+            <div class="sb-flyout" [style.top.px]="flyoutTop()" [style.bottom]="flyoutBottom() !== null ? flyoutBottom() + 'px' : null" [style.max-height]="flyoutMaxHeight() !== null ? flyoutMaxHeight() + 'px' : null">
               <p class="sb-flyout-label">Cadastros</p>
               <a [class.active]="secaoAtiva() === 'perfis'" (click)="selecionarSecao('perfis')">
                 <span class="sb-subicon" aria-hidden="true">
@@ -355,6 +359,12 @@
                   <svg viewBox="0 0 24 24"><path d="M12 6c1.1 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.35 17.13 5.18 17.5 4 17.5v1.99c1.55 0 2.93-.56 4-1.48 1.07.92 2.45 1.48 4 1.48s2.93-.56 4-1.48c1.07.92 2.45 1.48 4 1.48V17.5c-1.18 0-2.35-.37-3.4-1.51zM20 8H4C2.9 8 2 8.9 2 10v3h20v-3c0-1.1-.9-2-2-2z"/></svg>
                 </span>
                 <span>Férias</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'dados'" (click)="selecionarSecao('dados')">
+                <span class="sb-subicon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+                </span>
+                <span>Exp./Imp.</span>
               </a>
             </div>
           }
@@ -460,6 +470,7 @@
           class="full-row"
           [resumo]="resumo()"
           [linhasOrcamentarias]="linhasOrcamentarias()"
+          [businessEpics]="businessEpics()"
           [alocacoesLo]="alocacoesLo()"
           [showDashboard]="false"
           [showChart]="false"
@@ -626,10 +637,13 @@
         <app-indicators-panel
           [indicadores]="indicadores()"
           [pessoas]="pessoas()"
+          [isAdmin]="isAdmin()"
           (create)="criarIndicador($event)"
           (update)="atualizarIndicador($event)"
           (remove)="excluirIndicador($event)"
           (addCycle)="adicionarCiclo($event)"
+          (updateCycle)="atualizarCicloIndicador($event)"
+          (removeCycle)="excluirCicloIndicador($event)"
           (addAction)="adicionarAcaoIndicador($event)"
           (updateAction)="atualizarAcaoIndicador($event)"
           (removeAction)="excluirAcaoIndicador($event)">
@@ -637,6 +651,20 @@
       }
       @if (secaoAtiva() === 'usuarios' && isAdmin()) {
         <app-admin-users-panel [token]="token()"></app-admin-users-panel>
+      }
+      @if (secaoAtiva() === 'dados') {
+        <app-data-transfer-panel
+          [token]="token()"
+          [perfis]="perfis()"
+          [pessoas]="pessoas()"
+          [consultorias]="consultorias()"
+          [pontosFocais]="pontosFocais()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [alocacoes]="alocacoesLo()"
+          [horasMes]="horasMes()"
+          [businessEpics]="businessEpics()"
+          (imported)="inicializarSessao()">
+        </app-data-transfer-panel>
       }
       @if (secaoAtiva() === 'relatorios') {
         <app-reports-panel
