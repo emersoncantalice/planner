@@ -443,6 +443,54 @@
     </div>
   }
 
+  <!-- Atividades sem responsável -->
+  @if (atividadesSemResponsavel().length > 0) {
+    <div class="dash-card dash-card-full">
+      <div class="dash-card-header">
+        <div class="dash-card-title">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+          Atividades sem responsável
+          <span class="dash-card-badge warn-badge">{{ atividadesSemResponsavel().length }}</span>
+        </div>
+        <button class="dash-link-btn" (click)="navigate.emit('projetos')">Ver projetos →</button>
+      </div>
+      <div class="dash-sem-resp-table-wrap">
+        <table class="dash-sem-resp-table">
+          <thead>
+            <tr>
+              <th>Atividade</th>
+              <th>Projeto</th>
+              <th>Status</th>
+              <th>Início</th>
+              <th>Fim</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of atividadesSemResponsavel().slice(0, 10); track a.id) {
+              <tr class="dash-sem-resp-row" (click)="selectProject.emit(a.projetoId)" title="Abrir projeto">
+                <td class="dash-sem-resp-titulo">{{ a.titulo }}</td>
+                <td class="dash-sem-resp-proj">{{ a.projetoNome }}</td>
+                <td>
+                  <span class="dash-status-badge" [class]="'status-' + statusAtivColor(a.status)">
+                    {{ statusLabel(a.status) }}
+                  </span>
+                </td>
+                <td>{{ fmtActivityDate(a.inicioPlanejado) }}</td>
+                <td>{{ fmtActivityDate(a.fimPlanejado) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (atividadesSemResponsavel().length > 10) {
+        <p class="dash-risk-more">
+          +{{ atividadesSemResponsavel().length - 10 }} atividades sem responsável ·
+          <button class="dash-link-btn" (click)="navigate.emit('projetos')">ver projetos</button>
+        </p>
+      }
+    </div>
+  }
+
   <div class="dash-card dash-card-full">
     <div class="dash-card-header">
       <div class="dash-card-title">

@@ -21,6 +21,7 @@ export class DashboardPanelComponent {
   @Input() incidentes: any[] = [];
   @Input() debitosTecnicos: any[] = [];
   @Input() indicadores: any[] = [];
+  @Input() atividades: any[] = [];
   @Output() navigate = new EventEmitter<string>();
   @Output() selectProject = new EventEmitter<string>();
   @Output() selectRisk = new EventEmitter<string>();
@@ -487,6 +488,29 @@ export class DashboardPanelComponent {
     if (!fim) return '';
     const [y, m, d] = fim.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  }
+
+  // ── Atividades sem responsável ────────────────────────────────────────────
+  atividadesSemResponsavel(): any[] {
+    return this.atividades.filter((a: any) => {
+      const resp = (a.responsavel || '').trim();
+      const status = (a.status || '').toUpperCase();
+      return !resp && status !== 'CONCLUIDO';
+    });
+  }
+
+  fmtActivityDate(value: any): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  }
+
+  statusAtivColor(status: string): string {
+    const s = (status || '').toUpperCase();
+    if (s === 'ATRASADO' || s === 'BLOQUEADO') return 'red';
+    if (s === 'EM_ANDAMENTO') return 'blue';
+    if (s === 'CONCLUIDO') return 'green';
+    return 'gray';
   }
 
   // ── Atalhos ───────────────────────────────────────────────────────────────

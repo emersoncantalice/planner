@@ -686,7 +686,7 @@ export class App {
     });
   }
 
-  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean }) {
+  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[] }) {
     this.api.createPerson(this.token(), payload).subscribe({
       next: () => {
         this.mensagem.set('Pessoa cadastrada.');
@@ -696,7 +696,7 @@ export class App {
     });
   }
 
-  atualizarPessoa(payload: { id: string; nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean }) {
+  atualizarPessoa(payload: { id: string; nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[] }) {
     this.api.updatePerson(this.token(), payload.id, payload).subscribe({
       next: () => {
         this.mensagem.set('Pessoa atualizada.');
@@ -1460,6 +1460,7 @@ export class App {
       next: (res) => this.resumo.set(res),
       error: (err) => this.tratarErroCarga('Falha ao carregar resumo.', err)
     });
+    this.carregarAtividades();
   }
 
   private carregarPerfis() {

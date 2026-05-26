@@ -43,10 +43,77 @@
           <option [value]="c.nome">{{ c.nome }}</option>
         }
       </select>
-      <label>URL da vaga</label>
+      <label>URL da vaga (atual)</label>
       <input [(ngModel)]="pessoa.vagaUrl" type="url" placeholder="URL da vaga (opcional)" />
-      <label>Alias da vaga</label>
+      <label>Alias da vaga (atual)</label>
       <input [(ngModel)]="pessoa.vagaAlias" placeholder="Alias da vaga (ex: VAG0031164)" />
+
+      @if (editingId) {
+        <!-- ── Histórico de vagas ───────────────────────────────────── -->
+        <button type="button" class="hist-toggle sec"
+                (click)="historicoExpanded = !historicoExpanded">
+          {{ historicoExpanded ? '▾' : '▸' }}
+          Histórico de vagas
+          @if (vagasAnteriores.length) {
+            <span class="hist-badge">{{ vagasAnteriores.length }}</span>
+          }
+        </button>
+
+        @if (historicoExpanded) {
+          <div class="hist-block">
+            <!-- Formulário para adicionar nova entrada -->
+            <div class="hist-add">
+              <div class="hist-add-row">
+                <div class="hist-field">
+                  <label>Alias</label>
+                  <input [(ngModel)]="novaVaga.alias" placeholder="Ex: VAG0031164" />
+                </div>
+                <div class="hist-field hist-field-wide">
+                  <label>URL</label>
+                  <input [(ngModel)]="novaVaga.url" type="url" placeholder="URL da vaga (opcional)" />
+                </div>
+              </div>
+              <div class="hist-add-row">
+                <div class="hist-field">
+                  <label>Início</label>
+                  <input [(ngModel)]="novaVaga.inicio" type="date" />
+                </div>
+                <div class="hist-field">
+                  <label>Fim</label>
+                  <input [(ngModel)]="novaVaga.fim" type="date" />
+                </div>
+                <button type="button" class="hist-add-btn"
+                        (click)="adicionarVagaHistorico()"
+                        [disabled]="!novaVaga.alias.trim() && !novaVaga.url.trim()">
+                  + Adicionar
+                </button>
+              </div>
+            </div>
+
+            <!-- Lista de vagas passadas -->
+            @if (vagasAnteriores.length === 0) {
+              <p class="hist-empty">Nenhuma vaga anterior registrada.</p>
+            } @else {
+              <ul class="hist-list">
+                @for (v of vagasAnteriores; track $index) {
+                  <li class="hist-item">
+                    <div class="hist-item-info">
+                      @if (v.url) {
+                        <a [href]="v.url" target="_blank" rel="noopener noreferrer" class="hist-alias">{{ v.alias || 'Abrir ↗' }}</a>
+                      } @else {
+                        <span class="hist-alias">{{ v.alias || '—' }}</span>
+                      }
+                      <span class="hist-dates">{{ fmtDate(v.inicio) }} → {{ fmtDate(v.fim) }}</span>
+                    </div>
+                    <button type="button" class="hist-del" title="Remover do histórico"
+                            (click)="removerVagaHistorico($index)">✕</button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      }
     }
     <label>Data de nascimento (opcional)</label>
     <input [(ngModel)]="pessoa.dataNascimento" type="date" placeholder="Data de nascimento" />

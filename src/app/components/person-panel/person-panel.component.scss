@@ -35,3 +35,144 @@
 .badge-ativo   { background: #d1fae5; color: #065f46; }
 .badge-inativo { background: #f3f4f6; color: #6b7280; }
 .row-inativo td { opacity: .65; }
+
+/* ── Histórico de vagas ──────────────────────────────────────────────────── */
+.hist-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #1e3a6a;
+  background: #f0f5ff;
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  padding: 7px 12px;
+  margin-top: 4px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background .15s;
+  &:hover { background: #e4eeff; }
+}
+
+.hist-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #1d63da;
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.hist-block {
+  border: 1px solid #d7e8ff;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.hist-add {
+  display: grid;
+  gap: 8px;
+}
+
+.hist-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.hist-field {
+  display: grid;
+  gap: 4px;
+  min-width: 120px;
+  flex: 1;
+  label { font-size: .75rem; font-weight: 600; color: #1e3a6a; }
+  input { margin: 0; font-size: .85rem; }
+}
+
+.hist-field-wide { flex: 2; min-width: 200px; }
+
+.hist-add-btn {
+  align-self: flex-end;
+  padding: 8px 14px;
+  font-size: .82rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hist-empty {
+  font-size: .8rem;
+  color: #4f6b98;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.hist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.hist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #dce8ff;
+  border-radius: 8px;
+}
+
+.hist-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hist-alias {
+  font-size: .82rem;
+  font-weight: 700;
+  color: #1d63da;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  &[href]:hover { text-decoration: underline; }
+}
+
+.hist-dates {
+  font-size: .72rem;
+  color: #4f6b98;
+  white-space: nowrap;
+}
+
+.hist-del {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #f0b4b4;
+  background: #fff5f5;
+  color: #dc2626;
+  font-size: .8rem;
+  cursor: pointer;
+  line-height: 1;
+  &:hover { background: #fecaca; }
+}

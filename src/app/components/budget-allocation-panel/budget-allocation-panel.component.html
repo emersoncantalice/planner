@@ -112,7 +112,13 @@
     </div>
   </section>
 
-  <h2>Painel de alocacoes por LO</h2>
+  <div class="lo-export-row">
+    <h2 style="margin:0">Painel de alocacoes por LO</h2>
+    <button type="button" class="lo-export-btn" (click)="exportarExcel()" title="Exportar alocações em Excel (Por Pessoa, Por LO, Por Atividade)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+      Exportar Excel
+    </button>
+  </div>
   <div class="toolbar-row">
     <label for="anoAlocacao">Ano</label>
     <select id="anoAlocacao" [ngModel]="anoSelecionado" (ngModelChange)="selecionarAno($event)">
@@ -228,7 +234,12 @@
     <button class="sec" type="button" (click)="abrirPessoaModal()">Nova pessoa</button>
   </div>
 
-  <section class="alloc-table-wrap">
+  <!-- Scrollbar espelho no topo da tabela -->
+  <div class="alloc-scroll-top" #allocScrollTop (scroll)="onScrollTop($event)">
+    <div class="alloc-scroll-top-inner"></div>
+  </div>
+
+  <section class="alloc-table-wrap" #allocTableWrap (scroll)="onScrollBottom($event)">
     <div class="table-toolbar">
       <p class="table-hint">Calculo mensal: Valor/hora x Horas do cadastro do mes x Alocacao (%).</p>
       <!-- Botão colunas -->

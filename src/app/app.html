@@ -434,6 +434,7 @@
           [incidentes]="incidentes()"
           [debitosTecnicos]="debitosTecnicos()"
           [indicadores]="indicadores()"
+          [atividades]="atividades()"
           (navigate)="selecionarSecao($any($event))"
           (selectProject)="selecionarProjeto($event)"
           (selectRisk)="abrirRiscoDoDashboard($event)">
@@ -577,6 +578,7 @@
           [pessoas]="pessoas()"
           [consultorias]="consultorias()"
           [alocacoes]="alocacoesLo()"
+          [atividades]="atividades()"
           (createPerson)="criarPessoa($event)"
           (create)="criarAlocacaoLo($event)"
           (update)="atualizarAlocacaoLo($event)"

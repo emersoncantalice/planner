@@ -25,6 +25,9 @@ export class PersonPanelComponent {
   editingId = '';
   filtroAtivo: 'todos' | 'ativos' | 'inativos' = 'ativos';
   pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true };
+  vagasAnteriores: { alias: string; url: string; inicio: string; fim: string }[] = [];
+  historicoExpanded = false;
+  novaVaga = { alias: '', url: '', inicio: '', fim: '' };
   valorHoraMasked = '';
   valorMensalMasked = '';
   searchTerm = '';
@@ -38,6 +41,11 @@ export class PersonPanelComponent {
   startEdit(p: any) {
     this.editingId = p.id;
     this.formExpanded = true;
+    this.historicoExpanded = false;
+    this.novaVaga = { alias: '', url: '', inicio: '', fim: '' };
+    this.vagasAnteriores = Array.isArray(p.vagasAnteriores)
+      ? p.vagasAnteriores.map((v: any) => ({ alias: v.alias || '', url: v.url || '', inicio: v.inicio || '', fim: v.fim || '' }))
+      : [];
     this.pessoa = {
       nome: p.nome,
       perfilId: p.perfilId,
@@ -64,14 +72,37 @@ export class PersonPanelComponent {
       this.pessoa.valorHora = null;
     }
     this.pessoa.valorMensal = this.calcularValorMensalMedio(this.pessoa.valorHora);
-    this.update.emit({ id: this.editingId, ...this.pessoa });
+    this.update.emit({ id: this.editingId, ...this.pessoa, vagasAnteriores: [...this.vagasAnteriores] });
     this.editingId = '';
     this.formExpanded = false;
+    this.vagasAnteriores = [];
+    this.historicoExpanded = false;
   }
 
   cancelEdit() {
     this.editingId = '';
     this.formExpanded = false;
+    this.vagasAnteriores = [];
+    this.historicoExpanded = false;
+  }
+
+  adicionarVagaHistorico() {
+    if (!this.novaVaga.alias.trim() && !this.novaVaga.url.trim()) return;
+    this.vagasAnteriores = [
+      { alias: this.novaVaga.alias.trim(), url: this.novaVaga.url.trim(), inicio: this.novaVaga.inicio, fim: this.novaVaga.fim },
+      ...this.vagasAnteriores,
+    ];
+    this.novaVaga = { alias: '', url: '', inicio: '', fim: '' };
+  }
+
+  removerVagaHistorico(idx: number) {
+    this.vagasAnteriores = this.vagasAnteriores.filter((_, i) => i !== idx);
+  }
+
+  fmtDate(d: string | null | undefined): string {
+    if (!d) return '—';
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
   }
 
   submit() {
@@ -83,6 +114,8 @@ export class PersonPanelComponent {
     }
     this.create.emit({ ...this.pessoa, valorMensal: this.valorMensalMedioDaPessoa(this.pessoa) });
     this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true };
+    this.vagasAnteriores = [];
+    this.historicoExpanded = false;
     this.valorHoraMasked = '';
     this.valorMensalMasked = '';
     this.formExpanded = false;

@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -18,6 +18,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   @Input() pessoas: any[] = [];
   @Input() consultorias: any[] = [];
   @Input() alocacoes: any[] = [];
+  @Input() atividades: any[] = [];
   @Output() create = new EventEmitter<{ linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number }>();
   @Output() update = new EventEmitter<{ id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number }>();
   @Output() remove = new EventEmitter<string>();
@@ -44,6 +45,27 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   novaPctMasked = '100,00';
   private pctMaskedMap: Record<string, string> = {};
   private pctMensalMaskedMap: Record<string, string> = {};
+  @ViewChild('allocScrollTop') allocScrollTopRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('allocTableWrap') allocTableWrapRef?: ElementRef<HTMLElement>;
+
+  private syncingScroll = false;
+
+  onScrollTop(e: Event) {
+    if (this.syncingScroll) return;
+    this.syncingScroll = true;
+    const left = (e.target as HTMLElement).scrollLeft;
+    if (this.allocTableWrapRef) this.allocTableWrapRef.nativeElement.scrollLeft = left;
+    this.syncingScroll = false;
+  }
+
+  onScrollBottom(e: Event) {
+    if (this.syncingScroll) return;
+    this.syncingScroll = true;
+    const left = (e.target as HTMLElement).scrollLeft;
+    if (this.allocScrollTopRef) this.allocScrollTopRef.nativeElement.scrollLeft = left;
+    this.syncingScroll = false;
+  }
+
   pessoaModalAberto = false;
   pessoaRapida = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '' };
   pessoaValorHoraMasked = '';
@@ -261,7 +283,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     const vh = this.getValorHoraDaAlocacao(a);
     if (!vh) return 0;
     const pct = this.percentualDisponivelParaLinha(a.id, monthIndex);
-    const horas = this.horasDoCadastro(monthIndex);
+    const horas = this.horasEfetivas(monthIndex, this.getCategoriaDaPessoa(a));
     return this.round2(vh * horas * pct / 100);
   }
 
@@ -482,8 +504,9 @@ export class BudgetAllocationPanelComponent implements OnChanges {
       const manual = this.getValorMensalManual(allocationId, month);
       if (manual != null) return manual;
     }
-    const percentual = this.getPercentualEfetivoMes(allocationId, month ?? new Date().getMonth());
-    const horas = this.horasDoCadastro(month ?? new Date().getMonth());
+    const mi = month ?? new Date().getMonth();
+    const percentual = this.getPercentualEfetivoMes(allocationId, mi);
+    const horas = this.horasEfetivas(mi, this.categoriaDaAlocacaoId(allocationId));
     return (valorHora || 0) * horas * (percentual / 100);
   }
 
@@ -563,6 +586,32 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     const found = this.horasMes.find((h: any) => Number(h?.mes) === mes);
     const horas = Number(found?.horas ?? 160);
     return horas > 0 ? horas : 160;
+  }
+
+  /** Para profissionais FOLHA (BV), sempre 160h independente do cadastro mensal. */
+  private horasEfetivas(monthIndex: number, categoria?: 'FOLHA' | 'TERCEIRO'): number {
+    return categoria === 'FOLHA' ? 160 : this.horasDoCadastro(monthIndex);
+  }
+
+  private categoriaDaAlocacaoId(allocationId: string): 'FOLHA' | 'TERCEIRO' {
+    const aloc = this.alocacoes.find((a: any) => a.id === allocationId);
+    if (!aloc) return 'FOLHA';
+    return this.getCategoriaDaPessoa(aloc);
+  }
+
+  private categoriaNovaAlocacao(): 'FOLHA' | 'TERCEIRO' {
+    if (this.novaPessoaSelecionadaId) {
+      const pessoa = this.pessoas.find((p: any) => p.id === this.novaPessoaSelecionadaId);
+      if (pessoa) {
+        return (pessoa.tipoVinculo || '').toUpperCase() === 'TERCEIRO' ? 'TERCEIRO' : 'FOLHA';
+      }
+    }
+    const nome = this.normalized(this.form.nomePessoa || '');
+    const pessoa = this.pessoas.find((p: any) => this.normalized(p?.nome || '') === nome);
+    if (pessoa) {
+      return (pessoa.tipoVinculo || '').toUpperCase() === 'TERCEIRO' ? 'TERCEIRO' : 'FOLHA';
+    }
+    return 'FOLHA';
   }
 
   horasMesAtual(): number {
@@ -864,7 +913,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     if (this.mesIndisponivelNovaPessoa(monthIndex)) return 0;
     const valorHora = this.valorHoraPessoaSelecionadaNova();
     const percentual = Number(this.novaAlocacaoPercentual || 0) / 100;
-    const horas = this.horasDoCadastro(monthIndex);
+    const horas = this.horasEfetivas(monthIndex, this.categoriaNovaAlocacao());
     return valorHora * horas * percentual;
   }
 
@@ -910,14 +959,14 @@ export class BudgetAllocationPanelComponent implements OnChanges {
     const disponivel = this.percentualDisponivelNovaPessoa(month);
     const pctEfetivo = Math.min(Number(this.novaAlocacaoPercentual || 0), disponivel);
     const valorHora = this.valorHoraPessoaSelecionadaNova();
-    const horas = this.horasDoCadastro(month);
+    const horas = this.horasEfetivas(month, this.categoriaNovaAlocacao());
     return this.round2(valorHora * horas * pctEfetivo / 100);
   }
 
   custoMensalEdicaoPessoa(allocationId: string, monthIndex: number): number {
     const valorHora = this.valorHoraPessoaSelecionadaEdicao();
     const percentual = Number(this.getConfig(allocationId).percentual || 0) / 100;
-    const horas = this.horasDoCadastro(monthIndex);
+    const horas = this.horasEfetivas(monthIndex, this.categoriaDaAlocacaoId(allocationId));
     if (this.isCancelado(allocationId, monthIndex)) return 0;
     return valorHora * horas * percentual;
   }
@@ -1009,7 +1058,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
       const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
       const percentualOutras = this.percentualAtivoOutrasAlocacoesNoMes(nomePessoa, month, allocationId);
       const percentualRestante = Math.max(0, 100 - percentualOutras);
-      const horas = this.horasDoCadastro(month);
+      const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId));
       const aloc = this.alocacoes.find((a: any) => a.id === allocationId);
       const valorHoraEfetivo = aloc ? this.getValorHoraDaAlocacao(aloc) : 0;
       const valorMaximoPermitido = this.round2((Number(valorHoraEfetivo || 0) * horas) * (percentualRestante / 100));
@@ -1043,7 +1092,7 @@ export class BudgetAllocationPanelComponent implements OnChanges {
   private custoMensalCalculado(allocationId: string, valorHora: number, month: number): number {
     if (this.isCancelado(allocationId, month)) return 0;
     const percentual = this.getPercentualEfetivoMes(allocationId, month);
-    const horas = this.horasDoCadastro(month);
+    const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId));
     return (valorHora || 0) * horas * (percentual / 100);
   }
 
@@ -1350,6 +1399,122 @@ export class BudgetAllocationPanelComponent implements OnChanges {
 
   private round2(value: number): number {
     return Number(value.toFixed(2));
+  }
+
+  // ── Exportação Excel ──────────────────────────────────────────────────────
+  exportarExcel() {
+    // Dynamic import to avoid SSR issues and keep bundle lean
+    import('xlsx').then(XLSX => {
+      const wb = XLSX.utils.book_new();
+      const brl = (v: number) => Number(v.toFixed(2));
+      const mesesHeader = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+      // ── Sheet 1: Por Pessoa ───────────────────────────────────────────────
+      const pessoaRows: any[] = [];
+      pessoaRows.push(['Pessoa', 'LO', 'Perfil', 'Categoria', 'Alocação %',
+        ...mesesHeader, 'Total Anual']);
+
+      const alocAno = this.alocacoes.filter((a: any) =>
+        this.linhasDoAnoSelecionado().some((lo: any) => lo.id === a.linhaOrcamentariaId)
+      );
+      // Sort by person name
+      const byPessoa = [...alocAno].sort((a: any, b: any) =>
+        String(a.nomePessoa || '').localeCompare(String(b.nomePessoa || ''), 'pt-BR', { sensitivity: 'base' })
+      );
+      for (const a of byPessoa) {
+        const lo = this.linhasOrcamentarias.find((l: any) => l.id === a.linhaOrcamentariaId);
+        const loLabel = lo ? `${lo.codigo || ''} - ${lo.nome || ''}`.trim().replace(/^-/, '').trim() : '-';
+        const vh = this.getValorHoraDaAlocacao(a);
+        const mesesCustos = mesesHeader.map((_, mi) => brl(this.custoMensal(a.id, vh, mi)));
+        const total = brl(mesesCustos.reduce((s, v) => s + v, 0));
+        pessoaRows.push([
+          a.nomePessoa || '-',
+          loLabel,
+          a.perfilNome || '-',
+          this.getCategoriaDaPessoa(a),
+          Number(this.getConfig(a.id).percentual || 0),
+          ...mesesCustos,
+          total
+        ]);
+      }
+      const wsPessoa = XLSX.utils.aoa_to_sheet(pessoaRows);
+      this.applyExcelStyle(wsPessoa, pessoaRows[0].length);
+      XLSX.utils.book_append_sheet(wb, wsPessoa, 'Por Pessoa');
+
+      // ── Sheet 2: Por LO ───────────────────────────────────────────────────
+      const loRows: any[] = [];
+      loRows.push(['LO', 'Código', 'Pessoa', 'Perfil', 'Categoria',
+        ...mesesHeader, 'Comprometido', 'Orçamento', 'Saldo']);
+
+      const losSorted = [...this.linhasDoAnoSelecionado()].sort((a: any, b: any) =>
+        String(a.codigo || '').localeCompare(String(b.codigo || ''), 'pt-BR', { sensitivity: 'base' })
+      );
+      for (const lo of losSorted) {
+        const alocacoesDaLo = alocAno.filter((a: any) => a.linhaOrcamentariaId === lo.id);
+        const orcamento = this.num(lo.valorTotal) + this.ajustes
+          .filter((aj: any) => aj.budgetLineId === lo.id)
+          .reduce((s: number, aj: any) => s + (aj.tipo === 'CREDITO' ? this.num(aj.valor) : -this.num(aj.valor)), 0);
+
+        for (const a of alocacoesDaLo) {
+          const vh = this.getValorHoraDaAlocacao(a);
+          const mesesCustos = mesesHeader.map((_, mi) => brl(this.custoMensal(a.id, vh, mi)));
+          const comprometido = brl(mesesCustos.reduce((s, v) => s + v, 0));
+          loRows.push([
+            lo.nome || '-',
+            lo.codigo || '-',
+            a.nomePessoa || '-',
+            a.perfilNome || '-',
+            this.getCategoriaDaPessoa(a),
+            ...mesesCustos,
+            comprometido,
+            brl(orcamento),
+            brl(orcamento - comprometido)
+          ]);
+        }
+        if (!alocacoesDaLo.length) {
+          loRows.push([lo.nome || '-', lo.codigo || '-', '(sem alocações)', '', '', ...mesesHeader.map(() => 0), 0, brl(orcamento), brl(orcamento)]);
+        }
+      }
+      const wsLo = XLSX.utils.aoa_to_sheet(loRows);
+      this.applyExcelStyle(wsLo, loRows[0].length);
+      XLSX.utils.book_append_sheet(wb, wsLo, 'Por LO');
+
+      // ── Sheet 3: Por Atividade ────────────────────────────────────────────
+      const atividadeRows: any[] = [];
+      atividadeRows.push(['Projeto', 'Atividade', 'Status', 'Responsável', 'Início Planejado', 'Fim Planejado']);
+
+      const atividadesSorted = [...this.atividades].sort((a: any, b: any) =>
+        String(a.projetoNome || '').localeCompare(String(b.projetoNome || ''), 'pt-BR', { sensitivity: 'base' })
+      );
+      for (const a of atividadesSorted) {
+        atividadeRows.push([
+          a.projetoNome || '-',
+          a.titulo || '-',
+          a.status || '-',
+          a.responsavel || '(sem responsável)',
+          a.inicioPlanejado ? new Date(a.inicioPlanejado).toLocaleDateString('pt-BR') : '-',
+          a.fimPlanejado ? new Date(a.fimPlanejado).toLocaleDateString('pt-BR') : '-'
+        ]);
+      }
+      const wsAtiv = XLSX.utils.aoa_to_sheet(atividadeRows);
+      this.applyExcelStyle(wsAtiv, atividadeRows[0].length);
+      XLSX.utils.book_append_sheet(wb, wsAtiv, 'Por Atividade');
+
+      // ── Download ──────────────────────────────────────────────────────────
+      const dt = new Date();
+      const fileName = `alocacoes_${this.anoSelecionado}_${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    });
+  }
+
+  private num(v: any): number { const n = Number(v); return isFinite(n) ? n : 0; }
+
+  private applyExcelStyle(ws: any, colCount: number) {
+    if (!ws['!cols']) ws['!cols'] = [];
+    // Set column widths
+    for (let i = 0; i < colCount; i++) {
+      ws['!cols'][i] = { wch: i < 5 ? 22 : 14 };
+    }
   }
 
 }

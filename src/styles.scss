@@ -2043,6 +2043,51 @@ button.sec {
   &:hover  { background: #f0f5ff; }
 }
 
+/* ── Exportar Excel + cabeçalho da seção de alocações ───────────────────── */
+.lo-export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.lo-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid #16a34a55;
+  background: linear-gradient(180deg, #f0fdf4, #dcfce7);
+  color: #15803d;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+
+  svg { width: 15px; height: 15px; fill: currentColor; flex-shrink: 0; }
+  &:hover { background: linear-gradient(180deg, #dcfce7, #bbf7d0); }
+}
+
+/* ── Scrollbar espelho no topo da tabela de alocações ────────────────────── */
+.alloc-scroll-top {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 14px;
+  margin-bottom: 2px;
+}
+
+.alloc-scroll-top-inner {
+  /* largura deve corresponder ao min-width da tabela */
+  width: 1440px;
+  height: 1px;
+}
+
 .alloc-table-wrap {
   margin-top: 4px;
   width: 100%;
