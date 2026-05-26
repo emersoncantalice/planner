@@ -82,7 +82,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     { key: 'vaga',      label: 'Vaga'         },
     { key: 'perfil',    label: 'Perfil'       },
     { key: 'categoria', label: 'Categoria'    },
-    { key: 'pct',       label: 'AlocaÃ§Ã£o %'   },
+    { key: 'pct',       label: 'Alocação %'   },
     { key: 'valorH',    label: 'Valor/h'      },
     { key: 'jan',       label: 'Jan'  },
     { key: 'fev',       label: 'Fev'  },
