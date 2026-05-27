@@ -61,10 +61,10 @@
                 </span>
               </div>
               <div class="progress-line">
-                <div class="progress-fill" [style.width.%]="number(r.percentualConclusao)"></div>
+                <div class="progress-fill" [style.width.%]="percentualConclusaoProjeto(r)"></div>
               </div>
               <div class="proj-meta">
-                <span>Conclusao: {{ r.percentualConclusao }}%</span>
+                <span>Conclusao: {{ percentualConclusaoProjeto(r) }}%</span>
                 <span>Etapas: {{ r.etapasConcluidas }}/{{ r.totalEtapas }}</span>
                 <span>Saldo: {{ currency(number(r.saldo)) }}</span>
               </div>

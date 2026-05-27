@@ -750,6 +750,39 @@ $surface   : #fff;
   overflow: visible;
 }
 
+.gp-row-resize-handle {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  border-radius: 4px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(74, 109, 166, .65),
+      rgba(74, 109, 166, .65) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  opacity: .7;
+}
+
+.gp-row-resize-handle:hover { opacity: 1; }
+
+.gp-row-resize-live {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: .62rem;
+  font-weight: 800;
+  color: #0f2d6b;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .gp-month-top-row {
   position: absolute;
   top: 0;
@@ -1009,6 +1042,10 @@ $surface   : #fff;
 
   &:hover { background: #f6f9ff; }
   &.gp-row-active { background: #eef4ff; }
+  &.gp-row-selected {
+    background: #dcecff;
+    box-shadow: inset 3px 0 0 #1d63da;
+  }
   &.gp-row-done .gp-lcol { opacity: .7; }
   &:last-child { border-bottom: none; }
 }
@@ -1227,6 +1264,11 @@ $surface   : #fff;
   opacity: .85;
   box-shadow: 0 4px 20px rgba(0,0,0,.28);
   z-index: 20;
+}
+
+.gp-bar-selected {
+  box-shadow: 0 0 0 3px rgba(29, 99, 218, .7);
+  filter: saturate(1.08) brightness(1.03);
 }
 
 .gp-bar-body {

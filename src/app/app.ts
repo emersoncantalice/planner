@@ -1326,11 +1326,11 @@ export class App {
               this.carregarAtividades();
               this.carregarResumo();
             },
-            error: () => {}
+            error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao registrar replanejamento da atividade.')
           });
         }
       },
-      error: () => {}
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao salvar atividade do cronograma.')
     });
   }
 
@@ -1343,7 +1343,7 @@ export class App {
           this.carregarAtividades();
           this.carregarResumo();
         },
-        error: () => {}
+        error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir atividade do cronograma.')
       });
     });
   }

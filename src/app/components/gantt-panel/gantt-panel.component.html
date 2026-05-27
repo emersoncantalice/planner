@@ -672,13 +672,15 @@
               </div>
             </div>
           </div>
-
           <!-- ─ Data rows ───────────────────────────────────────────────────── -->
           @for (item of atividades(); track item.id; let i = $index) {
             <div class="gp-gantt-row"
+                 [style.height.px]="getRowHeight(item)"
                  [class.gp-row-active]="editingItem?.id === item.id"
+                 [class.gp-row-selected]="isSelected(item)"
                  [class.gp-row-done]="(item.status||'').toUpperCase() === 'CONCLUIDO'"
-                 [class.gp-row-dragging]="isDragging(item)">
+                 [class.gp-row-dragging]="isDragging(item)"
+                 (click)="onRowClick($event, item)">
 
               <!-- Left col (sticky) -->
               <div class="gp-lcol" [style.width.px]="LEFT_W">
@@ -714,10 +716,16 @@
                   <span class="gr-pct-num">{{ effectivePct(item) }}%</span>
                 </div>
                 <span class="gr-dur">{{ duracao(item) }}</span>
+                <span class="gp-row-resize-handle"
+                      (mousedown)="onRowHandleMouseDown($event, item.id)"
+                      [title]="'Altura da atividade: ' + getRowHeight(item) + 'px (arraste)'"></span>
+                @if (isResizingRow(item)) {
+                  <span class="gp-row-resize-live">{{ getRowHeight(item) }}px</span>
+                }
               </div>
 
               <!-- Right col (timeline) -->
-              <div class="gp-rcol" [style.width.px]="timelineWidth()" [class.gp-rcol-dragging]="isDragging(item)">
+              <div class="gp-rcol" [style.width.px]="timelineWidth()" [style.height.px]="getRowHeight(item)" [class.gp-rcol-dragging]="isDragging(item)">
                 <!-- Weekend / holiday stripes in row -->
                 @for (band of nonWorkingBands(); track band.left) {
                   <div class="gp-nonwork-row-band"
@@ -745,10 +753,12 @@
                   <!-- Bar with handles -->
                   <div class="gp-bar gb-custom"
                        [class.gp-bar-dragging]="isDragging(item)"
+                       [class.gp-bar-selected]="isSelected(item)"
                        [style.--bar-custom-color]="autoBarColor(item, i)"
-                       (click)="$event.stopPropagation(); onRowClick(item)"
+                       (click)="$event.stopPropagation(); onRowClick($event, item)"
                        [style.left.px]="barLeft(item)"
-                       [style.width.px]="barWidth(item)">
+                       [style.width.px]="barWidth(item)"
+                       [style.height.px]="barHeight(item)">
 
                     <!-- Resize handle — left (change início) -->
                     <div class="gp-bar-handle gp-bar-handle-l"

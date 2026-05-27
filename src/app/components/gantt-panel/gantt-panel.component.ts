@@ -25,6 +25,7 @@ interface DragState {
   startX: number;
   origStart: Date;
   origEnd: Date;
+  groupMove?: Array<{ item: any; origStart: Date; origEnd: Date }>;
 }
 
 interface DragPreview {
@@ -64,6 +65,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   
   private _metaCache: Record<string, { responsavel: string; pct: number }> = {};
   private _apiSaveTimer: any = null;
+  private _currentProjectId = '';
 
   @Output() selectProject      = new EventEmitter<string>();
   @Output() addScheduleItem    = new EventEmitter<{ titulo: string; descricao: string; inicioPlanejado: string | null; fimPlanejado: string | null; permiteParalelo: boolean }>();
@@ -83,6 +85,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   projetoId        = '';
   formVisible      = false;
   editingItem: any  = null;
+  selectedItemIds = new Set<string>();
   confirmDeleteId   = '';
   formError         = '';
   dateWarning       = '';
@@ -94,6 +97,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   get zoomIndex(): number { return this._zoomIndex; }
   get PX_PER_DAY(): number { return Math.round(this.basePxPerDay * this.zoomLevels[this._zoomIndex]); }
   readonly LEFT_W     = 420;
+  rowHeight = 42;
+  readonly minRowHeight = 32;
+  readonly maxRowHeight = 96;
+  rowHeights: Record<string, number> = {};
 
   novaAtividade = this.emptyForm();
   editForm      = this.emptyForm();
@@ -143,6 +150,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   
   dragState:   DragState   | null = null;
   dragPreview: DragPreview | null = null;
+  dragPreviewMap: Record<string, { start: Date; end: Date }> = {};
+  private _groupPreviewRaf = 0;
   private _justDragged = false;
 
   
@@ -151,19 +160,126 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   private readonly _onMouseMoveBound = (e: MouseEvent) => this._onMouseMove(e);
   private readonly _onMouseUpBound   = (e: MouseEvent) => this._onMouseUp(e);
+  private rowResizeStartY = 0;
+  private rowResizeStartHeight = 42;
+  private rowResizeItemId = '';
+  private rowResizePendingHeight = 42;
+  private rowResizeRowEl: HTMLElement | null = null;
+  resizingRowHeight = false;
+  private readonly _onRowResizeMoveBound = (e: MouseEvent) => this._onRowResizeMove(e);
+  private readonly _onRowResizeUpBound = () => this._onRowResizeUp();
   private readonly DAY_MS = 86_400_000;
 
   ngOnChanges(c: SimpleChanges) {
     if (c['projetoSelecionado'] && this.projetoSelecionado) {
-      this.projetoId = this.projetoSelecionado.id ?? this.projetoId;
-      this._metaCache = {};   
+      const nextProjectId = this.projetoSelecionado.id ?? this.projetoId;
+      const changedProject = nextProjectId !== this._currentProjectId;
+      this.projetoId = nextProjectId;
+      if (changedProject) {
+        this._currentProjectId = nextProjectId;
+        this._metaCache = {};
+        this.rowHeights = {};
+        this.selectedItemIds.clear();
+        this.rowHeight = 42;
+      }
       this.loadMarkers();
     }
   }
 
   ngOnDestroy() {
     if (this._apiSaveTimer) clearTimeout(this._apiSaveTimer);
+    if (this._groupPreviewRaf) cancelAnimationFrame(this._groupPreviewRaf);
     this._removeListeners();
+    this.detachRowResizeListeners();
+  }
+
+  onRowHeightHandleMouseDown(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.resizingRowHeight = true;
+    this.rowResizeStartY = event.clientY;
+    this.rowResizeStartHeight = this.rowHeight;
+    document.addEventListener('mousemove', this._onRowResizeMoveBound);
+    document.addEventListener('mouseup', this._onRowResizeUpBound);
+  }
+
+  onRowHandleMouseDown(event: MouseEvent, itemId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.resizingRowHeight = true;
+    this.rowResizeItemId = itemId;
+    this.rowResizeStartY = event.clientY;
+    this.rowResizeStartHeight = this.getRowHeightById(itemId);
+    this.rowResizePendingHeight = this.rowResizeStartHeight;
+    this.rowResizeRowEl = (event.target as HTMLElement).closest('.gp-gantt-row') as HTMLElement | null;
+    this.zone.runOutsideAngular(() => {
+      document.addEventListener('mousemove', this._onRowResizeMoveBound);
+      document.addEventListener('mouseup', this._onRowResizeUpBound);
+    });
+  }
+
+  private _onRowResizeMove(event: MouseEvent) {
+    if (!this.resizingRowHeight) return;
+    const delta = event.clientY - this.rowResizeStartY;
+    const next = Math.round(this.rowResizeStartHeight + delta);
+    const clamped = Math.max(this.minRowHeight, Math.min(this.maxRowHeight, next));
+    this.rowResizePendingHeight = clamped;
+    if (this.rowResizeRowEl) {
+      this.rowResizeRowEl.style.height = `${clamped}px`;
+      const rcol = this.rowResizeRowEl.querySelector('.gp-rcol') as HTMLElement | null;
+      if (rcol) rcol.style.height = `${clamped}px`;
+      const bar = this.rowResizeRowEl.querySelector('.gp-bar') as HTMLElement | null;
+      if (bar) bar.style.height = `${this.calcBarHeightFromRow(clamped)}px`;
+    }
+    if (this.rowResizeItemId) {
+      this.rowHeights[this.rowResizeItemId] = clamped;
+    } else {
+      this.rowHeight = clamped;
+    }
+  }
+
+  private _onRowResizeUp() {
+    if (!this.resizingRowHeight) return;
+    const itemId = this.rowResizeItemId;
+    const finalHeight = this.rowResizePendingHeight;
+    this.zone.run(() => {
+      this.resizingRowHeight = false;
+      if (itemId) this.rowHeights[itemId] = finalHeight;
+      else this.rowHeight = finalHeight;
+      this.rowResizeItemId = '';
+      this.rowResizeRowEl = null;
+      this._scheduleApiSave();
+      this.cdr.detectChanges();
+    });
+    this.detachRowResizeListeners();
+  }
+
+  getRowHeight(item: any): number {
+    return this.getRowHeightById(item?.id);
+  }
+
+  private getRowHeightById(itemId: string): number {
+    const v = Number(this.rowHeights[itemId]);
+    if (!Number.isFinite(v)) return this.rowHeight;
+    return Math.max(this.minRowHeight, Math.min(this.maxRowHeight, Math.round(v)));
+  }
+
+  barHeight(item: any): number {
+    const rowH = this.getRowHeight(item);
+    return this.calcBarHeightFromRow(rowH);
+  }
+
+  private calcBarHeightFromRow(rowH: number): number {
+    return Math.max(18, Math.min(52, rowH - 10));
+  }
+
+  isResizingRow(item: any): boolean {
+    return this.resizingRowHeight && !!item?.id && this.rowResizeItemId === item.id;
+  }
+
+  private detachRowResizeListeners() {
+    document.removeEventListener('mousemove', this._onRowResizeMoveBound);
+    document.removeEventListener('mouseup', this._onRowResizeUpBound);
   }
 
   
@@ -176,8 +292,19 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     const origStart = new Date(item.inicioPlanejado); origStart.setHours(0, 0, 0, 0);
     const origEnd   = new Date(item.fimPlanejado);   origEnd.setHours(0, 0, 0, 0);
 
-    this.dragState   = { type, item, startX: event.clientX, origStart, origEnd };
+    const groupMove = this.selectedItemIds.size > 1 && this.selectedItemIds.has(item.id)
+      ? this.atividades()
+          .filter((a: any) => this.selectedItemIds.has(a.id) && a?.inicioPlanejado && a?.fimPlanejado)
+          .map((a: any) => {
+            const s = new Date(a.inicioPlanejado); s.setHours(0, 0, 0, 0);
+            const e = new Date(a.fimPlanejado); e.setHours(0, 0, 0, 0);
+            return { item: a, origStart: s, origEnd: e };
+          })
+      : undefined;
+
+    this.dragState   = { type, item, startX: event.clientX, origStart, origEnd, groupMove };
     this.dragPreview = { itemId: item.id, start: new Date(origStart), end: new Date(origEnd) };
+    this.dragPreviewMap = {};
 
     
     this._dragBarEl     = (event.target as HTMLElement).closest('.gp-bar') as HTMLElement | null;
@@ -231,6 +358,47 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
     
     this.dragPreview = { itemId: this.dragState.item.id, start: newStart, end: newEnd };
+    if (this.dragState.groupMove && this.dragState.groupMove.length > 1) {
+      const previewMap: Record<string, { start: Date; end: Date }> = {};
+      for (const g of this.dragState.groupMove) {
+        const gdow = this.extractDowConstraint(g.item?.descricao || '');
+        let gStart = new Date(g.origStart.getTime());
+        let gEnd = new Date(g.origEnd.getTime());
+
+        if (type === 'move') {
+          const candStart = new Date(g.origStart.getTime() + snappedDays * dayMs);
+          candStart.setHours(0, 0, 0, 0);
+          const snappedStart = this.nextValidDay(candStart, gdow);
+          const offsetMs = snappedStart.getTime() - g.origStart.getTime();
+          gStart = snappedStart;
+          gEnd = new Date(g.origEnd.getTime() + offsetMs);
+          gEnd.setHours(0, 0, 0, 0);
+        } else if (type === 'resize-left') {
+          const candStart = new Date(g.origStart.getTime() + snappedDays * dayMs);
+          candStart.setHours(0, 0, 0, 0);
+          gStart = this.nextValidDay(candStart, gdow);
+          const minEnd = new Date(gEnd.getTime() - dayMs);
+          minEnd.setHours(0, 0, 0, 0);
+          if (gStart >= gEnd) gStart = this.nextValidDay(minEnd, gdow);
+        } else {
+          const candEnd = new Date(g.origEnd.getTime() + snappedDays * dayMs);
+          candEnd.setHours(0, 0, 0, 0);
+          gEnd = this.feriados.nextBusinessDay(candEnd);
+          if (gEnd <= gStart) gEnd = this.feriados.nextBusinessDay(new Date(gStart.getTime() + dayMs));
+        }
+
+        previewMap[g.item.id] = { start: gStart, end: gEnd };
+      }
+      this.dragPreviewMap = previewMap;
+      if (!this._groupPreviewRaf) {
+        this._groupPreviewRaf = requestAnimationFrame(() => {
+          this._groupPreviewRaf = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    } else {
+      this.dragPreviewMap = {};
+    }
 
     
     const r = this.dateRange();
@@ -261,6 +429,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   private _onMouseUp(event: MouseEvent) {
     this._removeListeners();
+    if (this._groupPreviewRaf) {
+      cancelAnimationFrame(this._groupPreviewRaf);
+      this._groupPreviewRaf = 0;
+    }
     
     const savedBarEl     = this._dragBarEl;
     const savedTooltipEl = this._dragTooltipEl;
@@ -270,6 +442,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (!this.dragState || !this.dragPreview) {
       this.dragState   = null;
       this.dragPreview = null;
+      this.dragPreviewMap = {};
       this.zone.run(() => this.cdr.detectChanges());
       return;
     }
@@ -283,6 +456,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
     this.dragState   = null;
     this.dragPreview = null;
+    const groupPreviewMap = this.dragPreviewMap;
+    this.dragPreviewMap = {};
 
     if (moved) {
       this._justDragged = true;
@@ -292,13 +467,21 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       start = fixed.start;
       end   = fixed.end;
 
-      const conflito = this.validarConflitoParalelismo(
-        `${dateToYmd(start)}T12:00:00Z`,
-        `${dateToYmd(end)}T12:00:00Z`,
-        !!item.permiteParalelo,
-        item.id
-      );
-      if (conflito) {
+      const groupMoves = groupPreviewMap && Object.keys(groupPreviewMap).length > 1
+        ? this.atividades()
+            .filter((a: any) => !!groupPreviewMap[a.id])
+            .map((a: any) => ({ item: a, start: groupPreviewMap[a.id].start, end: groupPreviewMap[a.id].end }))
+        : [{ item, start, end }];
+
+      const conflitoMsg = groupMoves
+        .map((g) => this.validarConflitoParalelismo(
+          `${dateToYmd(g.start)}T12:00:00Z`,
+          `${dateToYmd(g.end)}T12:00:00Z`,
+          !!g.item.permiteParalelo,
+          g.item.id
+        ))
+        .find((msg) => !!msg) || '';
+      if (conflitoMsg) {
         
         if (savedBarEl) {
           const r = this.dateRange();
@@ -314,7 +497,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         }
         if (savedTooltipEl) savedTooltipEl.style.display = 'none';
         this.zone.run(() => {
-          this.dateWarning = conflito;
+          this.dateWarning = conflitoMsg;
           this.cdr.detectChanges();
         });
         return;
@@ -326,23 +509,43 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         : 'REDIMENSIONAR_FIM';
 
       this.zone.run(() => {
-  
-  
-        this.updateScheduleItem.emit({
-          itemId:          item.id,
-          inicioPlanejado: `${dateToYmd(start)}T12:00:00Z`,
-          fimPlanejado:    `${dateToYmd(end)}T12:00:00Z`,
-          permiteParalelo: !!item.permiteParalelo,
-          _replanejamento: {
-            scheduleItemId:     item.id,
-            scheduleItemTitulo: item.titulo ?? '',
-            tipoAlteracao,
-            inicioAnterior: `${dateToYmd(origStart)}T12:00:00Z`,
-            fimAnterior:    `${dateToYmd(origEnd)}T12:00:00Z`,
-            inicioNovo:     `${dateToYmd(start)}T12:00:00Z`,
-            fimNovo:        `${dateToYmd(end)}T12:00:00Z`,
-          },
-        } as any);
+        if (groupMoves.length > 1) {
+          for (const g of groupMoves) {
+            const gs = new Date(g.item.inicioPlanejado); gs.setHours(0, 0, 0, 0);
+            const ge = new Date(g.item.fimPlanejado); ge.setHours(0, 0, 0, 0);
+            this.updateScheduleItem.emit({
+              itemId:          g.item.id,
+              inicioPlanejado: `${dateToYmd(g.start)}T12:00:00Z`,
+              fimPlanejado:    `${dateToYmd(g.end)}T12:00:00Z`,
+              permiteParalelo: !!g.item.permiteParalelo,
+              _replanejamento: {
+                scheduleItemId:     g.item.id,
+                scheduleItemTitulo: g.item.titulo ?? '',
+                tipoAlteracao,
+                inicioAnterior: `${dateToYmd(gs)}T12:00:00Z`,
+                fimAnterior:    `${dateToYmd(ge)}T12:00:00Z`,
+                inicioNovo:     `${dateToYmd(g.start)}T12:00:00Z`,
+                fimNovo:        `${dateToYmd(g.end)}T12:00:00Z`,
+              },
+            } as any);
+          }
+        } else {
+          this.updateScheduleItem.emit({
+            itemId:          item.id,
+            inicioPlanejado: `${dateToYmd(start)}T12:00:00Z`,
+            fimPlanejado:    `${dateToYmd(end)}T12:00:00Z`,
+            permiteParalelo: !!item.permiteParalelo,
+            _replanejamento: {
+              scheduleItemId:     item.id,
+              scheduleItemTitulo: item.titulo ?? '',
+              tipoAlteracao,
+              inicioAnterior: `${dateToYmd(origStart)}T12:00:00Z`,
+              fimAnterior:    `${dateToYmd(origEnd)}T12:00:00Z`,
+              inicioNovo:     `${dateToYmd(start)}T12:00:00Z`,
+              fimNovo:        `${dateToYmd(end)}T12:00:00Z`,
+            },
+          } as any);
+        }
         this.cdr.detectChanges();
       });
     } else {
@@ -358,6 +561,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   
   private _effectiveDates(item: any): { start: Date; end: Date } | null {
     if (!item.inicioPlanejado || !item.fimPlanejado) return null;
+    const previewMap = this.dragPreviewMap[item.id];
+    if (previewMap) return { start: previewMap.start, end: previewMap.end };
     const preview = this.dragPreview;
     if (preview && preview.itemId === item.id) {
       return { start: preview.start, end: preview.end };
@@ -375,9 +580,20 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   
-  onRowClick(item: any) {
+  onRowClick(event: MouseEvent, item: any) {
     if (this._justDragged) { this._justDragged = false; return; }
+    if (event.ctrlKey || event.metaKey) {
+      if (this.selectedItemIds.has(item.id)) this.selectedItemIds.delete(item.id);
+      else this.selectedItemIds.add(item.id);
+      return;
+    }
+    this.selectedItemIds.clear();
+    this.selectedItemIds.add(item.id);
     this.startEdit(item);
+  }
+
+  isSelected(item: any): boolean {
+    return this.selectedItemIds.has(item?.id);
   }
 
   
@@ -475,6 +691,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   onProjetoChange(id: string) {
     this.projetoId   = id;
     this.editingItem = null;
+    this.selectedItemIds.clear();
     this.formVisible = false;
     if (id) this.selectProject.emit(id);
   }
@@ -672,7 +889,15 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
             localStorage.setItem(this.markersKey(), JSON.stringify(cfg.markers));
           }
           if (cfg?.meta && typeof cfg.meta === 'object') {
-            this._metaCache = cfg.meta;
+            // Preserve local edits that may still be pending backend debounce-save.
+            this._metaCache = { ...(cfg.meta || {}), ...(this._metaCache || {}) };
+          }
+          if (Number.isFinite(Number(cfg?.rowHeight))) {
+            const rh = Math.round(Number(cfg.rowHeight));
+            this.rowHeight = Math.max(this.minRowHeight, Math.min(this.maxRowHeight, rh));
+          }
+          if (cfg?.rowHeights && typeof cfg.rowHeights === 'object') {
+            this.rowHeights = { ...(cfg.rowHeights || {}), ...(this.rowHeights || {}) };
           }
           this.cdr.markForCheck();
         },
@@ -909,7 +1134,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   isDragging(item: any): boolean {
-    return this.dragPreview?.itemId === item.id;
+    return this.dragPreview?.itemId === item.id || !!this.dragPreviewMap[item.id];
   }
 
   private isConcluida(item: any): boolean {
@@ -981,7 +1206,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (!this.token || !projectId) return;
     this.api.saveGanttConfig(this.token, projectId, {
       markers: this.timelineMarkers,
-      meta: this._metaCache
+      meta: this._metaCache,
+      rowHeight: this.rowHeight,
+      rowHeights: this.rowHeights
     }).subscribe({ error: (e: any) => console.warn('Falha ao salvar configuração do Gantt no backend', e) });
   }
 
@@ -1215,7 +1442,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   stats() {
     const all  = this.atividades();
     const st   = all.filter((a: any) => this.effectiveStatus(a) === 'EM_ANDAMENTO').length;
-    const ok   = all.filter((a: any) => (a.status || '').toUpperCase() === 'CONCLUIDO').length;
+    const ok   = all.filter((a: any) => this.effectiveStatus(a) === 'CONCLUIDO').length;
     const late = all.filter((a: any) => this.isAtrasado(a)).length;
     return { total: all.length, andamento: st, concluidas: ok, atrasadas: late };
   }
@@ -1223,7 +1450,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   avgPct(): number {
     const all = this.atividades();
     if (!all.length) return 0;
-    return Math.round(all.reduce((acc: number, a: any) => acc + this.getMeta(a.id).pct, 0) / all.length);
+    return Math.round(all.reduce((acc: number, a: any) => acc + this.effectivePct(a), 0) / all.length);
   }
 
   
@@ -1264,6 +1491,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   
   startEdit(item: any) {
     if (this.editingItem?.id === item.id) { this.editingItem = null; return; }
+    this.selectedItemIds.clear();
+    this.selectedItemIds.add(item.id);
     this.formVisible = false;
     this.formError   = '';
     this.dateWarning = '';

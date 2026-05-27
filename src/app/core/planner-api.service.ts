@@ -550,7 +550,7 @@ export class PlannerApiService {
     return this.http.get<any>(`${this.api}/gantt-configs/${projectId}`, { headers: this.headers(token) });
   }
 
-  saveGanttConfig(token: string, projectId: string, config: { markers: any[]; meta: Record<string, any> }) {
+  saveGanttConfig(token: string, projectId: string, config: { markers: any[]; meta: Record<string, any>; rowHeight?: number | null; rowHeights?: Record<string, number> }) {
     return this.http.put<any>(`${this.api}/gantt-configs/${projectId}`, config, { headers: this.headers(token) });
   }
 }

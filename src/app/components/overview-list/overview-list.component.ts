@@ -30,6 +30,7 @@ export class OverviewListComponent {
   @Output() openCreateProject = new EventEmitter<void>();
   @Output() exportJira = new EventEmitter<void>();
   @Input() businessEpics: any[] = [];
+  @Input() projetoSelecionado: any = null;
   @Output() updateProject = new EventEmitter<{ id: string; nome: string; descricao: string }>();
   @Output() deleteProject = new EventEmitter<string>();
   @Output() updateProjectSituacao = new EventEmitter<{ id: string; situacao: 'DRAFT' | 'PUBLISHED' }>();
@@ -299,5 +300,49 @@ export class OverviewListComponent {
       ].map(v => String(v ?? '').toLowerCase()).join(' ');
       return blob.includes(q);
     });
+  }
+
+  percentualConclusaoProjeto(r: any): number {
+    const backendPct = this.number(r?.percentualConclusao);
+    const selected = this.projetoSelecionado;
+    if (!selected?.id || !r?.id || selected.id !== r.id) return backendPct;
+    const cronograma = Array.isArray(selected?.cronograma) ? selected.cronograma : [];
+    if (!cronograma.length) return backendPct;
+    const sum = cronograma.reduce((acc: number, item: any) => acc + this.effectivePctLocal(selected.id, item), 0);
+    return Math.round(sum / cronograma.length);
+  }
+
+  private effectivePctLocal(projectId: string, item: any): number {
+    const etapas = this.extractEtapas(item?.descricao || '');
+    if (etapas.length) {
+      const done = etapas.filter((e: any) => !!e?.done).length;
+      return Math.round((done * 100) / etapas.length);
+    }
+    const raw = localStorage.getItem(`planner_gantt_${projectId}_${item?.id || ''}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        const pct = Number(parsed?.pct ?? 0);
+        if (Number.isFinite(pct)) return Math.max(0, Math.min(100, pct));
+      } catch {}
+    }
+    return this.number(item?.status?.toUpperCase?.() === 'CONCLUIDO' ? 100 : 0);
+  }
+
+  private extractEtapas(descricao: string): Array<{ done: boolean }> {
+    const raw = String(descricao || '');
+    const tag = '##ETAPAS:';
+    const endTag = '##';
+    const idx = raw.indexOf(tag);
+    if (idx < 0) return [];
+    const rest = raw.slice(idx + tag.length);
+    const endIdx = rest.indexOf(endTag);
+    if (endIdx < 0) return [];
+    try {
+      const parsed = JSON.parse(rest.slice(0, endIdx));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 }
