@@ -56,7 +56,7 @@ export class PersonPanelComponent {
       vagaUrl: p.vagaUrl || '',
       vagaAlias: p.vagaAlias || '',
       dataNascimento: p.dataNascimento || '',
-      contato: p.contato || '',
+      contato: this.formatContato(p.contato || ''),
       ativo: p.ativo !== false   
     };
     this.valorHoraMasked = this.formatCurrency(this.pessoa.valorHora ?? 0);
@@ -163,6 +163,10 @@ export class PersonPanelComponent {
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal);
   }
 
+  onContatoChange(value: string) {
+    this.pessoa.contato = this.formatContato(value);
+  }
+
   labelTipoVinculo(tipo: string) {
     return tipo === 'TERCEIRO' ? 'Prestador de servico' : 'Folha';
   }
@@ -244,6 +248,19 @@ export class PersonPanelComponent {
 
   private calcularValorMensalMedio(valorHora: number | null | undefined): number {
     return (Number(valorHora) || 0) * 160;
+  }
+
+  formatContato(value: string | null | undefined): string {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (raw.includes('@')) return raw;
+
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
+    if (!digits) return '';
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   }
 
   private formatCurrency(value: number): string {

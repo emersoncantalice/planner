@@ -424,6 +424,7 @@
       @if (secaoAtiva() === 'dashboard') {
         <app-dashboard-panel
           [nomeUsuario]="nomeExibicaoUsuario()"
+          [usernameAtual]="usuario()"
           [token]="token()"
           [resumo]="resumo()"
           [linhasOrcamentarias]="linhasOrcamentarias()"

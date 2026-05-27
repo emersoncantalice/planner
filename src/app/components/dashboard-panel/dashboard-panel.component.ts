@@ -13,6 +13,7 @@ import { PlannerApiService } from '../../core/planner-api.service';
 export class DashboardPanelComponent implements OnChanges, OnDestroy {
   private api = inject(PlannerApiService);
   @Input() nomeUsuario = '';
+  @Input() usernameAtual = '';
   @Input() token = '';
   @Input() resumo: any[] = [];
   @Input() linhasOrcamentarias: any[] = [];
@@ -509,7 +510,7 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   toggleMostrarTodos() { this.mostrarTodos = !this.mostrarTodos; }
 
   private _projetosMeus(lista: any[]): any[] {
-    const me = String(this.nomeUsuario || '').trim().toLowerCase();
+    const me = String(this.usernameAtual || this.nomeUsuario || '').trim().toLowerCase();
     return lista.filter(r => {
       const owner = String(r?.donoProjeto || '').trim().toLowerCase();
       return !owner || (!!me && owner === me);

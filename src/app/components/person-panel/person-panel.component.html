@@ -118,7 +118,10 @@
     <label>Data de nascimento (opcional)</label>
     <input [(ngModel)]="pessoa.dataNascimento" type="date" placeholder="Data de nascimento" />
     <label>Contato (telefone / e-mail, opcional)</label>
-    <input [(ngModel)]="pessoa.contato" placeholder="Ex: (11) 91234-5678 ou fulano@empresa.com" />
+    <input
+      [ngModel]="pessoa.contato"
+      (ngModelChange)="onContatoChange($event)"
+      placeholder="Ex: (11) 91234-5678 ou fulano@empresa.com" />
     <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
       <input type="checkbox" [(ngModel)]="pessoa.ativo" id="pessoa-ativo" style="width:auto" />
       <label for="pessoa-ativo" style="margin:0">Pessoa ativa</label>
@@ -187,7 +190,7 @@
             <td>{{ pessoaDebitaLo(p) ? (p.valorHora || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-' }}</td>
             <td>{{ pessoaDebitaLo(p) ? valorMensalMedioDaPessoa(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-' }}</td>
             <td>{{ fmtNascimento(p.dataNascimento) }}</td>
-            <td>{{ p.contato || '-' }}</td>
+            <td>{{ formatContato(p.contato) || '-' }}</td>
             <td class="actions">
               <button class="sec" type="button" (click)="startEdit(p)">Editar</button>
               <button type="button" (click)="remove.emit(p.id)">Excluir</button>
