@@ -1,6 +1,17 @@
 ﻿@if (projeto) {
   <section class="card detalhe">
-    <h3>Cronograma</h3>
+    <div class="detalhe-header">
+      <h3>Cronograma</h3>
+      <div class="detalhe-meta">
+        <span class="lo-meta-pill lo-meta-pill-gray">Dono: {{ projeto.donoProjeto || '—' }}</span>
+        @if (isDonoDoProjeto()) {
+          <button type="button" class="lo-transfer-btn" (click)="abrirDonoModal()" title="Transferir dono do projeto">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            Transferir
+          </button>
+        }
+      </div>
+    </div>
     <div class="cronograma-wrap">
       <app-gantt-panel
         [embedded]="true"
@@ -52,4 +63,34 @@
       }
     </section>
   }
+}
+
+@if (donoModalAberto) {
+  <div class="modal-backdrop" (click)="fecharDonoModal()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>Transferir dono do projeto</h3>
+      <button class="sec" type="button" (click)="fecharDonoModal()">Fechar</button>
+    </div>
+    <p style="margin:0 0 8px;font-size:0.85rem;color:var(--text-muted,#666)">
+      Dono atual: <strong>{{ projeto?.donoProjeto || '—' }}</strong>
+    </p>
+    <input
+      [(ngModel)]="donoNovoInput"
+      placeholder="Username do novo dono"
+      (keydown.enter)="confirmarTransferenciaProjeto()" />
+    @if (usuariosSugeridos().length > 0) {
+      <div class="user-list-wrap">
+        <p class="user-list-title">Usuários do sistema</p>
+        <div class="user-list">
+          @for (u of usuariosSugeridos(); track u) {
+            <button type="button" class="user-chip" (click)="selecionarNovoDono(u)">{{ u }}</button>
+          }
+        </div>
+      </div>
+    }
+    <button type="button" (click)="confirmarTransferenciaProjeto()" [disabled]="!donoNovoInput.trim()">
+      Confirmar transferência
+    </button>
+  </div>
 }

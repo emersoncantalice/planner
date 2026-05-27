@@ -22,7 +22,7 @@ function calcEaster(year: number): Date {
   const k = c % 4;
   const l = (32 + 2 * e + 2 * i - h - k) % 7;
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1; // 0-indexed
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1; 
   const day   = ((h + l - 7 * m + 114) % 31) + 1;
   return new Date(year, month, day);
 }
@@ -33,12 +33,10 @@ function shiftDays(d: Date, n: number): Date {
   return r;
 }
 
-/** Format Date → 'YYYY-MM-DD'. */
 export function dateToYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ── Holiday cache ─────────────────────────────────────────────────────────────
 const _cache = new Map<number, Set<string>>();
 
 function holidaysForYear(year: number): Set<string> {
@@ -86,18 +84,12 @@ export function nonWorkingReason(d: Date): string {
   return '';
 }
 
-/** Advances d to the nearest business day >= d. */
 export function nextBusinessDay(d: Date): Date {
   const cur = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   while (!isBusinessDay(cur)) cur.setDate(cur.getDate() + 1);
   return cur;
 }
 
-/**
- * Returns the date of the n-th business day starting from `start` (inclusive).
- * Example: nthBusinessDay(monday, 5) = friday of the same week (assuming no holidays).
- * `start` must itself be a business day.
- */
 export function nthBusinessDay(start: Date, n: number): Date {
   const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   let count = 1;

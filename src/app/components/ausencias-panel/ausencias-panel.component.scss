@@ -1,4 +1,4 @@
-/* ── Header ─────────────────────────────────────────────────────────────── */
+
 .abs-title-icon { margin-right: 6px; }
 
 .panel-head {
@@ -36,7 +36,6 @@
   color: #2a4a7c;
 }
 
-/* ── Chips ───────────────────────────────────────────────────────────────── */
 .abs-chips {
   display: flex;
   flex-wrap: wrap;
@@ -70,10 +69,8 @@
   font-weight: 700;
 }
 
-/* ── Search ──────────────────────────────────────────────────────────────── */
 .abs-search { margin: 8px 0 12px; }
 
-/* ── Form card ───────────────────────────────────────────────────────────── */
 .abs-form-card {
   background: #f4f8ff;
   border: 1px solid #ccd8f0;
@@ -107,7 +104,6 @@
   input[type="checkbox"] { width: auto; margin: 0; }
 }
 
-/* ── Calendar table ──────────────────────────────────────────────────────── */
 .abs-calendar-wrap {
   overflow-x: auto;
   margin-top: 4px;
@@ -133,7 +129,6 @@
 .abs-col-dias   { width: 52px; }
 .abs-col-actions { width: 40px; }
 
-/* ── Main row ────────────────────────────────────────────────────────────── */
 .abs-row {
   border-bottom: 1px solid #eef2fb;
   transition: background .12s;
@@ -207,7 +202,6 @@
 .abs-cell-actions { text-align: center; padding: 4px; }
 .abs-add-btn { padding: 2px 8px !important; font-size: .8rem; }
 
-/* ── Expanded detail rows ────────────────────────────────────────────────── */
 .abs-detail-row {
   background: #f6f9ff;
   border-bottom: 1px solid #eef2fb;
@@ -245,7 +239,6 @@
   button { padding: 2px 8px; font-size: .73rem; }
 }
 
-/* ── Legend ──────────────────────────────────────────────────────────────── */
 .abs-legend {
   display: flex;
   flex-wrap: wrap;
@@ -264,7 +257,6 @@
 .abs-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 .abs-legend-tag { font-size: .78rem; color: #7c3aed; font-weight: 700; }
 
-/* ── Empty state ─────────────────────────────────────────────────────────── */
 .abs-empty {
   text-align: center;
   padding: 40px 20px;

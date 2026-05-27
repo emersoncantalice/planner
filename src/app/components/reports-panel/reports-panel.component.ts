@@ -27,7 +27,7 @@ export class ReportsPanelComponent {
   filtroTipo: '' | 'FOLHA' | 'TERCEIRO' = '';
   filtroLoId = '';
 
-  // ── helpers ────────────────────────────────────────────────────────────────
+  
 
   anosDisponiveis(): number[] {
     const anos = Array.from(
@@ -249,7 +249,7 @@ export class ReportsPanelComponent {
     const alocAnno = this.alocacoesDoAno();
     const byPrestador = new Map<string, any>();
 
-    // Include all consultancies even without allocations
+    
     for (const c of this.consultorias) {
       byPrestador.set(c.nome, { nome: c.nome, pessoas: new Set<string>(), custoAnual: 0 });
     }
@@ -282,7 +282,7 @@ export class ReportsPanelComponent {
     );
     const total = this.meses.map((_, mi) => folha[mi] + terceiros[mi]);
 
-    // Per-LO rows
+    
     const losRows = this.losDoAno().map(lo => {
       const alocsLo = alocAnno.filter((a: any) => a.linhaOrcamentariaId === lo.id);
       const mensal = this.meses.map((_, mi) =>

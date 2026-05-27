@@ -1,6 +1,6 @@
 <planner-card><article class="card">
 
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  
   <div class="panel-head">
     <h2>
       <span class="abs-title-icon">🗓</span>
@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <!-- ── Summary chips ──────────────────────────────────────────────────── -->
+  
   <div class="abs-chips">
     @for (tipo of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track tipo) {
       <button type="button" class="abs-chip"
@@ -35,10 +35,10 @@
     }
   </div>
 
-  <!-- ── Search ─────────────────────────────────────────────────────────── -->
+  
   <input [(ngModel)]="searchPessoa" placeholder="Pesquisar pessoa..." class="abs-search" />
 
-  <!-- ── Form modal ─────────────────────────────────────────────────────── -->
+  
   @if (formOpen) {
     <div class="abs-form-card">
       <h3>{{ editingId ? 'Editar ausência' : 'Registrar ausência' }}</h3>
@@ -86,7 +86,7 @@
     </div>
   }
 
-  <!-- ── Annual calendar ─────────────────────────────────────────────────── -->
+  
   @if (pessoas.length === 0) {
     <div class="abs-empty">
       <p>Nenhuma pessoa cadastrada. Cadastre pessoas primeiro.</p>
@@ -106,7 +106,7 @@
         </thead>
         <tbody>
           @for (p of pessoasFiltradas(); track p.id) {
-            <!-- main row -->
+            
             <tr class="abs-row" [class.abs-row-expanded]="isExpanded(p.id)">
               <td class="abs-cell-pessoa">
                 <button type="button" class="abs-expand-btn" (click)="toggleRow(p.id)" [title]="isExpanded(p.id) ? 'Recolher' : 'Ver detalhes'">
@@ -140,7 +140,7 @@
               </td>
             </tr>
 
-            <!-- expanded detail rows -->
+            
             @if (isExpanded(p.id)) {
               @for (a of ausenciasDaPessoa(p.id); track a.id) {
                 <tr class="abs-detail-row">
@@ -167,7 +167,7 @@
       </table>
     </div>
 
-    <!-- ── Legend ──────────────────────────────────────────────────────────── -->
+    
     <div class="abs-legend">
       @for (tipo of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track tipo) {
         <span class="abs-legend-item">

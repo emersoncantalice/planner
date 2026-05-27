@@ -11,7 +11,6 @@
   gap: 28px;
 }
 
-// ── Header ───────────────────────────────────────────────────────────────────
 .fp-header {
   display: flex;
   align-items: center;
@@ -45,7 +44,6 @@
   svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
 }
 
-// ── Sections ─────────────────────────────────────────────────────────────────
 .fp-section {
   display: flex;
   flex-direction: column;
@@ -73,7 +71,6 @@
   color: var(--muted);
 }
 
-// ── Year nav ─────────────────────────────────────────────────────────────────
 .fp-year-nav {
   display: flex;
   align-items: center;
@@ -101,7 +98,6 @@
   text-align: center;
 }
 
-// ── Weekday toggles ───────────────────────────────────────────────────────────
 .fp-weekdays {
   display: flex;
   gap: 8px;
@@ -133,7 +129,6 @@
   color: var(--muted);
 }
 
-// ── Lists ─────────────────────────────────────────────────────────────────────
 .fp-list {
   display: flex;
   flex-direction: column;
@@ -155,7 +150,7 @@
     background: #f0f6ff;
   }
 
-  // Disabled (removed from calendar) state
+  
   &.fp-row-disabled {
     opacity: 0.55;
     background: #f8f8f8;
@@ -172,7 +167,6 @@
   }
 }
 
-// ── Date badge ────────────────────────────────────────────────────────────────
 .fp-date-badge {
   font-size: 0.82rem;
   font-weight: 700;
@@ -186,7 +180,6 @@
   &.fp-badge-federal { background: #bfd6ff; }
 }
 
-// ── Name + chips ─────────────────────────────────────────────────────────────
 .fp-name {
   flex: 1;
   font-size: 0.9rem;
@@ -207,7 +200,6 @@
   letter-spacing: 0.02em;
 }
 
-// ── Tags ─────────────────────────────────────────────────────────────────────
 .fp-tag {
   font-size: 0.75rem;
   font-weight: 700;
@@ -223,7 +215,6 @@
   &.fp-tag-outro      { background: #f3f4f6; color: #374151; }
 }
 
-// ── Row actions ───────────────────────────────────────────────────────────────
 .fp-row-actions {
   display: flex;
   gap: 6px;
@@ -268,14 +259,12 @@
   padding: 0 10px;
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
 .fp-empty {
   font-size: 0.88rem;
   color: var(--muted);
   padding: 10px 0;
 }
 
-// ── Modal backdrop ────────────────────────────────────────────────────────────
 .fp-backdrop {
   position: fixed;
   inset: 0;
@@ -284,7 +273,6 @@
   z-index: 1000;
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
 .fp-modal {
   position: fixed;
   top: 50%;
@@ -361,7 +349,6 @@
   &:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 }
 
-// ── Responsive ───────────────────────────────────────────────────────────────
 @media (max-width: 600px) {
   .fp-row {
     gap: 8px;

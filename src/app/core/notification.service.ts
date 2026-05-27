@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 export interface PlannerNotification {
-  /** Unique key — used to deduplicate within the same day */
+  
   id: string;
   titulo: string;
   corpo: string;
@@ -11,8 +11,10 @@ export interface PlannerNotification {
 export class NotificationService {
 
   private readonly PREFIX = 'planner_notif_';
+  private readonly APP_ICON = '/assets/branding/icon-square.png';
+  private readonly FALLBACK_ICON = '/favicon.ico';
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  
 
   private todayKey(): string {
     return this.PREFIX + new Date().toISOString().slice(0, 10);
@@ -36,7 +38,7 @@ export class NotificationService {
     this.pruneOldKeys();
   }
 
-  /** Remove notification-keys from previous days to avoid localStorage bloat */
+  
   private pruneOldKeys(): void {
     const today = this.todayKey();
     const toDelete: string[] = [];
@@ -48,7 +50,7 @@ export class NotificationService {
   }
 
   // ── Public API ───────────────────────────────────────────────────────────────
-
+  
   /**
    * Requests permission (if not yet granted) and fires one browser
    * notification per event that hasn't been shown today yet.
@@ -60,7 +62,7 @@ export class NotificationService {
     const pendentes = eventos.filter(e => !shown.has(e.id));
     if (pendentes.length === 0) return;
 
-    // Ask for permission only once per session
+    
     let perm = Notification.permission;
     if (perm === 'default') {
       try {
@@ -75,9 +77,9 @@ export class NotificationService {
       try {
         new Notification(ev.titulo, {
           body:  ev.corpo,
-          icon:  '/favicon.ico',
-          tag:   ev.id,   // prevents the same tag from stacking
-          badge: '/favicon.ico',
+          icon:  this.APP_ICON,
+          tag:   ev.id,   
+          badge: this.FALLBACK_ICON,
         });
       } catch {
         // Some browsers block new Notification() outside user-gesture context

@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, Input, NgZone, Output, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
@@ -69,7 +69,7 @@ export class AccountPanelComponent {
           this.zoom = 1;
           this.offsetX = 0;
           this.offsetY = 0;
-          // In zoneless mode, force template update so the canvas exists immediately.
+          
           this.cdr.detectChanges();
           this.pendingRender = true;
           setTimeout(() => this.tryRenderPending(), 0);
@@ -120,7 +120,7 @@ export class AccountPanelComponent {
     ctx.drawImage(preview, 0, 0, this.exportSize, this.exportSize);
     this.profileImageChange.emit(out.toDataURL('image/png'));
     this.cropFeedback = 'Foto de perfil atualizada com sucesso.';
-    // Finaliza o fluxo apos aplicar: esconde area de recorte.
+    
     this.sourceImage = null;
     this.sourceDataUrl = '';
     this.pendingRender = false;

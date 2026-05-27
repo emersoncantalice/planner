@@ -18,6 +18,25 @@ export class IncidentPanelComponent {
   @Output() update = new EventEmitter<any>();
   @Output() remove = new EventEmitter<string>();
   @Output() importCsv = new EventEmitter<File>();
+  @Input()  currentUser = '';
+  @Output() transferOwnership = new EventEmitter<{ id: string; novoDono: string }>();
+
+  transferId    = '';
+  transferInput = '';
+
+  isDono(item: any): boolean {
+    const role = (localStorage.getItem('planner_role') || '').trim();
+    if (role === 'ADMIN') return true;
+    if (!item?.criadoPor) return true;
+    return item.criadoPor.toLowerCase() === (this.currentUser || '').toLowerCase();
+  }
+  iniciarTransferencia(id: string) { this.transferId = id; this.transferInput = ''; }
+  cancelarTransferencia()           { this.transferId = ''; this.transferInput = ''; }
+  confirmarTransferencia()          {
+    if (!this.transferInput.trim()) return;
+    this.transferOwnership.emit({ id: this.transferId, novoDono: this.transferInput.trim() });
+    this.cancelarTransferencia();
+  }
 
   formExpanded = false;
   editingId = '';
@@ -45,7 +64,7 @@ export class IncidentPanelComponent {
     });
   }
 
-  // ── enums ──────────────────────────────────────────────────────────────────
+  
   readonly tipos = [
     { value: 'DISPONIBILIDADE', label: 'Disponibilidade' },
     { value: 'PERFORMANCE',     label: 'Performance' },
@@ -69,7 +88,7 @@ export class IncidentPanelComponent {
     { value: 'POS_MORTEM',      label: 'Pós-Mortem' },
   ];
 
-  // ── form control ───────────────────────────────────────────────────────────
+  
   toggleForm() {
     this.formExpanded = !this.formExpanded;
     if (this.formExpanded) { this.editingId = ''; this.form = this.emptyForm(); }
@@ -135,7 +154,7 @@ export class IncidentPanelComponent {
     }
   }
 
-  // ── sorting / filtering ────────────────────────────────────────────────────
+  
   toggleSort(key: string) {
     if (this.sortKey === key) { this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'; return; }
     this.sortKey = key;
@@ -160,7 +179,7 @@ export class IncidentPanelComponent {
       });
   }
 
-  // ── label / badge helpers ──────────────────────────────────────────────────
+  
   severidadeLabel(s: string) { return this.severidades.find(x => x.value === s)?.label ?? s; }
   tipoLabel(t: string)       { return this.tipos.find(x => x.value === t)?.label ?? t; }
   statusLabel(s: string)     { return this.statusOpts.find(x => x.value === s)?.label ?? s; }
@@ -200,7 +219,7 @@ export class IncidentPanelComponent {
     return tipo;
   }
 
-  // ── private ────────────────────────────────────────────────────────────────
+  
   private emptyForm() {
     return {
       titulo: '', descricao: '', tipo: 'DISPONIBILIDADE', severidade: 'P3_MEDIO',

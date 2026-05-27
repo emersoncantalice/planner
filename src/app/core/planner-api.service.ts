@@ -1,18 +1,21 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { LoggerService } from './logger.service';
 
 @Injectable({ providedIn: 'root' })
 export class PlannerApiService {
   private readonly api = this.resolveApiBase();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private logger: LoggerService) {
+    this.logger.info('PlannerApiService initialized', { apiBase: this.api });
+  }
 
   private resolveApiBase(): string {
     const raw = ((window as any)?.__env?.API_URL || 'http://localhost:8080/api').trim();
     const normalized = raw.replace(/^['"]|['"]$/g, '');
     try {
       const pageProtocol = window?.location?.protocol;
-      // If protocol is missing (e.g. planner-backend.../api), force absolute URL.
+      
       if (!/^https?:\/\//i.test(normalized) && /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(normalized)) {
         return `https://${normalized}`.replace(/\/+$/, '');
       }
@@ -20,7 +23,7 @@ export class PlannerApiService {
         return (`https://${normalized.slice('http://'.length)}`).replace(/\/+$/, '');
       }
     } catch {
-      // no-op, keeps raw fallback
+      
     }
     return normalized.replace(/\/+$/, '');
   }
@@ -431,7 +434,49 @@ export class PlannerApiService {
     return this.http.patch<any>(`${this.api}/budget-lines/${budgetLineId}/situacao`, { situacao }, { headers: this.headers(token) });
   }
 
-  // ── Admin: gestão de usuários ─────────────────────────────────────────
+  transferBudgetLineDono(token: string, budgetLineId: string, novoDono: string) {
+    return this.http.patch<any>(`${this.api}/budget-lines/${budgetLineId}/dono`, { novoDono }, { headers: this.headers(token) });
+  }
+
+  // ── Allocation Percent (general % per allocation, stored in backend) ──────
+  listAllocationPercent(token: string) {
+    return this.http.get<any[]>(`${this.api}/allocation-percent`, { headers: this.headers(token) });
+  }
+
+  upsertAllocationPercent(token: string, allocationId: string, percentual: number) {
+    return this.http.put<any>(`${this.api}/allocation-percent/${allocationId}`, { percentual }, { headers: this.headers(token) });
+  }
+
+  // ── Lo Realizado (realized monthly value per LO, stored in backend) ────────
+  listLoRealizado(token: string) {
+    return this.http.get<any[]>(`${this.api}/lo-realizado`, { headers: this.headers(token) });
+  }
+
+  upsertLoRealizado(token: string, loId: string, month: number, valor: number) {
+    return this.http.put<any>(`${this.api}/lo-realizado/${loId}/${month}`, { valor }, { headers: this.headers(token) });
+  }
+
+  transferProjectDono(token: string, projectId: string, novoDono: string) {
+    return this.http.patch<any>(`${this.api}/projects/${projectId}/dono`, { novoDono }, { headers: this.headers(token) });
+  }
+
+  transferRiskDono(token: string, riskId: string, novoDono: string) {
+    return this.http.patch<any>(`${this.api}/risks/${riskId}/dono`, { novoDono }, { headers: this.headers(token) });
+  }
+
+  transferIncidentDono(token: string, incidentId: string, novoDono: string) {
+    return this.http.patch<any>(`${this.api}/incidents/${incidentId}/dono`, { novoDono }, { headers: this.headers(token) });
+  }
+
+  transferTechnicalDebtDono(token: string, debtId: string, novoDono: string) {
+    return this.http.patch<any>(`${this.api}/technical-debts/${debtId}/dono`, { novoDono }, { headers: this.headers(token) });
+  }
+
+  transferIndicatorDono(token: string, indicatorId: string, novoDono: string) {
+    return this.http.patch<any>(`${this.api}/indicators/${indicatorId}/dono`, { novoDono }, { headers: this.headers(token) });
+  }
+
+
   adminListUsers(token: string) {
     return this.http.get<any[]>(`${this.api}/auth/users`, { headers: this.headers(token) });
   }

@@ -100,7 +100,6 @@
   border-color: #9fbef7;
 }
 
-/* Capacidade restante no mês */
 .month-disponivel {
   font-size: .58rem;
   font-weight: 700;
@@ -139,7 +138,6 @@
   &:hover { opacity: .75; }
 }
 
-/* Linha de total quando há múltiplas LOs no mês */
 .month-total-pct {
   font-size: .6rem;
   font-weight: 700;

@@ -1,4 +1,4 @@
-﻿import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
@@ -44,6 +44,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   private presenceSyncTimer: ReturnType<typeof setInterval> | null = null;
   private monthlyStateSyncTimer: ReturnType<typeof setInterval> | null = null;
   private cursorSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private allocationPercentSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private loRealizadoSyncTimer: ReturnType<typeof setInterval> | null = null;
   private lastCursorSendAt = 0;
   private latestCursorPos: { x: number; y: number } | null = null;
   cursoresOutros: Array<{ username: string; x: number; y: number }> = [];
@@ -61,11 +63,15 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   pessoaValorHoraMasked = '';
   pessoaValorMensalMasked = '';
 
-  // â”€â”€ Column visibility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // transferência de dono da LO
+  donoModalAberto = false;
+  donoNovoInput = '';
+
+  
   colPickerOpen = false;
   private colPrefsLoaded = false;
 
-  /** Colunas fixas + 12 meses. true = visÃ­vel. */
+  
   colsVisiveis: Record<string, boolean> = {
     vaga:       true,
     perfil:     true,
@@ -99,7 +105,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     { key: 'total',     label: 'Total anual'  },
   ];
 
-  /** Chave do mÃªs pelo Ã­ndice 0-11 */
+  
   mesKey(i: number): string {
     return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][i];
   }
@@ -136,15 +142,21 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       this.aplicarSelecaoPendenteLo();
     }
     if (changes['alocacoes']) {
-      // Aplica percentual pendente Ã s alocaÃ§Ãµes recÃ©m-criadas (antes de terem config no localStorage)
+
       this.aplicarConfigsPendentes();
       this.loadPagamentosDoBackend();
+      this.loadAllocationPercentsFromBackend();
+    }
+    if (changes['linhasOrcamentarias']) {
+      this.loadLoRealizadoFromBackend();
     }
     if (changes['token']) {
       this.startPaymentsRealtimeSync();
       this.startPresenceRealtimeSync();
       this.startMonthlyStateRealtimeSync();
       this.startCursorRealtimeSync();
+      this.startAllocationPercentRealtimeSync();
+      this.startLoRealizadoRealtimeSync();
     }
     if (changes['linhasOrcamentarias']) this.heartbeatLoAberta();
   }
@@ -165,6 +177,14 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     if (this.cursorSyncTimer) {
       clearInterval(this.cursorSyncTimer);
       this.cursorSyncTimer = null;
+    }
+    if (this.allocationPercentSyncTimer) {
+      clearInterval(this.allocationPercentSyncTimer);
+      this.allocationPercentSyncTimer = null;
+    }
+    if (this.loRealizadoSyncTimer) {
+      clearInterval(this.loRealizadoSyncTimer);
+      this.loRealizadoSyncTimer = null;
     }
   }
 
@@ -232,23 +252,17 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       }
     } catch {}
   }
-  /**
-   * Chave de localStorage para percentual pendente de uma nova alocaÃ§Ã£o.
-   * Usada para preservar o percentual capeado entre o create.emit() e o retorno do servidor.
-   */
+  
   private pendingPctKey(nomePessoa: string, loId: string): string {
     return `planner_lo_pending_pct_${this.normalized(nomePessoa)}_${loId}`;
   }
 
-  /**
-   * Quando `alocacoes` Ã© atualizado (novo item do servidor), detecta alocaÃ§Ãµes que ainda
-   * nÃ£o tÃªm config salva e aplica o percentual pendente gravado antes do emit.
-   */
+  
   private aplicarConfigsPendentes() {
     for (const a of this.alocacoes) {
-      // JÃ¡ tem config em memÃ³ria â†’ nada a fazer
+      
       if (this.planoAlocacao[a.id] != null) continue;
-      // JÃ¡ tem config no localStorage â†’ serÃ¡ carregada normalmente por getConfig()
+      
       if (localStorage.getItem(`planner_lo_alloc_${a.id}`) != null) continue;
 
       const pendingKey = this.pendingPctKey(a.nomePessoa || '', a.linhaOrcamentariaId || '');
@@ -300,8 +314,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   }
 
   private ordemVisualAlocacao(a: any): number {
-    if (this.pessoaSemCustoLo(a)) return 2; // sempre no fim
-    return this.getCategoriaDaPessoa(a) === 'TERCEIRO' ? 1 : 0; // Folha -> Prestador
+    if (this.pessoaSemCustoLo(a)) return 2; 
+    return this.getCategoriaDaPessoa(a) === 'TERCEIRO' ? 1 : 0; 
   }
 
   totalComprometidoLo(): number {
@@ -321,7 +335,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     }, 0);
   }
 
-  /** Valor mÃ¡ximo alocÃ¡vel no mÃªs com base no percentual disponÃ­vel para esta linha. */
+  
   valorMaximoMes(a: any, monthIndex: number): number {
     const vh = this.getValorHoraDaAlocacao(a);
     if (!vh) return 0;
@@ -330,12 +344,12 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return this.round2(vh * horas * pct / 100);
   }
 
-  /** True quando a alocaÃ§Ã£o nÃ£o gera custo na LO (valorHora = 0, ex: folha sem repasse). */
+  
   pessoaSemCustoLo(a: any): boolean {
     return this.getValorHoraDaAlocacao(a) === 0;
   }
 
-  /** True quando a pessoa selecionada na linha nova nÃ£o gera custo na LO. */
+  
   novaPessoaSemCustoLo(): boolean {
     return !!this.normalized(this.form.nomePessoa) && this.valorHoraPessoaSelecionadaNova() === 0;
   }
@@ -479,9 +493,12 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       ? `Limite de 100% excedido para ${nomePessoa}. Ajustado para ${cfg.percentual.toFixed(2)}%.`
       : '';
     localStorage.setItem(`planner_lo_alloc_${allocationId}`, JSON.stringify(cfg));
+    if (this.token) {
+      this.api.upsertAllocationPercent(this.token, allocationId, cfg.percentual).subscribe({ error: () => {} });
+    }
   }
 
-  // â”€â”€ MÃ¡scaras de percentual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   formatPct(value: number): string {
     return Math.min(100, Math.max(0, Number(value || 0)))
@@ -491,10 +508,10 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   private parsePctDigits(raw: string): number {
     const digits = (raw ?? '').replace(/\D/g, '');
     const int = digits ? parseInt(digits, 10) : 0;
-    return Math.min(10000, int) / 100; // cap em 100,00%
+    return Math.min(10000, int) / 100; 
   }
 
-  /** MÃ¡scara do percentual base de uma alocaÃ§Ã£o existente. */
+  
   getPctMasked(allocationId: string): string {
     return this.pctMaskedMap[allocationId] ?? this.formatPct(this.getConfig(allocationId).percentual);
   }
@@ -504,13 +521,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     this.pctMaskedMap[allocationId] = this.formatPct(this.getConfig(allocationId).percentual);
   }
 
-  /** MÃ¡scara do percentual da nova alocaÃ§Ã£o. */
+  
   onNovaPctMaskedChange(value: string) {
     this.setNovaAlocacaoPercentual(this.parsePctDigits(value));
     this.novaPctMasked = this.formatPct(this.novaAlocacaoPercentual);
   }
 
-  /** MÃ¡scara do percentual mensal de uma alocaÃ§Ã£o. */
+  
   getPctMensalMasked(allocationId: string, month: number): string {
     const key = `${allocationId}_${month}`;
     return this.pctMensalMaskedMap[key] ?? this.formatPct(this.getPercentualMensalDigitavel(allocationId, month));
@@ -543,6 +560,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
 
   custoMensal(allocationId: string, valorHora: number, month?: number): number {
     if (month != null && this.isCancelado(allocationId, month)) return 0;
+    // Meses bloqueados por outra alocação (mesma LO ou outra LO) não geram custo
+    if (month != null && this.mesIndisponivelParaAlocacao(allocationId, month)) return 0;
     if (month != null) {
       const manual = this.getValorMensalManual(allocationId, month);
       if (manual != null) return manual;
@@ -589,6 +608,9 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     const key = `planner_lo_realizado_${this.loSelecionadaId}_${month}`;
     this.realizadoMensal[key] = Math.max(0, Number(value || 0));
     localStorage.setItem(key, String(this.realizadoMensal[key]));
+    if (this.token) {
+      this.api.upsertLoRealizado(this.token, this.loSelecionadaId, month, this.realizadoMensal[key]).subscribe({ error: () => {} });
+    }
   }
 
   totalRealizadoAnual(): number {
@@ -631,7 +653,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return horas > 0 ? horas : 160;
   }
 
-  /** Para profissionais FOLHA (BV), sempre 160h independente do cadastro mensal. */
+  
   private horasEfetivas(monthIndex: number, categoria?: 'FOLHA' | 'TERCEIRO'): number {
     return categoria === 'FOLHA' ? 160 : this.horasDoCadastro(monthIndex);
   }
@@ -666,11 +688,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return !!this.pagoMensal[key];
   }
 
-  /**
-   * Marca/desmarca o mÃªs como lanÃ§ado (pagamento futuro) ou pago (confirmado).
-   * Ambos os estados bloqueam outras linhas da mesma pessoa no mesmo mÃªs.
-   * Bloqueia se OUTRA linha jÃ¡ tem pago/lanÃ§ado no mÃªs.
-   */
+  
   setPago(allocationId: string, month: number, checked: boolean) {
     if (checked) {
       const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
@@ -700,7 +718,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return !!this.canceladoMensal[key];
   }
 
-  /** Cancela o mÃªs: zera custo, libera o percentual e remove o pago/lanÃ§ado. */
+  
   setCancelado(allocationId: string, month: number, checked: boolean) {
     const key = this.canceladoKey(allocationId, month);
     const prev = !!this.canceladoMensal[key];
@@ -714,7 +732,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       });
     }
     if (checked) {
-      // Cancelar limpa pago â€” libera o mÃªs para outras linhas
+      
       const pagoKey = this.pagoKey(allocationId, month);
       this.pagoMensal[pagoKey] = false;
       if (this.token) {
@@ -880,7 +898,95 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     });
   }
 
-  /** Retorna true se OUTRA linha da mesma pessoa tem lanÃ§amento ou pagamento no mÃªs. */
+  private startAllocationPercentRealtimeSync() {
+    if (this.allocationPercentSyncTimer) {
+      clearInterval(this.allocationPercentSyncTimer);
+      this.allocationPercentSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.loadAllocationPercentsFromBackend();
+    this.allocationPercentSyncTimer = setInterval(() => this.loadAllocationPercentsFromBackend(), 5000);
+  }
+
+  private startLoRealizadoRealtimeSync() {
+    if (this.loRealizadoSyncTimer) {
+      clearInterval(this.loRealizadoSyncTimer);
+      this.loRealizadoSyncTimer = null;
+    }
+    if (!this.token) return;
+    this.loadLoRealizadoFromBackend();
+    this.loRealizadoSyncTimer = setInterval(() => this.loadLoRealizadoFromBackend(), 5000);
+  }
+
+  private loadAllocationPercentsFromBackend() {
+    if (!this.token) return;
+    this.api.listAllocationPercent(this.token).subscribe({
+      next: (rows: any[]) => {
+        // Build set of allocIds that already exist in backend
+        const backendAllocIds = new Set<string>();
+        for (const r of rows || []) {
+          const allocId = String(r?.allocationId || '').trim();
+          if (!allocId) continue;
+          backendAllocIds.add(allocId);
+          const pct = Math.max(0, Math.min(100, Number(r?.percentual ?? 100)));
+          this.planoAlocacao[allocId] = { percentual: pct };
+          // Keep localStorage in sync for backward compat
+          localStorage.setItem(`planner_lo_alloc_${allocId}`, JSON.stringify({ percentual: pct }));
+        }
+        // Migration: push localStorage values to backend for allocations not yet there
+        if (this.token) {
+          for (const a of this.alocacoes) {
+            if (backendAllocIds.has(a.id)) continue;
+            const saved = localStorage.getItem(`planner_lo_alloc_${a.id}`);
+            if (saved == null) continue;
+            try {
+              const parsed = JSON.parse(saved);
+              const pct = Math.max(0, Math.min(100, Number(parsed?.percentual ?? 100)));
+              this.api.upsertAllocationPercent(this.token, a.id, pct).subscribe({ error: () => {} });
+            } catch { /* ignore */ }
+          }
+        }
+      }
+    });
+  }
+
+  private loadLoRealizadoFromBackend() {
+    if (!this.token) return;
+    this.api.listLoRealizado(this.token).subscribe({
+      next: (rows: any[]) => {
+        // Build set of (loId_month) pairs already in backend
+        const backendKeys = new Set<string>();
+        for (const r of rows || []) {
+          const loId = String(r?.loId || '').trim();
+          const month = Number(r?.month);
+          if (!loId || month < 0 || month > 11) continue;
+          backendKeys.add(`${loId}_${month}`);
+          const key = `planner_lo_realizado_${loId}_${month}`;
+          const valor = Math.max(0, Number(r?.valor ?? 0));
+          this.realizadoMensal[key] = valor;
+          localStorage.setItem(key, String(valor));
+        }
+        // Migration: push localStorage values for all known LOs not yet in backend
+        if (this.token) {
+          for (const lo of this.linhasOrcamentarias) {
+            const loId = String(lo?.id || '');
+            if (!loId) continue;
+            for (let month = 0; month < 12; month++) {
+              if (backendKeys.has(`${loId}_${month}`)) continue;
+              const key = `planner_lo_realizado_${loId}_${month}`;
+              const val = localStorage.getItem(key);
+              if (val == null) continue;
+              const valor = Number(val || 0);
+              if (valor > 0) {
+                this.api.upsertLoRealizado(this.token, loId, month, valor).subscribe({ error: () => {} });
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   private outraLinhaComControleNoMes(nomePessoa: string, month: number, excludeAllocationId: string): boolean {
     return this.alocacoes
       .filter((a: any) => a.id !== excludeAllocationId)
@@ -992,6 +1098,42 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     this.fecharPessoaModal();
   }
 
+  isDonoDaLoAtual(): boolean {
+    const lo = this.loSelecionada();
+    if (!lo) return false;
+    const me = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
+    const role = (localStorage.getItem('planner_role') || '').trim();
+    if (role === 'ADMIN') return true;
+    const dono = (lo.dono || '').trim().toLowerCase();
+    return !dono || dono === me;
+  }
+
+  abrirDonoModal() {
+    this.donoNovoInput = '';
+    this.donoModalAberto = true;
+  }
+
+  fecharDonoModal() {
+    this.donoModalAberto = false;
+    this.donoNovoInput = '';
+  }
+
+  salvarTransferenciaDono() {
+    const lo = this.loSelecionada();
+    if (!lo || !this.donoNovoInput.trim() || !this.token) return;
+    this.api.transferBudgetLineDono(this.token, lo.id, this.donoNovoInput.trim()).subscribe({
+      next: (updated: any) => {
+        // atualiza a LO localmente sem recarregar a página
+        const idx = this.linhasOrcamentarias.findIndex((l: any) => l.id === updated.id);
+        if (idx >= 0) this.linhasOrcamentarias[idx] = updated;
+        this.fecharDonoModal();
+      },
+      error: (err: any) => {
+        alert(err?.error?.message || 'Erro ao transferir dono da LO.');
+      }
+    });
+  }
+
   onPessoaValorHoraChange(value: string) {
     const digits = (value ?? '').replace(/\D/g, '');
     const cents = digits ? Number.parseInt(digits, 10) : 0;
@@ -1023,8 +1165,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
         this.percentualAviso = `Percentual ajustado para ${maxDisponivel.toFixed(2)}% (limite disponivel nos meses abertos).`;
       }
     }
-    // Grava o percentual capeado antes do emit â€” o servidor vai retornar a nova alocaÃ§Ã£o
-    // com um ID ainda desconhecido, entÃ£o preservamos aqui para aplicarConfigsPendentes() buscar.
+    
+    
     if (this.normalized(nomePessoa) && this.loSelecionadaId) {
       const pendingKey = this.pendingPctKey(nomePessoa, this.loSelecionadaId);
       localStorage.setItem(pendingKey, String(this.novaAlocacaoPercentual));
@@ -1148,25 +1290,21 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return this.disponibilidadeMes(nomePessoa, month).motivo;
   }
 
-  /** Percentual ainda disponÃ­vel no mÃªs para uma nova linha desta pessoa. */
+  
   percentualDisponivelNovaPessoa(month: number): number {
     const nomePessoa = this.form.nomePessoa || '';
     if (!this.normalized(nomePessoa)) return 100;
     return this.percentualDisponivelNoMes(nomePessoa, month);
   }
 
-  /**
-   * True quando o mÃªs nÃ£o estÃ¡ totalmente bloqueado mas o percentual disponÃ­vel
-   * Ã© menor do que o `novaAlocacaoPercentual` configurado â€” ou seja, a nova linha
-   * ficarÃ¡ com menos do que o solicitado neste mÃªs.
-   */
+  
   mesParcialmenteDisponivelNovaPessoa(month: number): boolean {
     if (this.mesIndisponivelNovaPessoa(month)) return false;
     const disponivel = this.percentualDisponivelNovaPessoa(month);
     return disponivel < Number(this.novaAlocacaoPercentual || 100);
   }
 
-  /** Custo calculado com o percentual efetivamente disponÃ­vel no mÃªs (â‰¤ novaAlocacaoPercentual). */
+  
   custoMensalNovaPessoaDisponivel(month: number): number {
     if (this.mesIndisponivelNovaPessoa(month)) return 0;
     const disponivel = this.percentualDisponivelNovaPessoa(month);
@@ -1177,10 +1315,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   }
 
   custoMensalEdicaoPessoa(allocationId: string, monthIndex: number): number {
+    if (this.isCancelado(allocationId, monthIndex)) return 0;
+    if (this.mesIndisponivelParaAlocacao(allocationId, monthIndex)) return 0;
     const valorHora = this.valorHoraPessoaSelecionadaEdicao();
     const percentual = Number(this.getConfig(allocationId).percentual || 0) / 100;
     const horas = this.horasEfetivas(monthIndex, this.categoriaDaAlocacaoId(allocationId));
-    if (this.isCancelado(allocationId, monthIndex)) return 0;
     return valorHora * horas * percentual;
   }
 
@@ -1258,8 +1397,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
 
   setValorMensalDigitavel(allocationId: string, month: number, rawValue: number) {
     let valor = this.round2(Math.max(0, Number(rawValue || 0)));
-    // Editar o valor nÃ£o constitui lanÃ§amento â€” apenas ajusta o custo planejado do mÃªs.
-    // O bloqueio de outras linhas sÃ³ ocorre ao lanÃ§ar explicitamente (botÃ£o "LanÃ§.").
+    
+    
     if (valor > 0) {
       const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
       const percentualOutras = this.percentualAtivoOutrasAlocacoesNoMes(nomePessoa, month, allocationId);
@@ -1296,10 +1435,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     this.setValorMensalDigitavel(allocationId, month, this.custoMensalCalculado(allocationId, valorHora, month));
   }
 
-  /**
-   * Remove apenas o pagamento â€” a linha volta ao estado "LanÃ§ado" (compromisso mantido).
-   * Para voltar ao estado Planejado (sem bloqueio), desfaÃ§a o lanÃ§amento pelo checkbox "LanÃ§.".
-   */
+  
   reabrirMes(allocationId: string, month: number) {
     const key = this.pagoKey(allocationId, month);
     this.pagoMensal[key] = false;
@@ -1400,19 +1536,19 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return this.disponibilidadeMesParaLinha(allocationId, month).motivo || 'Indisponível';
   }
 
-  /** ID da LO que bloqueia este mÃªs para uma linha existente. */
+  
   loIdBloqueanteMes(allocationId: string, month: number): string | null {
     if (!this.mesIndisponivelParaAlocacao(allocationId, month)) return null;
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
     const linhasDaPessoa = this.alocacoes.filter(
       (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
     );
-    // Controle explÃ­cito (pago) tem precedÃªncia
+    
     const comControle = linhasDaPessoa.find(
       (a: any) => a.id !== allocationId && this.mesComControleExplicito(a.id, month)
     );
     if (comControle) return comControle.linhaOrcamentariaId || null;
-    // Primeira linha nÃ£o cancelada anterior a esta
+    
     const thisIndex = linhasDaPessoa.findIndex((a: any) => a.id === allocationId);
     if (thisIndex > 0) {
       const dona = linhasDaPessoa.slice(0, thisIndex).find((a: any) => !this.isCancelado(a.id, month));
@@ -1421,7 +1557,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return null;
   }
 
-  /** ID da LO que bloqueia o mÃªs na linha de nova alocaÃ§Ã£o. */
+  
   loIdBloqueanteMesNovaPessoa(month: number): string | null {
     if (!this.mesIndisponivelNovaPessoa(month)) return null;
     const nomePessoa = this.form.nomePessoa || '';
@@ -1439,16 +1575,12 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     if (loId && loId !== this.loSelecionadaId) this.selectLoTab(loId);
   }
 
-  /** True quando a LO bloqueante Ã© diferente da LO atual (â†’ exibe link clicÃ¡vel). */
+  
   bloqueantePorOutraLo(loId: string | null): boolean {
     return !!loId && loId !== this.loSelecionadaId;
   }
 
-  /**
-   * Percentual disponÃ­vel para uma linha EXISTENTE em um mÃªs especÃ­fico.
-   * Usa a mesma lÃ³gica de prioridade por ordem de array que `disponibilidadeMesParaLinha`.
-   * Este valor Ã© usado tanto para decidir o que exibir quanto para validar ediÃ§Ãµes â€” garantindo consistÃªncia.
-   */
+  
   percentualDisponivelParaLinha(allocationId: string, month: number): number {
     if (this.isPago(allocationId, month) || this.isCancelado(allocationId, month)) return 100;
 
@@ -1457,13 +1589,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
     );
 
-    // Controle explÃ­cito (pago) em qualquer outra linha â†’ 0% disponÃ­vel
+    
     const comControle = linhasDaPessoa.find(
       (a: any) => a.id !== allocationId && this.mesComControleExplicito(a.id, month)
     );
     if (comControle) return 0;
 
-    // Percentual ocupado pelas linhas anteriores (ordem do array = prioridade)
+    
     const thisIndex = linhasDaPessoa.findIndex((a: any) => a.id === allocationId);
     const percentualAnterior = thisIndex > 0
       ? linhasDaPessoa
@@ -1475,10 +1607,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return Math.max(0, 100 - percentualAnterior);
   }
 
-  /**
-   * Determina se uma linha EXISTENTE estÃ¡ bloqueada em um mÃªs.
-   * Usa `percentualDisponivelParaLinha` â€” mesma lÃ³gica da validaÃ§Ã£o de ediÃ§Ã£o, sem inconsistÃªncia.
-   */
+  
   private disponibilidadeMesParaLinha(allocationId: string, month: number): { indisponivel: boolean; motivo: string } {
     if (this.isPago(allocationId, month) || this.isCancelado(allocationId, month)) {
       return { indisponivel: false, motivo: '' };
@@ -1489,7 +1618,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
     );
 
-    // Controle explÃ­cito (pago) em outra linha â†’ bloqueado
+    
     const comControle = linhasDaPessoa.find(
       (a: any) => a.id !== allocationId && this.mesComControleExplicito(a.id, month)
     );
@@ -1498,7 +1627,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       return { indisponivel: true, motivo: `Pago/Lançado na LO ${lo}` };
     }
 
-    // Linhas anteriores jÃ¡ somam 100% â†’ esta estÃ¡ bloqueada
+    
     const thisIndex = linhasDaPessoa.findIndex((a: any) => a.id === allocationId);
     if (thisIndex > 0) {
       const percentualAnterior = linhasDaPessoa
@@ -1527,17 +1656,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     if (this.isCancelado(allocationId, month)) return false;
     if (this.isPago(allocationId, month)) return true;
     if ((this.getValorMensalManual(allocationId, month) ?? 0) > 0) return true;
-    // Percentual > 0 jÃ¡ ocupa capacidade da pessoa, mesmo que o valor hora seja zero
-    // (ex: funcionÃ¡rios de folha que nÃ£o geram custo na LO)
+    
+    
     if (this.getPercentualEfetivoMes(allocationId, month) > 0) return true;
     return this.valorMesEfetivo(allocationId, month) > 0;
   }
 
-  /**
-   * Uma linha tem "controle explÃ­cito" sobre um mÃªs quando estÃ¡ paga/lanÃ§ada (e nÃ£o cancelada).
-   * "Pago" representa tanto pagamento futuro (lanÃ§ado) quanto confirmado â€” ambos bloqueiam outras
-   * linhas da mesma pessoa no mesmo mÃªs.
-   */
+  
   private mesComControleExplicito(allocationId: string, month: number): boolean {
     if (this.isCancelado(allocationId, month)) return false;
     return this.isPago(allocationId, month);
@@ -1624,23 +1749,23 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return Number(value.toFixed(2));
   }
 
-  // â”€â”€ ExportaÃ§Ã£o Excel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
   exportarExcel() {
-    // Dynamic import to avoid SSR issues and keep bundle lean
+    
     import('xlsx').then(XLSX => {
       const wb = XLSX.utils.book_new();
       const brl = (v: number) => Number(v.toFixed(2));
       const mesesHeader = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-      // â”€â”€ Sheet 1: Por Pessoa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      
       const pessoaRows: any[] = [];
-      pessoaRows.push(['Pessoa', 'LO', 'Perfil', 'Categoria', 'AlocaÃ§Ã£o %',
+      pessoaRows.push(['Pessoa', 'LO', 'Perfil', 'Categoria', 'Alocação %',
         ...mesesHeader, 'Total Anual']);
 
       const alocAno = this.alocacoes.filter((a: any) =>
         this.linhasDoAnoSelecionado().some((lo: any) => lo.id === a.linhaOrcamentariaId)
       );
-      // Sort by person name
+      
       const byPessoa = [...alocAno].sort((a: any, b: any) =>
         String(a.nomePessoa || '').localeCompare(String(b.nomePessoa || ''), 'pt-BR', { sensitivity: 'base' })
       );
@@ -1664,10 +1789,10 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       this.applyExcelStyle(wsPessoa, pessoaRows[0].length);
       XLSX.utils.book_append_sheet(wb, wsPessoa, 'Por Pessoa');
 
-      // â”€â”€ Sheet 2: Por LO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      
       const loRows: any[] = [];
-      loRows.push(['LO', 'CÃ³digo', 'Pessoa', 'Perfil', 'Categoria',
-        ...mesesHeader, 'Comprometido', 'OrÃ§amento', 'Saldo']);
+      loRows.push(['LO', 'Código', 'Pessoa', 'Perfil', 'Categoria',
+        ...mesesHeader, 'Comprometido', 'Orçamento', 'Saldo']);
 
       const losSorted = [...this.linhasDoAnoSelecionado()].sort((a: any, b: any) =>
         String(a.codigo || '').localeCompare(String(b.codigo || ''), 'pt-BR', { sensitivity: 'base' })
@@ -1695,16 +1820,16 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
           ]);
         }
         if (!alocacoesDaLo.length) {
-          loRows.push([lo.nome || '-', lo.codigo || '-', '(sem alocaÃ§Ãµes)', '', '', ...mesesHeader.map(() => 0), 0, brl(orcamento), brl(orcamento)]);
+          loRows.push([lo.nome || '-', lo.codigo || '-', '(sem alocações)', '', '', ...mesesHeader.map(() => 0), 0, brl(orcamento), brl(orcamento)]);
         }
       }
       const wsLo = XLSX.utils.aoa_to_sheet(loRows);
       this.applyExcelStyle(wsLo, loRows[0].length);
       XLSX.utils.book_append_sheet(wb, wsLo, 'Por LO');
 
-      // â”€â”€ Sheet 3: Por Atividade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      
       const atividadeRows: any[] = [];
-      atividadeRows.push(['Projeto', 'Atividade', 'Status', 'ResponsÃ¡vel', 'InÃ­cio Planejado', 'Fim Planejado']);
+      atividadeRows.push(['Projeto', 'Atividade', 'Status', 'Responsável', 'Início Planejado', 'Fim Planejado']);
 
       const atividadesSorted = [...this.atividades].sort((a: any, b: any) =>
         String(a.projetoNome || '').localeCompare(String(b.projetoNome || ''), 'pt-BR', { sensitivity: 'base' })
@@ -1714,7 +1839,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
           a.projetoNome || '-',
           a.titulo || '-',
           a.status || '-',
-          a.responsavel || '(sem responsÃ¡vel)',
+          a.responsavel || '(sem responsável)',
           a.inicioPlanejado ? new Date(a.inicioPlanejado).toLocaleDateString('pt-BR') : '-',
           a.fimPlanejado ? new Date(a.fimPlanejado).toLocaleDateString('pt-BR') : '-'
         ]);
@@ -1723,7 +1848,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       this.applyExcelStyle(wsAtiv, atividadeRows[0].length);
       XLSX.utils.book_append_sheet(wb, wsAtiv, 'Por Atividade');
 
-      // â”€â”€ Download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      
       const dt = new Date();
       const fileName = `alocacoes_${this.anoSelecionado}_${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}.xlsx`;
       XLSX.writeFile(wb, fileName);
@@ -1734,12 +1859,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
 
   private applyExcelStyle(ws: any, colCount: number) {
     if (!ws['!cols']) ws['!cols'] = [];
-    // Set column widths
+    
     for (let i = 0; i < colCount; i++) {
       ws['!cols'][i] = { wch: i < 5 ? 22 : 14 };
     }
   }
 
 }
-
 

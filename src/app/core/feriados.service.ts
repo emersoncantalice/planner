@@ -1,28 +1,20 @@
-/**
- * FeriadosService — manages custom holidays and working-day configuration.
- *
- * Persists to localStorage:
- *   'planner_feriados'         – custom (user-defined) holidays
- *   'planner_feriados_federal' – overrides on federal holidays (rename / disable)
- *   'planner_dias_uteis'       – which weekdays are business days
- */
+
 import { inject, Injectable, signal } from '@angular/core';
 import { dateToYmd } from './business-days';
 import { PlannerApiService } from './planner-api.service';
 
 export interface FeriadoCustom {
   id: string;
-  data: string;   // 'YYYY-MM-DD'
+  data: string;   
   nome: string;
   tipo: 'municipal' | 'estadual' | 'facultativo' | 'outro';
 }
 
 export interface FederalOverride {
-  nomeCustom?: string;  // if set, replaces the default name in the UI
-  disabled: boolean;    // if true, that date is treated as a normal working day
+  nomeCustom?: string;  
+  disabled: boolean;    
 }
 
-/** Which days of the week are business days (0=Sun … 6=Sat). Default: 1–5. */
 export type DiasUteisConfig = boolean[];
 
 const KEY_FERIADOS         = 'planner_feriados';
@@ -31,7 +23,6 @@ const KEY_DIAS_UTEIS       = 'planner_dias_uteis';
 
 const DEFAULT_DIAS_UTEIS: DiasUteisConfig = [false, true, true, true, true, true, false];
 
-// ── Easter (Meeus/Jones/Butcher) ─────────────────────────────────────────────
 function calcEaster(year: number): Date {
   const a = year % 19;
   const b = Math.floor(year / 100);
@@ -55,7 +46,6 @@ function shiftDays(d: Date, n: number): Date {
   return r;
 }
 
-/** Raw federal holidays for a year (date + original name). */
 export function federalHolidaysForYear(year: number): { data: string; nome: string }[] {
   const e = calcEaster(year);
   return [
@@ -105,13 +95,10 @@ export class FeriadosService {
     catch { return {}; }
   }
 
-  /** Set the auth token so mutations can be persisted to the backend. */
+  
   setToken(token: string): void { this._token = token; }
 
-  /**
-   * Load config from the backend (overrides localStorage values).
-   * Call this once after login.
-   */
+  
   syncFromApi(token: string): void {
     if (!token) return;
     this._token = token;
@@ -147,7 +134,7 @@ export class FeriadosService {
   private _saveDiasUteis()        { localStorage.setItem(KEY_DIAS_UTEIS, JSON.stringify(this.diasUteis())); this._syncToApi(); }
   private _saveFederalOverrides() { localStorage.setItem(KEY_FEDERAL_OVERRIDE, JSON.stringify(this.federalOverrides())); this._syncToApi(); }
 
-  // ── Custom holiday CRUD ───────────────────────────────────────────────────
+  
   addFeriado(f: Omit<FeriadoCustom, 'id'>): void {
     this.feriados.update(list => [...list, { ...f, id: crypto.randomUUID() }]);
     this._saveFeriados();
@@ -163,9 +150,9 @@ export class FeriadosService {
     this._saveFeriados();
   }
 
-  // ── Federal override CRUD ─────────────────────────────────────────────────
+  
 
-  /** Rename a federal holiday (or leave nomeCustom undefined to keep default name). */
+  
   renameFederal(data: string, nomeCustom: string): void {
     this.federalOverrides.update(map => ({
       ...map,
@@ -174,7 +161,7 @@ export class FeriadosService {
     this._saveFederalOverrides();
   }
 
-  /** Mark a federal holiday as disabled (treated as a working day). */
+  
   disableFederal(data: string): void {
     this.federalOverrides.update(map => ({
       ...map,
@@ -183,7 +170,7 @@ export class FeriadosService {
     this._saveFederalOverrides();
   }
 
-  /** Restore a federal holiday to its default state (remove all overrides). */
+  
   restoreFederal(data: string): void {
     this.federalOverrides.update(map => {
       const next = { ...map };
@@ -201,7 +188,7 @@ export class FeriadosService {
     return this.federalOverrides()[data]?.nomeCustom || defaultName;
   }
 
-  // ── Working-day config ────────────────────────────────────────────────────
+  
   setDiasUteis(config: DiasUteisConfig): void {
     this.diasUteis.set([...config]);
     this._saveDiasUteis();
@@ -212,13 +199,13 @@ export class FeriadosService {
     this._saveDiasUteis();
   }
 
-  // ── Business-day queries ─────────────────────────────────────────────────
+  
 
   private _customHolidaySet(): Set<string> {
     return new Set(this.feriados().map(f => f.data));
   }
 
-  /** Active (non-disabled) federal holidays for a year. */
+  
   private _activeFederalSet(year: number): Set<string> {
     const overrides = this.federalOverrides();
     return new Set(
@@ -247,7 +234,7 @@ export class FeriadosService {
     return '';
   }
 
-  /** Human-friendly non-working detail (includes holiday name when available). */
+  
   nonWorkingDetail(d: Date): string {
     const dow = d.getDay();
     const names = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -281,7 +268,7 @@ export class FeriadosService {
     return cur;
   }
 
-  /** For Gantt visual bands: all non-working dates in [from, to]. */
+  
   nonWorkingDatesInRange(from: Date, to: Date): { ymd: string; isHoliday: boolean }[] {
     const result: { ymd: string; isHoliday: boolean }[] = [];
     const customSet = this._customHolidaySet();

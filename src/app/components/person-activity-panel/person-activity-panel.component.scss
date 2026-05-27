@@ -2,7 +2,6 @@
 
 .pa-wrap { padding: 0 0 24px; }
 
-/* Header */
 .pa-header {
   display: flex;
   align-items: center;
@@ -15,7 +14,6 @@
 .pa-title { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
 .pa-subtitle { font-size: .78rem; color: #6b7280; margin: 2px 0 0; }
 
-/* Legend */
 .pa-legend {
   display: flex;
   align-items: center;
@@ -37,7 +35,6 @@
   &.wl-red    { background: #ef4444; }
 }
 
-/* Toolbar */
 .pa-toolbar {
   display: flex;
   align-items: center;
@@ -68,7 +65,6 @@
   &:hover:not(.active) { background: #e5e7eb; }
 }
 
-/* List */
 .pa-list {
   padding: 12px 24px;
   display: flex;
@@ -77,7 +73,6 @@
 }
 .pa-empty { text-align: center; color: #9ca3af; padding: 32px; font-size: .9rem; }
 
-/* Card */
 .pa-card {
   border-radius: 12px;
   border: 1px solid #e5e7eb;
@@ -136,7 +131,6 @@
   &.open { transform: rotate(180deg); }
 }
 
-/* Progress bar */
 .pa-bar-bg {
   height: 4px;
   background: #f3f4f6;
@@ -155,7 +149,6 @@
   &.wl-red    { background: #ef4444; }
 }
 
-/* Detail */
 .pa-detail {
   padding: 12px 16px 16px;
   border-top: 1px solid #f3f4f6;

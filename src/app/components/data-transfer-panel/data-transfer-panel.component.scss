@@ -10,7 +10,6 @@
   margin-bottom: 20px;
 }
 
-// ── Two-column grid ──────────────────────────────────────────────────────────
 .dt-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -22,7 +21,6 @@
   }
 }
 
-// ── Block ────────────────────────────────────────────────────────────────────
 .dt-block {
   border: 1px solid #d9e7ff;
   border-radius: 12px;
@@ -66,7 +64,6 @@
   &.dt-icon-import { background: #2e7d32; }
 }
 
-// ── Item list ────────────────────────────────────────────────────────────────
 .dt-list {
   list-style: none;
   padding: 0;
@@ -84,7 +81,7 @@
 .dt-list-info {
   li {
     &::before {
-      content: '→';
+      content: 'â†’';
       color: #7aa0d8;
       font-size: .72rem;
     }
@@ -106,7 +103,6 @@
   padding: 0 5px;
 }
 
-// ── Buttons ──────────────────────────────────────────────────────────────────
 .dt-btn {
   display: inline-flex;
   align-items: center;
@@ -137,7 +133,6 @@
   &:hover:not(:disabled) { background: #1b5e20; }
 }
 
-// ── Progress ─────────────────────────────────────────────────────────────────
 .dt-progress {
   display: flex;
   align-items: center;
@@ -161,7 +156,6 @@
   to { transform: rotate(360deg); }
 }
 
-// ── Errors summary ────────────────────────────────────────────────────────────
 .dt-erros {
   font-size: .74rem;
   color: #7a4a00;
@@ -186,7 +180,6 @@
   }
 }
 
-// ── Warning ──────────────────────────────────────────────────────────────────
 .dt-warning {
   font-size: .75rem;
   color: #7a5a00;

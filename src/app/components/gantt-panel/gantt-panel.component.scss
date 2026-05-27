@@ -1,6 +1,4 @@
-/* ─────────────────────────────────────────────────────────────────────────── */
-/*  Gantt Panel                                                                */
-/* ─────────────────────────────────────────────────────────────────────────── */
+
 
 $row-h     : 42px;
 $header-h  : 44px;
@@ -18,7 +16,6 @@ $surface   : #fff;
   position: relative;
 }
 
-/* ── Toolbar ─────────────────────────────────────────────────────────────── */
 .gp-toolbar {
   display: flex;
   flex-direction: column;
@@ -30,7 +27,6 @@ $surface   : #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
 
-/* Row layout */
 .gp-tb-row {
   display: flex;
   align-items: center;
@@ -81,7 +77,6 @@ $surface   : #fff;
   &:focus { outline: none; border-color: #1d63da; }
 }
 
-/* Controls row */
 .gp-tb-controls {
   background: #f8fbff;
   padding: 6px 16px;
@@ -114,7 +109,6 @@ $surface   : #fff;
   align-self: center;
 }
 
-/* ── Unified control pill (period + zoom in one container) ───────────────── */
 .gp-ctrl-pill {
   display: inline-flex;
   align-items: center;
@@ -134,7 +128,6 @@ $surface   : #fff;
   margin: 0 5px;
 }
 
-/* Segmented period buttons (work inside .gp-ctrl-pill) */
 .gp-seg-btn {
   display: inline-flex;
   align-items: center;
@@ -160,7 +153,6 @@ $surface   : #fff;
   }
 }
 
-/* Zoom step buttons */
 .gp-zoom-step {
   display: inline-flex;
   align-items: center;
@@ -199,7 +191,6 @@ $surface   : #fff;
   line-height: 1.4;
 }
 
-/* Marker controls */
 .gp-ctrl-marker-group { flex: 1; min-width: 0; }
 
 .gp-marker-row {
@@ -256,7 +247,6 @@ $surface   : #fff;
   &:disabled { opacity: .4; cursor: default; }
 }
 
-/* Primary action buttons */
 .gp-add-btn {
   display: inline-flex;
   align-items: center;
@@ -302,7 +292,6 @@ $surface   : #fff;
   &:disabled { opacity: .5; cursor: not-allowed; }
 }
 
-/* Spinning circle for loading state */
 .gp-export-spinner {
   display: inline-block;
   width: 14px;
@@ -318,7 +307,6 @@ $surface   : #fff;
   to { transform: rotate(360deg); }
 }
 
-/* ── Empty state ─────────────────────────────────────────────────────────── */
 .gp-empty-state {
   display: flex;
   flex-direction: column;
@@ -347,7 +335,6 @@ $surface   : #fff;
   &:hover { background: #1550b8; }
 }
 
-/* ── Stats row ───────────────────────────────────────────────────────────── */
 .gp-stats-row {
   display: flex;
   gap: 10px;
@@ -373,7 +360,6 @@ $surface   : #fff;
 .gp-stat-red    { background: linear-gradient(135deg,#fff1f1,#ffe4e4); color: #7a0000; border-color: #f5a4a4; }
 .gp-stat-purple { background: linear-gradient(135deg,#f6f0ff,#ede5ff); color: #3d1a7a; border-color: #c4a8f8; }
 
-/* ── Form cards ──────────────────────────────────────────────────────────── */
 .gp-form-card,
 .gp-edit-card {
   background: #f4f8ff;
@@ -385,7 +371,6 @@ $surface   : #fff;
   gap: 14px;
 }
 
-/* ── Modal system ────────────────────────────────────────────────────────── */
 @keyframes modal-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -416,7 +401,6 @@ $surface   : #fff;
   pointer-events: none;
 }
 
-/* Both .gp-form-card and .gp-edit-card share these base card styles */
 .gp-modal-card {
   pointer-events: all;
   display: flex;
@@ -440,7 +424,6 @@ $surface   : #fff;
   border: 1.5px solid #d0dcf8;
 }
 
-/* ── Modal header (gradient banner) ─────────────────────────────────────── */
 .gp-modal-header {
   display: flex;
   align-items: center;
@@ -475,7 +458,6 @@ $surface   : #fff;
   text-overflow: ellipsis;
 }
 
-/* ── Status badge in header ──────────────────────────────────────────────── */
 .gp-modal-status-badge {
   display: inline-flex;
   align-items: center;
@@ -495,7 +477,6 @@ $surface   : #fff;
   &.msb-sky   { background: rgba(14,165,233,.25); border-color: rgba(14,165,233,.5); color: #bae6fd; }
 }
 
-/* ── Close button ────────────────────────────────────────────────────────── */
 .gp-close-btn {
   display: inline-flex;
   align-items: center;
@@ -512,7 +493,6 @@ $surface   : #fff;
   &:hover { background: rgba(255,255,255,.24); }
 }
 
-/* ── Modal body (scrollable) ─────────────────────────────────────────────── */
 .gp-modal-body {
   flex: 1;
   overflow-y: auto;
@@ -522,7 +502,6 @@ $surface   : #fff;
   gap: 16px;
 }
 
-/* ── Modal footer (sticky) ───────────────────────────────────────────────── */
 .gp-modal-footer {
   flex-shrink: 0;
   display: flex;
@@ -536,7 +515,6 @@ $surface   : #fff;
 
 .gp-footer-spacer { flex: 1; min-width: 0; }
 
-/* ── Form title (kept for any leftover references) ───────────────────────── */
 .gp-form-title {
   margin: 0;
   font-size: .88rem;
@@ -711,7 +689,6 @@ $surface   : #fff;
   display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #dc2626; font-weight: 600;
 }
 
-/* ── Gantt container ─────────────────────────────────────────────────────── */
 .gp-gantt-outer {
   border: 1px solid $border;
   border-radius: 14px;
@@ -729,7 +706,6 @@ $surface   : #fff;
   z-index: 0;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────────── */
 .gp-gantt-header {
   display: flex;
   position: sticky;
@@ -889,7 +865,6 @@ $surface   : #fff;
   background: #d0dcf0;
 }
 
-/* ── Day-action popup (fixed — rendered at component root) ───────────────── */
 .gp-day-action-backdrop {
   position: fixed;
   inset: 0;
@@ -1025,7 +1000,6 @@ $surface   : #fff;
   &:focus { outline: none; border-color: #1d63da; background: #fff; }
 }
 
-/* ── Data rows ───────────────────────────────────────────────────────────── */
 .gp-gantt-row {
   display: flex;
   height: $row-h;
@@ -1039,7 +1013,6 @@ $surface   : #fff;
   &:last-child { border-bottom: none; }
 }
 
-/* ── Left col (sticky) ───────────────────────────────────────────────────── */
 .gp-lcol {
   display: flex;
   align-items: center;
@@ -1137,7 +1110,6 @@ $surface   : #fff;
   flex-shrink: 0;
 }
 
-/* ── Right col (timeline) ────────────────────────────────────────────────── */
 .gp-rcol {
   position: relative;
   flex-shrink: 0;
@@ -1149,7 +1121,6 @@ $surface   : #fff;
   height: $row-h;
 }
 
-/* ── Today line ──────────────────────────────────────────────────────────── */
 .gp-today-line {
   position: absolute;
   top: 0;
@@ -1230,13 +1201,11 @@ $surface   : #fff;
   padding: 0;
 }
 
-/* ── Right col overflow during drag ─────────────────────────────────────── */
 .gp-rcol-dragging {
   overflow: visible;
   z-index: 10;
 }
 
-/* ── Gantt bars ──────────────────────────────────────────────────────────── */
 .gp-bar {
   position: absolute;
   top: 50%;
@@ -1245,7 +1214,7 @@ $surface   : #fff;
   border-radius: 6px;
   display: flex;
   align-items: stretch;
-  overflow: visible;      // handles must poke outside
+  overflow: visible;      
   z-index: 3;
   min-width: 4px;
   user-select: none;
@@ -1254,14 +1223,12 @@ $surface   : #fff;
   &:hover .gp-bar-body { filter: brightness(1.1); }
 }
 
-/* Dragging state */
 .gp-bar-dragging {
   opacity: .85;
   box-shadow: 0 4px 20px rgba(0,0,0,.28);
   z-index: 20;
 }
 
-/* ── Bar body (the draggable center) ─────────────────────────────────────── */
 .gp-bar-body {
   flex: 1;
   display: flex;
@@ -1275,7 +1242,6 @@ $surface   : #fff;
   &:active { cursor: grabbing; }
 }
 
-/* ── Resize handles ──────────────────────────────────────────────────────── */
 .gp-bar-handle {
   flex-shrink: 0;
   width: 8px;
@@ -1287,7 +1253,7 @@ $surface   : #fff;
   position: relative;
   z-index: 5;
 
-  // Vertical grip lines
+  
   &::after {
     content: '';
     display: block;
@@ -1312,7 +1278,6 @@ $surface   : #fff;
   &:hover { background: rgba(0,0,0,.30); }
 }
 
-/* Progress fill (darker inner bar) */
 .gp-bar-fill {
   position: absolute;
   left: 0; top: 0; bottom: 0;
@@ -1336,7 +1301,6 @@ $surface   : #fff;
   pointer-events: none;
 }
 
-/* Bar color variants — applied on the outer .gp-bar wrapper */
 .gb-green .gp-bar-body { background: linear-gradient(90deg, #16a34a, #22c55e); }
 .gb-blue  .gp-bar-body { background: linear-gradient(90deg, #1d63da, #4a8ef5); }
 .gb-red   .gp-bar-body { background: linear-gradient(90deg, #dc2626, #f87171); }
@@ -1349,14 +1313,12 @@ $surface   : #fff;
 .gb-gray  .gp-bar-handle { background-color: rgba(0,0,0,.18); }
 .gb-sky   .gp-bar-handle { background-color: rgba(0,0,0,.18); }
 
-/* Custom color — uses CSS var set via [style.--bar-custom-color] */
 .gb-custom .gp-bar-body {
   background: var(--bar-custom-color, #1d63da);
   filter: brightness(1.08);
 }
 .gb-custom .gp-bar-handle { background-color: rgba(0,0,0,.22); }
 
-/* ── Color picker UI ─────────────────────────────────────────────────────── */
 .gp-color-row {
   display: flex;
   flex-wrap: wrap;
@@ -1391,7 +1353,6 @@ $surface   : #fff;
   }
 }
 
-/* "No color" / reset swatch */
 .gp-color-swatch-none {
   background: #f1f5ff;
   border-color: #c8d8fb;
@@ -1408,7 +1369,6 @@ $surface   : #fff;
   }
 }
 
-/* ── Drag tooltip ────────────────────────────────────────────────────────── */
 .gp-drag-tooltip {
   position: absolute;
   top: -26px;
@@ -1438,7 +1398,6 @@ $surface   : #fff;
   }
 }
 
-/* Row cursor override while dragging any bar */
 .gp-row-dragging {
   cursor: grabbing;
   .gp-lcol { pointer-events: none; }
@@ -1454,18 +1413,17 @@ $surface   : #fff;
   font-style: italic;
 }
 
-/* ── Embedded mode overrides ─────────────────────────────────────────────── */
 .gp-wrap.gp-embedded {
   padding: 0;
 
-  /* Gantt outer: no fixed max-height — the page scroll handles it */
+  
   .gp-gantt-outer {
     max-height: none;
     overflow-y: visible;
     border-radius: 10px;
   }
 
-  /* Compact toolbar */
+  
   .gp-toolbar-embed {
     background: linear-gradient(90deg, #f0f5ff, #eaf1ff);
     border: 1px solid #c8d8fb;
@@ -1475,7 +1433,6 @@ $surface   : #fff;
   }
 }
 
-/* Project name badge inside embedded toolbar */
 .gp-proj-badge {
   font-size: .72rem;
   font-weight: 700;
@@ -1494,7 +1451,6 @@ $surface   : #fff;
   font-size: 1rem;
 }
 
-/* ── Non-working day bands (weekends = light gray, holidays = amber) ────────── */
 .gp-nonwork-band {
   position: absolute;
   top: 0;
@@ -1517,7 +1473,6 @@ $surface   : #fff;
   &.gp-holiday-row-band { background: rgba(217, 119, 6, .07); }
 }
 
-/* ── Date warning banner ────────────────────────────────────────────────────── */
 .gp-date-warning {
   display: flex;
   align-items: center;
@@ -1558,7 +1513,6 @@ $surface   : #fff;
   font-weight: 700;
 }
 
-
 .gp-marker-pill-remove {
   border: none;
   background: #dce8ff;
@@ -1572,7 +1526,6 @@ $surface   : #fff;
   padding: 0;
 }
 
-/* ── Overdue chip in gantt row ──────────────────────────────────────────────── */
 .gr-overdue-chip {
   display: inline-flex;
   align-items: center;
@@ -1593,7 +1546,6 @@ $surface   : #fff;
   50%       { opacity: .65; }
 }
 
-/* ── Predecessor search + multi-select ─────────────────────────────────────── */
 .gp-pred-search-wrap {
   display: flex;
   align-items: center;
@@ -1697,7 +1649,6 @@ $surface   : #fff;
   font-style: italic;
 }
 
-/* ── Day-of-week picker ─────────────────────────────────────────────────────── */
 .gp-dow-picker {
   display: inline-flex;
   gap: 4px;
@@ -1737,7 +1688,6 @@ $surface   : #fff;
   font-style: italic;
 }
 
-/* ── Etapas badge in gantt row ──────────────────────────────────────────────── */
 .gr-name-line {
   display: flex;
   align-items: center;
@@ -1766,7 +1716,6 @@ $surface   : #fff;
   }
 }
 
-/* ── Etapas section in edit modal ───────────────────────────────────────────── */
 .gp-etapas-section {
   border-top: 1px solid #d8e6ff;
   padding-top: 14px;

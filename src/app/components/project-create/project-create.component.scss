@@ -43,7 +43,6 @@
   pointer-events: none;
 }
 
-/* Remove spinner para evitar visual quebrado em alguns browsers */
 .percent-input::-webkit-outer-spin-button,
 .percent-input::-webkit-inner-spin-button {
   -webkit-appearance: none;

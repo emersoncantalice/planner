@@ -14,6 +14,7 @@ export class PersonAllocationPanelComponent {
   @Input() alocacoes: any[] = [];
   @Input() linhasOrcamentarias: any[] = [];
   @Input() horasMes: any[] = [];
+  @Input() pessoas: any[] = [];
   @Output() openAllocation = new EventEmitter<{ loId: string; ano: number }>();
 
   searchTerm = '';
@@ -36,19 +37,29 @@ export class PersonAllocationPanelComponent {
 
     const map = new Map<string, PessoaRow>();
     const idsAno = new Set(this.linhasOrcamentarias.filter((lo: any) => Number(lo?.ano) === Number(this.anoSelecionado)).map((lo: any) => lo.id));
+    const buildEmptyRow = (nome: string): PessoaRow => ({
+      nomePessoa: nome,
+      picoPercentual: 0,
+      totalHorasAno: 0,
+      totalValorAno: 0,
+      meses: this.meses.map((m, i) => ({
+        mes: m, monthIndex: i, alocado: false,
+        loId: '', loLabel: '-', percentual: 0,
+        horas: this.getHorasMesByIndex(i), linhas: []
+      }))
+    });
+
+    for (const p of this.pessoas) {
+      const nome = String(p?.nome || '').trim();
+      if (!nome) continue;
+      if (!map.has(nome)) map.set(nome, buildEmptyRow(nome));
+    }
 
     for (const a of this.alocacoes) {
       if (!idsAno.has(a?.linhaOrcamentariaId)) continue;
       const nome = String(a?.nomePessoa || '').trim();
       if (!nome) continue;
-      if (!map.has(nome)) {
-        const meses: MesInfo[] = this.meses.map((m, i) => ({
-          mes: m, monthIndex: i, alocado: false,
-          loId: '', loLabel: '-', percentual: 0,
-          horas: this.getHorasMesByIndex(i), linhas: []
-        }));
-        map.set(nome, { nomePessoa: nome, picoPercentual: 0, totalHorasAno: 0, totalValorAno: 0, meses });
-      }
+      if (!map.has(nome)) map.set(nome, buildEmptyRow(nome));
     }
 
     for (const row of map.values()) {
@@ -57,16 +68,16 @@ export class PersonAllocationPanelComponent {
       );
 
       for (let month = 0; month < 12; month++) {
-        // Candidatas: ativas (não canceladas, percentual > 0)
+        
         const candidatas = alocsPessoaAno
           .filter((a: any) => !this.isCancelado(a.id, month))
           .filter((a: any) => this.getPercentualEfetivoMes(a.id, month) > 0);
 
         if (!candidatas.length) continue;
 
-        // Aplica prioridade por ordem do array (igual ao budget panel):
-        //   pago em qualquer linha → essa linha tem controle exclusivo
-        //   senão → soma em ordem até 100%
+        
+        
+        
         const pagas = candidatas.filter((a: any) => this.isPago(a.id, month));
         let linhas: Linha[];
         if (pagas.length > 0) {
@@ -104,7 +115,7 @@ export class PersonAllocationPanelComponent {
 
         row.picoPercentual = Math.max(row.picoPercentual, percentualTotal);
         row.totalHorasAno += this.getHorasMesByIndex(month);
-        // Valor usando o percentual efetivo com prioridade (não o raw da LO bloqueada)
+        
         row.totalValorAno += linhas.reduce((sum, l) => {
           const a = candidatas.find((c: any) => c.linhaOrcamentariaId === l.loId);
           if (!a) return sum;
@@ -136,7 +147,6 @@ export class PersonAllocationPanelComponent {
     if (!mes?.loId) return;
     this.openAllocation.emit({ loId: mes.loId, ano: this.anoSelecionado });
   }
-
 
   private getPercentual(allocationId: string): number {
     const raw = localStorage.getItem(`planner_lo_alloc_${allocationId}`);

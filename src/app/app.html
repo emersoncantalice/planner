@@ -1,10 +1,10 @@
-﻿<!-- Toast container global -->
+
 @if (toast.toasts().length) {
   <div class="toast-container" aria-live="polite">
     @for (t of toast.toasts(); track t.id) {
       <div class="toast-item" [class]="'toast-' + t.type">
 
-        <!-- Cabeçalho -->
+        
         <div class="toast-header">
           <span class="toast-title">
             @if (t.onSelectFile) {
@@ -18,7 +18,7 @@
           <button class="toast-close" (click)="toast.dismiss(t.id)" aria-label="Fechar">×</button>
         </div>
 
-        <!-- Corpo: modo CSV -->
+        
         @if (t.onSelectFile) {
           <div class="toast-body">
             <p class="toast-label">Formato (1 linha por item):</p>
@@ -42,7 +42,7 @@
             </button>
           </div>
 
-        <!-- Corpo: modo simples -->
+        
         } @else {
           <div class="toast-body">
             <pre class="toast-msg">{{ t.message }}</pre>
@@ -89,12 +89,12 @@
 } @else {
 <main class="app-shell" [class.mobile-sidebar-open]="mobileSidebarOpen()">
 
-  <!-- Mobile hamburger ──────────────────────────────────────────────────── -->
+  
   <button class="mobile-menu-btn" (click)="toggleMobileSidebar()" [class.open]="mobileSidebarOpen()" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
 
-  <!-- Mobile overlay ────────────────────────────────────────────────────── -->
+  
   @if (mobileSidebarOpen()) {
     <div class="mobile-overlay" (click)="toggleMobileSidebar()"></div>
   }
@@ -124,7 +124,7 @@
           <span class="sb-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3 13h8v8H3zm10-10h8v18h-8zM3 3h8v8H3z"/></svg>
           </span>
-          <span class="sb-text"><strong>Cookpit</strong></span>
+          <span class="sb-text"><strong>Cockpit</strong></span>
         </a>
         <a [class.active]="secaoAtiva() === 'projetos'" (click)="selecionarSecao('projetos')" title="Projetos">
           <span class="sb-icon" aria-hidden="true">
@@ -300,56 +300,56 @@
               <p class="sb-flyout-label">Cadastros</p>
               <a [class.active]="secaoAtiva() === 'perfis'" (click)="selecionarSecao('perfis')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- Perfis: pessoa com badge -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/></svg>
                 </span>
                 <span>Perfis</span>
               </a>
               <a [class.active]="secaoAtiva() === 'orcamento'" (click)="selecionarSecao('orcamento')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- LO: cifrão / orçamento -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
                 </span>
                 <span>LO</span>
               </a>
               <a [class.active]="secaoAtiva() === 'epicos'" (click)="selecionarSecao('epicos')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- BEs: raio / épico -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
                 </span>
                 <span>BEs</span>
               </a>
               <a [class.active]="secaoAtiva() === 'pessoas'" (click)="selecionarSecao('pessoas')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- Pessoas: grupo -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
                 </span>
                 <span>Pessoas</span>
               </a>
               <a [class.active]="secaoAtiva() === 'prestadores'" (click)="selecionarSecao('prestadores')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- Prestadores: prédio / empresa -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
                 </span>
                 <span>Prestadores</span>
               </a>
               <a [class.active]="secaoAtiva() === 'pontos_focais'" (click)="selecionarSecao('pontos_focais')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- Pontos focais: alvo / pin -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                 </span>
                 <span>Pontos focais</span>
               </a>
               <a [class.active]="secaoAtiva() === 'horas_mes'" (click)="selecionarSecao('horas_mes')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- Horas/Mês: relógio -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
                 </span>
                 <span>Horas/Mês</span>
               </a>
               <a [class.active]="secaoAtiva() === 'feriados'" (click)="selecionarSecao('feriados')">
                 <span class="sb-subicon" aria-hidden="true">
-                  <!-- Feriados: calendário -->
+                  
                   <svg viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
                 </span>
                 <span>Feriados</span>
@@ -600,6 +600,7 @@
           [linhasOrcamentarias]="linhasOrcamentarias()"
           [horasMes]="horasMes()"
           [alocacoes]="alocacoesLo()"
+          [pessoas]="pessoas()"
           (openAllocation)="abrirAbaAlocacoesLo($event)"></app-person-allocation-panel>
       }
       @if (secaoAtiva() === 'pessoas_atividade') {
@@ -617,32 +618,38 @@
           [riscos]="riscos()"
           [pessoas]="pessoas()"
           [focoRiscoId]="riscoEmFocoId()"
+          [currentUser]="usuario()"
           (create)="criarRiscoGlobal($event)"
           (update)="atualizarRiscoGlobal($event)"
           (updateStatus)="updateRiscoGlobalStatus($event)"
           (postpone)="adiarRiscoGlobal($event)"
           (remove)="excluirRiscoGlobal($event)"
-          (importCsv)="importarRiscosCsv($event)">
+          (importCsv)="importarRiscosCsv($event)"
+          (transferOwnership)="transferirDonoRisco($event)">
         </app-risk-panel>
       }
       @if (secaoAtiva() === 'incidentes') {
         <app-incident-panel
           [incidentes]="incidentes()"
           [pessoas]="pessoas()"
+          [currentUser]="usuario()"
           (create)="criarIncidente($event)"
           (update)="atualizarIncidente($event)"
           (importCsv)="importarIncidentesCsv($event)"
-          (remove)="excluirIncidente($event)">
+          (remove)="excluirIncidente($event)"
+          (transferOwnership)="transferirDonoIncidente($event)">
         </app-incident-panel>
       }
       @if (secaoAtiva() === 'debitos_tecnicos') {
         <app-technical-debt-panel
           [debitos]="debitosTecnicos()"
           [pessoas]="pessoas()"
+          [currentUser]="usuario()"
           (create)="criarDebitoTecnico($event)"
           (update)="atualizarDebitoTecnico($event)"
           (remove)="excluirDebitoTecnico($event)"
-          (importCsv)="importarDebitosCsv($event)">
+          (importCsv)="importarDebitosCsv($event)"
+          (transferOwnership)="transferirDonoDebito($event)">
         </app-technical-debt-panel>
       }
       @if (secaoAtiva() === 'indicadores') {
@@ -650,6 +657,7 @@
           [indicadores]="indicadores()"
           [pessoas]="pessoas()"
           [isAdmin]="isAdmin()"
+          [currentUser]="usuario()"
           (create)="criarIndicador($event)"
           (update)="atualizarIndicador($event)"
           (remove)="excluirIndicador($event)"
@@ -658,7 +666,8 @@
           (removeCycle)="excluirCicloIndicador($event)"
           (addAction)="adicionarAcaoIndicador($event)"
           (updateAction)="atualizarAcaoIndicador($event)"
-          (removeAction)="excluirAcaoIndicador($event)">
+          (removeAction)="excluirAcaoIndicador($event)"
+          (transferOwnership)="transferirDonoIndicador($event)">
         </app-indicators-panel>
       }
       @if (secaoAtiva() === 'usuarios' && isAdmin()) {
@@ -673,6 +682,8 @@
           [pontosFocais]="pontosFocais()"
           [linhasOrcamentarias]="linhasOrcamentarias()"
           [alocacoes]="alocacoesLo()"
+          [pagamentos]="pagamentosAlocacao()"
+          [estadosMensais]="estadosMensaisAlocacao()"
           [horasMes]="horasMes()"
           [businessEpics]="businessEpics()"
           (imported)="inicializarSessao()">
@@ -695,20 +706,17 @@
         [projeto]="projetoSelecionado()"
         [perfis]="perfis()"
         [pessoas]="pessoas()"
+        [usuariosSistema]="usuariosSistema()"
         [token]="token()"
+        [currentUser]="usuario()"
         (addScheduleItem)="addCronograma($event)"
         (updateScheduleItem)="updateCronograma($event)"
         (deleteScheduleItem)="excluirAtividadeCronograma($event)"
-        (logReplanejamento)="registrarReplanejamento($event)">
+        (logReplanejamento)="registrarReplanejamento($event)"
+        (transferOwnership)="transferirDonoProjeto($event)">
       </app-project-detail>
     }
   </section>
 </main>
 }
-
-
-
-
-
-
 

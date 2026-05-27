@@ -182,18 +182,18 @@ export class OverviewListComponent {
     const freeText   = (detailsIdx >= 0 ? raw.slice(0, detailsIdx) : raw).trim();
     const detailsText = detailsIdx >= 0 ? raw.slice(detailsIdx) : '';
 
-    // LO: "LO vinculada: CODIGO - Nome"
+    
     const loStr  = this.parseDetailLine(detailsText, 'LO vinculada');
     const loCode = loStr.split(' - ')[0]?.trim() ?? '';
     const lo     = this.linhasOrcamentarias.find((x: any) => x.codigo === loCode);
 
-    // Business Epic: search block after "Business Epic"
+    
     const epicIdx  = raw.indexOf('Business Epic');
     const epicText = epicIdx >= 0 ? raw.slice(epicIdx) : '';
     const epicName = this.parsePlainLine(epicText, 'Nome');
     const epic     = this.businessEpics.find((x: any) => x.nome === epicName);
 
-    // percentualLo: "Percentual da LO: X%"
+    
     const pctStr    = this.parseDetailLine(detailsText, 'Percentual da LO').replace('%', '').trim();
     const percentualLo = pctStr ? (parseFloat(pctStr) || null) : null;
 

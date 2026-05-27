@@ -5,7 +5,6 @@
   gap: 1.5rem;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────── */
 .acc-header {
   display: flex;
   align-items: center;
@@ -38,7 +37,6 @@
   margin: 0;
 }
 
-/* ── Profile summary card ─────────────────────────────────────────────── */
 .acc-profile-card {
   display: flex;
   align-items: center;
@@ -93,7 +91,6 @@
   svg { width: .85rem; height: .85rem; fill: currentColor; flex-shrink: 0; }
 }
 
-/* ── Sections ─────────────────────────────────────────────────────────── */
 .acc-section {
   border: 1px solid #d8e6ff;
   border-radius: .75rem;
@@ -123,7 +120,6 @@
   gap: 1rem;
 }
 
-/* ── Form grid ────────────────────────────────────────────────────────── */
 .acc-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -161,7 +157,6 @@
 
 .acc-field-full { grid-column: 1 / -1; }
 
-/* Input with leading icon */
 .acc-input-icon {
   position: relative;
   display: flex;
@@ -180,14 +175,12 @@
   input { padding-left: 2.2rem; }
 }
 
-/* ── Section actions ──────────────────────────────────────────────────── */
 .acc-section-actions {
   display: flex;
   gap: .6rem;
   flex-wrap: wrap;
 }
 
-/* ── Buttons ──────────────────────────────────────────────────────────── */
 .acc-btn {
   display: inline-flex;
   align-items: center;
@@ -209,7 +202,6 @@
 .acc-btn-primary { background: #1d63da; color: #fff; }
 .acc-btn-sec     { background: #eef4ff; color: #3a5a9a; border: 1px solid #c3d9ff; }
 
-/* ── Feedback messages ────────────────────────────────────────────────── */
 .acc-feedback {
   display: flex;
   align-items: center;
@@ -234,7 +226,6 @@
   border: 1px solid #86e5b0;
 }
 
-/* ── Photo section ────────────────────────────────────────────────────── */
 .acc-photo-row {
   display: flex;
   align-items: center;
@@ -296,7 +287,6 @@
   white-space: nowrap;
 }
 
-/* ── Cropper ──────────────────────────────────────────────────────────── */
 .acc-cropper {
   display: flex;
   align-items: flex-start;

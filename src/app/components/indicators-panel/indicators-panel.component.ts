@@ -22,6 +22,25 @@ export class IndicatorsPanelComponent {
   @Output() addAction     = new EventEmitter<{ indicatorId: string; payload: any }>();
   @Output() updateAction  = new EventEmitter<{ indicatorId: string; actionId: string; payload: any }>();
   @Output() removeAction  = new EventEmitter<{ indicatorId: string; actionId: string }>();
+  @Input()  currentUser = '';
+  @Output() transferOwnership = new EventEmitter<{ id: string; novoDono: string }>();
+
+  transferId    = '';
+  transferInput = '';
+
+  isDono(item: any): boolean {
+    const role = (localStorage.getItem('planner_role') || '').trim();
+    if (role === 'ADMIN' || this.isAdmin) return true;
+    if (!item?.criadoPor) return true;
+    return item.criadoPor.toLowerCase() === (this.currentUser || '').toLowerCase();
+  }
+  iniciarTransferencia(id: string) { this.transferId = id; this.transferInput = ''; }
+  cancelarTransferencia()           { this.transferId = ''; this.transferInput = ''; }
+  confirmarTransferencia()          {
+    if (!this.transferInput.trim()) return;
+    this.transferOwnership.emit({ id: this.transferId, novoDono: this.transferInput.trim() });
+    this.cancelarTransferencia();
+  }
 
   // ── view state ────────────────────────────────────────────────────────────
   selectedId    = '';

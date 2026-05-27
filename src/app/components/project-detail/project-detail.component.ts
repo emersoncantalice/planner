@@ -1,4 +1,5 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { GanttPanelComponent } from '../gantt-panel/gantt-panel.component';
 
@@ -16,7 +17,7 @@ interface ReplanEvent {
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, GanttPanelComponent],
+  imports: [CommonModule, FormsModule, GanttPanelComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './project-detail.component.html',
   styleUrl: './project-detail.component.scss'
@@ -25,7 +26,9 @@ export class ProjectDetailComponent implements OnChanges {
   @Input() projeto: any = null;
   @Input() perfis: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() usuariosSistema: string[] = [];
   @Input() token = '';
+  @Input() currentUser = '';
   @Output() addScheduleItem    = new EventEmitter<{ titulo: string; descricao: string; inicioPlanejado: string | null; fimPlanejado: string | null; permiteParalelo: boolean }>();
   @Output() updateScheduleItem = new EventEmitter<{ itemId: string; titulo?: string; descricao?: string; inicioPlanejado?: string | null; fimPlanejado?: string | null; permiteParalelo?: boolean; status?: string }>();
   @Output() deleteScheduleItem = new EventEmitter<string>();
@@ -38,6 +41,34 @@ export class ProjectDetailComponent implements OnChanges {
     inicioNovo: string;
     fimNovo: string;
   }>();
+  @Output() transferOwnership = new EventEmitter<{ id: string; novoDono: string }>();
+
+  donoModalAberto = false;
+  donoNovoInput   = '';
+
+  isDonoDoProjeto(): boolean {
+    const role = (localStorage.getItem('planner_role') || '').trim();
+    if (role === 'ADMIN') return true;
+    if (!this.projeto?.donoProjeto) return true;
+    return this.projeto.donoProjeto.toLowerCase() === (this.currentUser || '').toLowerCase();
+  }
+
+  abrirDonoModal()  { this.donoNovoInput = ''; this.donoModalAberto = true; }
+  fecharDonoModal() { this.donoModalAberto = false; this.donoNovoInput = ''; }
+  selecionarNovoDono(username: string) { this.donoNovoInput = username; }
+
+  usuariosSugeridos(): string[] {
+    const base = (this.usuariosSistema || []).filter(Boolean);
+    const q = (this.donoNovoInput || '').trim().toLowerCase();
+    if (!q) return base;
+    return base.filter(u => u.toLowerCase().includes(q));
+  }
+
+  confirmarTransferenciaProjeto() {
+    if (!this.donoNovoInput.trim() || !this.projeto?.id) return;
+    this.transferOwnership.emit({ id: this.projeto.id, novoDono: this.donoNovoInput.trim() });
+    this.fecharDonoModal();
+  }
 
   visibleReplanCount = 5;
 

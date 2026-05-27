@@ -1,4 +1,4 @@
-﻿import {
+import {
   ChangeDetectorRef,
   Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter,
   inject, Input, NgZone, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild
@@ -9,7 +9,7 @@ import { dateToYmd } from '../../core/business-days';
 import { FeriadosService } from '../../core/feriados.service';
 import { PlannerApiService } from '../../core/planner-api.service';
 
-  // ---
+  
 type GStatus = 'PLANEJADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'ATRASADO' | 'BLOQUEADO';
 type DragType = 'move' | 'resize-left' | 'resize-right';
 
@@ -35,7 +35,7 @@ interface DragPreview {
 interface TimelineMarker {
   id: string;
   label: string;
-  date: string; // yyyy-mm-dd
+  date: string; 
   description?: string;
 }
 type TimelineHeader = { label: string; left: number; width: number; isFirst: boolean; showLabel?: boolean; isMonthStart?: boolean; isoDate?: string };
@@ -61,7 +61,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   @Input() embedded = false;
   @Input() token = '';
 
-  // ── Gantt API persistence ─────────────────────────────────────────────────
+  
   private _metaCache: Record<string, { responsavel: string; pct: number }> = {};
   private _apiSaveTimer: any = null;
 
@@ -79,7 +79,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     fimNovo: string;
   }>();
 
-  // ---
+  
   projetoId        = '';
   formVisible      = false;
   editingItem: any  = null;
@@ -111,17 +111,14 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     { value: '#0d9488', label: 'Verde-água' },
   ];
 
-  /** 15-color palette for automatic sequential assignment (no status dependency) */
+  
   readonly autoPalette: string[] = [
     '#1d63da', '#16a34a', '#d97706', '#7c3aed', '#0ea5e9',
     '#db2777', '#ea580c', '#0d9488', '#6366f1', '#059669',
     '#b45309', '#0891b2', '#65a30d', '#c026d3', '#0f766e',
   ];
 
-  /**
-   * Returns the bar fill color for a given activity.
-   * Priority: user's custom color → auto-palette by row index.
-   */
+  
   autoBarColor(item: any, index: number): string {
     if (item.cor) return item.cor;
     return this.autoPalette[index % this.autoPalette.length];
@@ -134,7 +131,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   dayActionOpen = false;
   dayActionDate = '';
   dayActionLeft = 0;
-  /** Viewport-relative coordinates for the fixed popup */
+  
   dayActionFixedLeft = 0;
   dayActionFixedTop  = 0;
 
@@ -143,12 +140,12 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   timelineHovered = false;
   selectedTimelineDate = '';
 
-  // ---
+  
   dragState:   DragState   | null = null;
   dragPreview: DragPreview | null = null;
   private _justDragged = false;
 
-  /** Element references captured at drag-start for direct DOM updates during drag */
+  
   private _dragBarEl:     HTMLElement | null = null;
   private _dragTooltipEl: HTMLElement | null = null;
 
@@ -159,7 +156,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   ngOnChanges(c: SimpleChanges) {
     if (c['projetoSelecionado'] && this.projetoSelecionado) {
       this.projetoId = this.projetoSelecionado.id ?? this.projetoId;
-      this._metaCache = {};   // clear cache for new project
+      this._metaCache = {};   
       this.loadMarkers();
     }
   }
@@ -169,10 +166,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this._removeListeners();
   }
 
-  // ---
+  
   onBarMouseDown(event: MouseEvent, item: any, type: DragType) {
     event.preventDefault();
-    event.stopPropagation(); // don't trigger row click / startEdit
+    event.stopPropagation(); 
 
     if (!item.inicioPlanejado || !item.fimPlanejado) return;
 
@@ -182,11 +179,11 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.dragState   = { type, item, startX: event.clientX, origStart, origEnd };
     this.dragPreview = { itemId: item.id, start: new Date(origStart), end: new Date(origEnd) };
 
-    // Capture the bar element now so _onMouseMove can update it directly
+    
     this._dragBarEl     = (event.target as HTMLElement).closest('.gp-bar') as HTMLElement | null;
-    this._dragTooltipEl = null; // resolved lazily on first mousemove (tooltip rendered after CD)
+    this._dragTooltipEl = null; 
 
-  // ---
+  
     this.zone.runOutsideAngular(() => {
       document.addEventListener('mousemove', this._onMouseMoveBound);
       document.addEventListener('mouseup',   this._onMouseUpBound);
@@ -198,7 +195,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
     const deltaX     = event.clientX - this.dragState.startX;
     const dayMs      = 86_400_000;
-    // Snap to whole days — no fractional positioning
+    
     const snappedDays = Math.round(deltaX / this.PX_PER_DAY);
 
     const { type, origStart, origEnd } = this.dragState;
@@ -207,11 +204,11 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
     const dowConstraint = this.extractDowConstraint(this.dragState.item.descricao || '');
     if (type === 'move') {
-      // Move start candidate, snap to next valid day (business + DOW constraint)
+      
       const candStart = new Date(origStart.getTime() + snappedDays * dayMs);
       candStart.setHours(0, 0, 0, 0);
       const snappedStart = this.nextValidDay(candStart, dowConstraint);
-      // Preserve original duration — shift end by the same real offset
+      
       const offsetMs = snappedStart.getTime() - origStart.getTime();
       newStart = snappedStart;
       newEnd   = new Date(origEnd.getTime() + offsetMs);
@@ -220,7 +217,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       const candStart = new Date(origStart.getTime() + snappedDays * dayMs);
       candStart.setHours(0, 0, 0, 0);
       newStart = this.nextValidDay(candStart, dowConstraint);
-      // Must stay at least 1 day before end
+      
       const minEnd = new Date(newEnd.getTime() - dayMs);
       minEnd.setHours(0, 0, 0, 0);
       if (newStart >= newEnd) newStart = this.nextValidDay(minEnd, dowConstraint);
@@ -228,17 +225,17 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       const candEnd = new Date(origEnd.getTime() + snappedDays * dayMs);
       candEnd.setHours(0, 0, 0, 0);
       newEnd = this.feriados.nextBusinessDay(candEnd);
-      // Must be at least 1 day after start
+      
       if (newEnd <= newStart) newEnd = this.feriados.nextBusinessDay(new Date(newStart.getTime() + dayMs));
     }
 
-    // Keep model in sync for mouseup
+    
     this.dragPreview = { itemId: this.dragState.item.id, start: newStart, end: newEnd };
 
-    // --- Direct DOM update: bypasses Angular CD entirely → frame-perfect response ---
+    
     const r = this.dateRange();
     if (r && this._dragBarEl) {
-      // Integer day-index for pixel-perfect grid alignment
+      
       const startDayIdx = Math.round((newStart.getTime() - r.min.getTime()) / dayMs);
       const endDayIdx   = Math.round((newEnd.getTime()   - r.min.getTime()) / dayMs);
       const left        = Math.max(0, startDayIdx * this.PX_PER_DAY);
@@ -248,7 +245,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       this._dragBarEl.style.left  = `${left}px`;
       this._dragBarEl.style.width = `${width}px`;
 
-      // Tooltip is rendered by Angular after mousedown CD — find it lazily
+      
       if (!this._dragTooltipEl) {
         this._dragTooltipEl =
           this._dragBarEl.parentElement?.querySelector('.gp-drag-tooltip') as HTMLElement | null;
@@ -264,7 +261,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   private _onMouseUp(event: MouseEvent) {
     this._removeListeners();
-    // Save before nulling — needed for visual rollback on conflict
+    
     const savedBarEl     = this._dragBarEl;
     const savedTooltipEl = this._dragTooltipEl;
     this._dragBarEl     = null;
@@ -280,7 +277,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     const { item, origStart, origEnd, type: dragType } = this.dragState;
     let { start, end } = this.dragPreview;
 
-  // ---
+  
     const deltaX    = event.clientX - this.dragState.startX;
     const moved     = Math.abs(deltaX) >= 2;
 
@@ -290,7 +287,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (moved) {
       this._justDragged = true;
 
-  // ---
+  
       const fixed = this.normalizeRangeToBusinessDays(start, end);
       start = fixed.start;
       end   = fixed.end;
@@ -302,7 +299,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         item.id
       );
       if (conflito) {
-        // Roll back bar to its original position visually (inline styles bypass Angular CD)
+        
         if (savedBarEl) {
           const r = this.dateRange();
           if (r) {
@@ -329,8 +326,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         : 'REDIMENSIONAR_FIM';
 
       this.zone.run(() => {
-  // ---
-  // ---
+  
+  
         this.updateScheduleItem.emit({
           itemId:          item.id,
           inicioPlanejado: `${dateToYmd(start)}T12:00:00Z`,
@@ -358,7 +355,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     document.removeEventListener('mouseup',   this._onMouseUpBound);
   }
 
-  /** Returns live (drag-adjusted) dates for a given item. */
+  
   private _effectiveDates(item: any): { start: Date; end: Date } | null {
     if (!item.inicioPlanejado || !item.fimPlanejado) return null;
     const preview = this.dragPreview;
@@ -370,22 +367,22 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return { start: s, end: e };
   }
 
-  /** Text shown in the drag tooltip (date range). */
+  
   dragTooltipFor(item: any): string {
     const preview = this.dragPreview;
     if (!preview || preview.itemId !== item.id) return '';
     return `${preview.start.toLocaleDateString('pt-BR')} → ${preview.end.toLocaleDateString('pt-BR')}`;
   }
 
-  // ---
+  
   onRowClick(item: any) {
     if (this._justDragged) { this._justDragged = false; return; }
     this.startEdit(item);
   }
 
-  // ---
-  // ---
-  // ---
+  
+  
+  
 
   private emptyForm() {
     return {
@@ -398,7 +395,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     };
   }
 
-  // ---
+  
   private readonly ET_TAG     = '##ETAPAS:';
   private readonly ET_TAG_END = '##';
 
@@ -424,18 +421,18 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   etapasDoneCount(etapas: Etapa[]): number { return etapas.filter(e => e.done).length; }
   toggleEtapa(etapa: Etapa)                { etapa.done = !etapa.done; }
 
-  /** Percentage derived from etapas (0–100), or 0 if no etapas */
+  
   etapasPct(etapas: Etapa[]): number {
     if (!etapas.length) return 0;
     return Math.round((etapas.filter(e => e.done).length / etapas.length) * 100);
   }
 
-  /** Effective % for the edit form: auto from etapas if any, otherwise manual slider value */
+  
   get editFormEffectivePct(): number {
     return this.editForm.etapas.length ? this.etapasPct(this.editForm.etapas) : this.editForm.pct;
   }
 
-  /** Effective % for a Gantt row: auto from etapas if any, otherwise stored meta value */
+  
   effectivePct(item: any): number {
     const etapas = this.extractEtapas(item.descricao ?? '');
     if (etapas.length) return this.etapasPct(etapas);
@@ -453,7 +450,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.editForm.etapas = this.editForm.etapas.filter(e => e.id !== etapa.id);
   }
 
-  // ---
+  
   validateDate(form: any, field: 'inicioPlanejado' | 'fimPlanejado') {
     this.dateWarning = '';
     const v = form[field];
@@ -474,7 +471,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return { start: s, end: e };
   }
 
-  // ---
+  
   onProjetoChange(id: string) {
     this.projetoId   = id;
     this.editingItem = null;
@@ -485,7 +482,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   atividades(): any[]         { return this.projetoSelecionado?.cronograma ?? []; }
   atividadesComDatas(): any[] { return this.atividades().filter((a: any) => a.inicioPlanejado && a.fimPlanejado); }
 
-  // ---
+  
   dateRange(): { min: Date; max: Date; totalDays: number } | null {
     const itens  = this.atividadesComDatas();
     if (!itens.length) return null;
@@ -529,7 +526,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     }
   }
 
-  // ---
+  
   dayHeaders(): TimelineHeader[] {
     const r = this.dateRange();
     if (!r) return [];
@@ -614,7 +611,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return this.dayHeaders();
   }
 
-  // ---
+  
   nonWorkingBands(): Array<{ left: number; isHoliday: boolean }> {
     const r = this.dateRange();
     if (!r) return [];
@@ -625,7 +622,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     });
   }
 
-  // ---
+  
   weekTicks(): Array<{ left: number; label: string }> {
     const r = this.dateRange();
     if (!r) return [];
@@ -641,7 +638,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return ticks;
   }
 
-  // ---
+  
   todayLeft(): number {
     const r = this.dateRange();
     if (!r) return -1;
@@ -656,7 +653,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   loadMarkers() {
-    // 1. Load from localStorage as immediate fallback
+    
     try {
       const raw = localStorage.getItem(this.markersKey());
       const items = raw ? JSON.parse(raw) : [];
@@ -665,7 +662,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       this.timelineMarkers = [];
     }
 
-    // 2. Load from backend (overrides localStorage when available)
+    
     const projectId = this.projetoSelecionado?.id;
     if (this.token && projectId) {
       this.api.getGanttConfig(this.token, projectId).subscribe({
@@ -679,7 +676,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
           }
           this.cdr.markForCheck();
         },
-        error: () => { /* keep localStorage data */ }
+        error: () => {  }
       });
     }
   }
@@ -723,9 +720,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.selectedTimelineDate = day.isoDate;
     this.markerDate = day.isoDate;
     this.dayActionDate = day.isoDate;
-    this.dayActionLeft = day.left; // kept for internal use
+    this.dayActionLeft = day.left; 
 
-  // ---
+  
     const POP_W = 240;
     const POP_H = 180;
     this.dayActionFixedLeft = Math.min(event.clientX - 12, window.innerWidth  - POP_W - 8);
@@ -754,7 +751,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.closeDayAction();
   }
 
-  // ---
+  
   async exportarImagem(): Promise<void> {
     if (!this.projetoSelecionado || this.atividades().length === 0) return;
     if (this.exportandoImagem) return;
@@ -771,8 +768,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       const W = tableEl.scrollWidth;
       const H = tableEl.scrollHeight;
 
-  // ---
-  // ---
+  
+  
       const wrap = document.createElement('div');
       Object.assign(wrap.style, {
         position:  'fixed',
@@ -793,8 +790,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         height:   `${H}px`,
       });
 
-  // ---
-  // ---
+  
+  
       clone.querySelectorAll<HTMLElement>(
         '.gp-gantt-header, .gp-lcol, .gp-today-label-row'
       ).forEach(el => {
@@ -807,7 +804,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       document.body.appendChild(wrap);
 
       const canvas = await html2canvas(clone, {
-        scale:           3,           // 3× → alta definição (~300 DPI equivalente)
+        scale:           3,           
         useCORS:         true,
         allowTaint:      false,
         backgroundColor: '#ffffff',
@@ -818,8 +815,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
       document.body.removeChild(wrap);
 
-      // Força composição horizontal (landscape), preservando alta definição.
-      const landscapeRatio = 1.6; // ~16:10
+      
+      const landscapeRatio = 1.6; 
       const horizontalW = Math.max(canvas.width, Math.ceil(canvas.height * landscapeRatio));
       const horizontalH = canvas.height;
       const horizontalCanvas = document.createElement('canvas');
@@ -832,9 +829,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       const offsetX = Math.floor((horizontalW - canvas.width) / 2);
       ctx.drawImage(canvas, offsetX, 0);
 
-  // ---
+  
       const nome = (this.projetoSelecionado as any)?.nome ?? 'cronograma';
-  // ---
+  
       const safe = nome
         .normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/[^a-zA-Z0-9 _-]/g, '')
@@ -886,17 +883,17 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (!isFinite(d.getTime())) return -1;
     const days = (d.getTime() - r.min.getTime()) / 86_400_000;
     if (days < 0 || days > r.totalDays) return -1;
-  // ---
+  
     return (days + 1) * this.PX_PER_DAY;
   }
 
-  // ---
+  
   barLeft(item: any): number {
     const r = this.dateRange();
     if (!r) return 0;
     const dates = this._effectiveDates(item);
     if (!dates) return 0;
-    // Integer day index → pixel-perfect grid alignment
+    
     const dayIdx = Math.round((dates.start.getTime() - r.min.getTime()) / 86_400_000);
     return Math.max(0, dayIdx * this.PX_PER_DAY);
   }
@@ -921,7 +918,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return statusConcluido || pctConcluido;
   }
 
-  // ---
+  
   isAtrasado(item: any): boolean {
     if (!item.fimPlanejado) return false;
     if (this.isConcluida(item)) return false;
@@ -948,7 +945,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   allStatuses: GStatus[] = ['PLANEJADO','EM_ANDAMENTO','CONCLUIDO','ATRASADO','BLOQUEADO'];
 
-  // ---
+  
   private metaKey(itemId: string) { return `planner_gantt_${this.projetoSelecionado?.id ?? 'x'}_${itemId}`; }
 
   pessoasAtivas() {
@@ -956,9 +953,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   getMeta(itemId: string): { responsavel: string; pct: number } {
-    // Return from cache if available (populated from API on project load)
+    
     if (this._metaCache[itemId] !== undefined) return this._metaCache[itemId];
-    // Fallback: read from localStorage (backward compat)
+    
     try {
       const r = localStorage.getItem(this.metaKey(itemId));
       const val = r ? JSON.parse(r) : { responsavel: '', pct: 0 };
@@ -988,24 +985,24 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     }).subscribe({ error: (e: any) => console.warn('Falha ao salvar configuração do Gantt no backend', e) });
   }
 
-  // ---
+  
   private readonly perfilTagPrefix = '##PERFILID:';
   private readonly perfilTagRegex  = /##PERFILID:([a-zA-Z0-9\-]+)##/;
   private readonly DOW_TAG_REGEX   = /##DOW:([0-6,]+)##/;
 
-  /** Encodes a list of predecessor IDs into the description tag */
+  
   private encodePredecessors(ids: string[]): string {
     const f = ids.filter(Boolean);
     return f.length ? `##PRED:${f.join(',')}##` : '';
   }
 
-  /** Extracts all predecessor IDs (supports legacy single-id and new comma-separated) */
+  
   private extractPredecessorIds(descricao?: string | null): string[] {
     const m = String(descricao ?? '').match(/##PRED:([a-zA-Z0-9\-,]+)##/);
     return m?.[1] ? m[1].split(',').filter(Boolean) : [];
   }
 
-  /** Extracts day-of-week constraint (0=Sun … 6=Sat) from description tag */
+  
   private extractDowConstraint(descricao?: string | null): number[] {
     const m = String(descricao ?? '').match(this.DOW_TAG_REGEX);
     return m?.[1] ? m[1].split(',').map(Number).filter(n => n >= 0 && n <= 6) : [];
@@ -1043,8 +1040,8 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return result;
   }
 
-  // ---
-  /** Day-of-week options shown in the form (Mon–Fri) */
+  
+  
   readonly dowOptions = [
     { day: 1, label: 'Seg' }, { day: 2, label: 'Ter' }, { day: 3, label: 'Qua' },
     { day: 4, label: 'Qui' }, { day: 5, label: 'Sex' }
@@ -1066,7 +1063,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return days.map(d => n[d] ?? '').join(', ');
   }
 
-  /** Search term for filtering the predecessor chip list */
+  
   predSearch = '';
 
   predecessorasFiltradas(excludeId = ''): any[] {
@@ -1076,10 +1073,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     );
   }
 
-  /**
-   * BFS from `predId` through the SAVED predecessor graph.
-   * Returns true if `currentId` is reachable → adding this predecessor would create a cycle.
-   */
+  
   private wouldCreateCycle(currentId: string, predId: string): boolean {
     if (!currentId || !predId || currentId === predId) return false;
     const visited = new Set<string>();
@@ -1096,19 +1090,19 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return false;
   }
 
-  /** Public: called from template to grey-out chips that would form a cycle (edit mode only) */
+  
   isCyclicPredecessor(predId: string): boolean {
     return this.wouldCreateCycle(this.editingItem?.id ?? '', predId);
   }
 
-  /** Toggle a predecessor in/out of the multi-list — blocks cyclic additions */
+  
   togglePredecessor(form: any, id: string, mode: 'nova' | 'edit') {
     const list = form.predecessorIds as string[];
     const idx  = list.indexOf(id);
     if (idx >= 0) {
       list.splice(idx, 1);
     } else {
-      if (mode === 'edit' && this.isCyclicPredecessor(id)) return; // cycle guard
+      if (mode === 'edit' && this.isCyclicPredecessor(id)) return; 
       list.push(id);
     }
     this.onPredecessorChange(mode);
@@ -1118,12 +1112,12 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return (form.predecessorIds as string[]).includes(id);
   }
 
-  /** Returns human-readable predecessor titles for a list of IDs */
+  
   predecessorTitles(ids: string[]): string {
     return ids.map(id => this.findById(id)?.titulo ?? id).join(' → ');
   }
 
-  /** Snap to the nearest future day that is a business day AND in the allowed DOW list */
+  
   private nextValidDay(date: Date, dowConstraint: number[]): Date {
     let d = this.feriados.nextBusinessDay(date);
     if (!dowConstraint.length) return d;
@@ -1175,11 +1169,11 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (!pred)              return 'Predecessora não encontrada.';
     if (!pred.fimPlanejado) return 'A predecessora precisa ter data de fim.';
     if (!inicioPlanejado)   return 'Informe a data de início da atividade.';
-    // Compare as YYYY-MM-DD strings in LOCAL timezone to avoid UTC-offset artefacts.
-    // `toDateInput` normalizes any ISO timestamp to a local-date string; the form value is
-    // already a date-only string ("YYYY-MM-DD") so we just take the first 10 chars.
-    const predFimStr = this.toDateInput(pred.fimPlanejado); // e.g. "2026-06-29"
-    const inicioStr  = inicioPlanejado.slice(0, 10);         // e.g. "2026-06-30"
+    
+    
+    
+    const predFimStr = this.toDateInput(pred.fimPlanejado); 
+    const inicioStr  = inicioPlanejado.slice(0, 10);         
     if (inicioStr <= predFimStr) {
       return `Início deve ser após o fim da predecessora (${this.fmt(pred.fimPlanejado)}).`;
     }
@@ -1209,7 +1203,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       if (!isFinite(oStart.getTime()) || !isFinite(oEnd.getTime())) return false;
       if (!this.rangesOverlap(start, end, oStart, oEnd)) return false;
       const otherParallel = !!a.permiteParalelo;
-  // ---
+  
       return !permiteParalelo || !otherParallel;
     });
 
@@ -1217,7 +1211,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return `Conflito de período com "${conflicting.titulo}". Atividades não paralelas não podem sobrepor datas.`;
   }
 
-  // ---
+  
   stats() {
     const all  = this.atividades();
     const st   = all.filter((a: any) => this.effectiveStatus(a) === 'EM_ANDAMENTO').length;
@@ -1232,7 +1226,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return Math.round(all.reduce((acc: number, a: any) => acc + this.getMeta(a.id).pct, 0) / all.length);
   }
 
-  // ---
+  
   toggleForm() {
     this.formVisible = !this.formVisible;
     this.formError   = '';
@@ -1267,7 +1261,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.dateWarning   = '';
   }
 
-  // ---
+  
   startEdit(item: any) {
     if (this.editingItem?.id === item.id) { this.editingItem = null; return; }
     this.formVisible = false;
@@ -1335,7 +1329,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (this.editingItem?.id === item.id) this.editingItem = null;
   }
 
-  // ---
+  
   fmt(d: string | null): string {
     if (!d) return '—';
     const dt = new Date(d);

@@ -1,4 +1,4 @@
-﻿<planner-card><article class="card">
+<planner-card><article class="card">
   <div class="lo-live-cursors">
     @for (c of cursoresOutros; track c.username) {
             <div class="lo-live-cursor" [style.left]="cursorLeft(c)" [style.top]="cursorTop(c)">
@@ -186,6 +186,13 @@
               <span class="lo-meta-pill lo-meta-pill-gray">CC: {{ loSelecionada()?.centroCusto }}</span>
             }
             <span class="lo-meta-pill lo-meta-pill-gray">Ano: {{ anoSelecionado }}</span>
+            <span class="lo-meta-pill lo-meta-pill-gray">Dono: {{ loSelecionada()?.dono || '—' }}</span>
+            @if (isDonoDaLoAtual()) {
+              <button type="button" class="lo-transfer-btn" (click)="abrirDonoModal()" title="Transferir dono da LO">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                Transferir
+              </button>
+            }
           </div>
         </div>
         <div class="lo-summary-right">
@@ -257,7 +264,7 @@
   <section class="alloc-table-wrap">
     <div class="table-toolbar">
       <p class="table-hint">Cálculo mensal: Valor/hora x Horas do cadastro do mes x Alocação (%).</p>
-      <!-- Botão colunas -->
+      
       <div class="col-picker-wrap">
         <button type="button" class="col-picker-btn" (click)="toggleColPicker()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
@@ -469,7 +476,7 @@
                 [class.cancelado]="isCancelado(a.id, monthIndex)"
                 [class.bloqueado]="mesIndisponivelParaAlocacao(a.id, monthIndex)">
                 @if (mesIndisponivelParaAlocacao(a.id, monthIndex)) {
-                  <!-- Bloqueado por outra linha da mesma pessoa que tem lançamento/pagamento -->
+                  
                   <button
                     type="button"
                     class="month-unavailable"
@@ -483,7 +490,7 @@
                     @if (percentualLivreMesAlocacao(a.id, monthIndex) > 0) {
                       <small class="month-percent-info">+{{ percentualLivreMesAlocacao(a.id, monthIndex) | number:'1.0-2' }}% livre</small>
                     }
-                    <!-- % do mês (sobrescreve o padrão da linha) â€” bloqueado quando pago -->
+                    
                     <input
                       class="month-percent-input"
                       type="text"
@@ -496,7 +503,7 @@
                     @if (isPercentualMesSobrescrito(a.id, monthIndex)) {
                       <small class="month-percent-override">Mês {{ getPercentualMensalDigitavel(a.id, monthIndex) | number:'1.0-2' }}%</small>
                     }
-                    <!-- Valor do mês — badge quando sem custo, readonly quando pago/lançado -->
+                    
                     @if (pessoaSemCustoLo(a)) {
                       <span class="sem-custo-lo sem-custo-lo-mes">Não cobra da LO</span>
                     } @else {
@@ -515,7 +522,7 @@
                       }
                     }
                     @if (!pessoaSemCustoLo(a)) {
-                      <!-- Pago / Lançado: marca o mês como comprometido (futuro ou confirmado) -->
+                      
                       <label class="paid-check">
                         <input
                           type="checkbox"
@@ -525,7 +532,7 @@
                         Pago
                       </label>
                     }
-                    <!-- Cancelado: zera o custo e libera o mês para outras linhas -->
+                    
                     <label class="paid-check cancel-check">
                       <input
                         type="checkbox"
@@ -550,8 +557,8 @@
                   </div>
                 }
               </td>
-              } <!-- /col(mesKey) -->
-            } <!-- /@for meses -->
+              } 
+            } 
             @if (col('total')) {
               <td>
                 <strong>
@@ -591,6 +598,26 @@
     </table>
   </section>
 </article></planner-card>
+
+@if (donoModalAberto) {
+  <div class="modal-backdrop" (click)="fecharDonoModal()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>Transferir dono da LO</h3>
+      <button class="sec" type="button" (click)="fecharDonoModal()">Fechar</button>
+    </div>
+    <p style="margin:0 0 8px;font-size:0.85rem;color:var(--text-muted,#666)">
+      Dono atual: <strong>{{ loSelecionada()?.dono || '—' }}</strong>
+    </p>
+    <input
+      [(ngModel)]="donoNovoInput"
+      placeholder="Username do novo dono"
+      (keydown.enter)="salvarTransferenciaDono()" />
+    <button type="button" (click)="salvarTransferenciaDono()" [disabled]="!donoNovoInput.trim()">
+      Confirmar transferência
+    </button>
+  </div>
+}
 
 @if (pessoaModalAberto) {
   <div class="modal-backdrop" (click)="fecharPessoaModal()"></div>
@@ -633,11 +660,4 @@
     <button type="button" (click)="salvarPessoaRapida()">Cadastrar pessoa</button>
   </div>
 }
-
-
-
-
-
-
-
 

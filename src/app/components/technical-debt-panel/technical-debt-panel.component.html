@@ -158,8 +158,25 @@
                 <button class="td-btn td-btn-icon td-btn-danger td-act-delete" (click)="excluir(d.id)" title="Excluir">
                   <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                 </button>
+                @if (isDono(d)) {
+                  <button class="td-btn td-btn-icon" (click)="iniciarTransferencia(d.id)" title="Transferir dono">
+                    <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                  </button>
+                }
               </td>
             </tr>
+            @if (transferId === d.id) {
+              <tr>
+                <td colspan="8">
+                  <div class="transfer-inline">
+                    <span>Transferir para:</span>
+                    <input [(ngModel)]="transferInput" placeholder="Username do novo dono" (keydown.enter)="confirmarTransferencia()" />
+                    <button type="button" (click)="confirmarTransferencia()" [disabled]="!transferInput.trim()">Confirmar</button>
+                    <button type="button" class="sec" (click)="cancelarTransferencia()">Cancelar</button>
+                  </div>
+                </td>
+              </tr>
+            }
             @if (detalheId === d.id) {
               <tr class="td-detalhe-row">
                 <td colspan="8">

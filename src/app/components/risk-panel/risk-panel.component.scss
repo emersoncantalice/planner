@@ -5,7 +5,6 @@
   gap: 1.25rem;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────────── */
 .rsk-header {
   display: flex;
   align-items: center;
@@ -66,7 +65,6 @@
   &:hover { background: #1d63da; color: #fff; border-color: #1d63da; }
 }
 
-/* ── Form card ───────────────────────────────────────────────────────────── */
 .rsk-form-card {
   background: #f8faff;
   border: 1px solid #d8e6ff;
@@ -121,7 +119,6 @@
   flex-wrap: wrap;
 }
 
-/* ── Buttons ─────────────────────────────────────────────────────────────── */
 .rsk-btn {
   display: inline-flex;
   align-items: center;
@@ -166,7 +163,6 @@
 .rsk-btn-done:hover   { background: #edfaf3; border-color: #86e5b0 !important; color: #064e24 !important; }
 .rsk-btn-danger:hover { background: #fff1f1; border-color: #f5a4a4 !important; color: #b91c1c !important; }
 
-/* ── Search ──────────────────────────────────────────────────────────────── */
 .rsk-search-row {
   display: flex;
   align-items: center;
@@ -187,7 +183,6 @@
   &::placeholder { color: #8ba8cc; }
 }
 
-/* ── Table ───────────────────────────────────────────────────────────────── */
 .rsk-table-wrap {
   overflow-x: hidden;
   border-radius: .6rem;
@@ -240,7 +235,6 @@
   min-width: 0;
 }
 
-/* ── Status badges ───────────────────────────────────────────────────────── */
 .rsk-badge {
   display: inline-block;
   padding: .18rem .6rem;
@@ -256,7 +250,6 @@
 .badge-entrega  { background: #ffedd5; color: #9a3a00; border-color: #fdba74; }
 .badge-concluido{ background: #d4f5e3; color: #064e24; border-color: #86e5b0; }
 
-/* ── Due date row tinting ────────────────────────────────────────────────── */
 .rsk-due-info {
   display: block;
   margin-top: 3px;
@@ -269,7 +262,6 @@
 .due-overdue  > td { background: rgba(185,28,28,.08); }
 .due-unknown  > td { background: transparent; }
 
-/* ── Sub-rows (postpone & history) ──────────────────────────────────────── */
 .rsk-sub-row > td,
 .rsk-hist-row > td {
   background: #f8faff !important;
@@ -277,7 +269,6 @@
   border-bottom: 1px solid #e8eef8;
 }
 
-/* ── Postpone form ───────────────────────────────────────────────────────── */
 .rsk-postpone-form {
   display: flex;
   align-items: flex-end;
@@ -292,7 +283,6 @@
   align-items: center;
 }
 
-/* ── History section ─────────────────────────────────────────────────────── */
 .rsk-hist-wrap {
   padding: .6rem 1rem;
   display: flex;

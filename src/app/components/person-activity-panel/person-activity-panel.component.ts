@@ -27,7 +27,7 @@ export class PersonActivityPanelComponent {
   @Input() incidentes: any[] = [];
   @Input() debitos: any[] = [];
   @Input() indicadores: any[] = [];
-  @Input() atividades: any[] = [];   // ProjectActivity[] from GET /api/activities
+  @Input() atividades: any[] = [];   
 
   searchTerm = '';
   sortKey: 'nome' | 'total' = 'total';
@@ -58,12 +58,12 @@ export class PersonActivityPanelComponent {
       return found;
     };
 
-    // Base: pessoas ativas
+    
     for (const p of this.pessoas.filter(p => p.ativo !== false)) {
       ensure(p?.nome);
     }
 
-    // Apontamentos
+    
     for (const r of this.riscos) {
       if ((r?.status || '').toUpperCase() === 'CONCLUIDO') continue;
       const row = ensure(r?.responsavel);
@@ -71,7 +71,7 @@ export class PersonActivityPanelComponent {
       row.riscos.push(String(r?.titulo ?? 'Apontamento'));
     }
 
-    // Incidentes
+    
     for (const i of this.incidentes) {
       if ((i?.status || '').toUpperCase() === 'RESOLVIDO') continue;
       const row = ensure(i?.responsavel);
@@ -79,7 +79,7 @@ export class PersonActivityPanelComponent {
       row.incidentes.push(String(i?.titulo ?? 'Incidente'));
     }
 
-    // Débitos técnicos
+    
     for (const d of this.debitos) {
       if ((d?.status || '').toUpperCase() === 'RESOLVIDO') continue;
       const row = ensure(d?.responsavel);
@@ -87,7 +87,7 @@ export class PersonActivityPanelComponent {
       row.debitos.push(String(d?.titulo ?? 'Débito técnico'));
     }
 
-    // Indicadores + ações
+    
     for (const ind of this.indicadores) {
       if ((ind?.status || '').toUpperCase() === 'ATIVO') {
         const row = ensure(ind?.responsavel);
@@ -101,7 +101,7 @@ export class PersonActivityPanelComponent {
       }
     }
 
-    // Atividades do cronograma
+    
     for (const a of this.atividades) {
       const row = ensure(a?.responsavel);
       if (!row) continue;
@@ -115,7 +115,7 @@ export class PersonActivityPanelComponent {
 
     const list = [...byKey.values()];
     for (const row of list) {
-      // Concluídas não contam na carga, apenas exibimos no detalhamento.
+      
       row.total = row.riscos.length + row.incidentes.length + row.debitos.length + row.indicadores.length + row.acoes.length + row.atividades.length;
     }
     return list;
@@ -160,7 +160,7 @@ export class PersonActivityPanelComponent {
     return 'Disponível';
   }
 
-  /** Bar width as a percentage, capped at 100 */
+  
   barPct(total: number): number {
     return Math.min(100, Math.round((total / 8) * 100));
   }

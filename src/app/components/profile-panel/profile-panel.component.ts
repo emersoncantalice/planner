@@ -1,4 +1,4 @@
-﻿import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
@@ -59,19 +59,17 @@ export class ProfilePanelComponent {
     this.formExpanded = true;
   }
 
-  /** Inverte a concatenação feita em app.ts ao criar perfil:
-   *  "Base | Nivel | Departamento - Observacoes"  →  { base, nivel, departamento, observacoes }
-   */
+  
   private decompor(nome: string): { base: string; nivel: string; departamento: string; observacoes: string } {
     let obs = '';
     let main = nome;
-    // Observacoes ficam após o último " - "
+    
     const dashIdx = main.lastIndexOf(' - ');
     if (dashIdx >= 0) {
       obs = main.substring(dashIdx + 3).trim();
       main = main.substring(0, dashIdx).trim();
     }
-    // Partes separadas por " | "
+    
     const partes = main.split(' | ').map(s => s.trim());
     return {
       base: partes[0] || '',

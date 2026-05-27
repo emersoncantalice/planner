@@ -14,8 +14,12 @@ interface BackupData {
     pontosFocais: any[];
     linhasOrcamentarias: any[];
     alocacoes: any[];
+    pagamentos: any[];
+    estadosMensais: any[];
     horasMes: any[];
     businessEpics: any[];
+    allocationPercent: any[];
+    loRealizado: any[];
   };
   localStorageConfig: Record<string, string>;
 }
@@ -36,6 +40,8 @@ export class DataTransferPanelComponent {
   @Input() pontosFocais: any[] = [];
   @Input() linhasOrcamentarias: any[] = [];
   @Input() alocacoes: any[] = [];
+  @Input() pagamentos: any[] = [];
+  @Input() estadosMensais: any[] = [];
   @Input() horasMes: any[] = [];
   @Input() businessEpics: any[] = [];
 
@@ -51,41 +57,66 @@ export class DataTransferPanelComponent {
 
   // ── Exportar ───────────────────────────────────────────────────────────────
 
-  exportar() {
-    // Coleta todas as chaves planner_lo_* do localStorage (configs de alocação)
-    const localStorageConfig: Record<string, string> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)!;
-      if (key.startsWith('planner_lo_')) {
-        localStorageConfig[key] = localStorage.getItem(key)!;
+  exportando = false;
+
+  async exportar() {
+    if (!this.token || this.exportando) return;
+    this.exportando = true;
+    try {
+      // Busca tudo direto do backend para garantir dados frescos
+      const [perfis, pessoas, consultorias, pontosFocais,
+             linhasOrcamentarias, alocacoes, pagamentos,
+             estadosMensais, horasMes, businessEpics,
+             allocationPercent, loRealizado] = await Promise.all([
+        lastValueFrom(this.api.listProfiles(this.token)),
+        lastValueFrom(this.api.listPeople(this.token)),
+        lastValueFrom(this.api.listConsultancies(this.token)),
+        lastValueFrom(this.api.listFocalPoints(this.token)),
+        lastValueFrom(this.api.listBudgetLines(this.token)),
+        lastValueFrom(this.api.listBudgetAllocations(this.token)),
+        lastValueFrom(this.api.listAllocationPayments(this.token)),
+        lastValueFrom(this.api.listAllocationMonthlyState(this.token)),
+        lastValueFrom(this.api.listMonthlyHours(this.token)),
+        lastValueFrom(this.api.listBusinessEpics(this.token)),
+        lastValueFrom(this.api.listAllocationPercent(this.token)),
+        lastValueFrom(this.api.listLoRealizado(this.token)),
+      ]);
+
+      // Coleta chaves planner_lo_* do localStorage (configs locais de alocação)
+      const localStorageConfig: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)!;
+        if (key.startsWith('planner_lo_')) {
+          localStorageConfig[key] = localStorage.getItem(key)!;
+        }
       }
+
+      const data: BackupData = {
+        _version: '1.0',
+        _exportedAt: new Date().toISOString(),
+        cadastros: {
+          perfis, pessoas, consultorias, pontosFocais,
+          linhasOrcamentarias, alocacoes, pagamentos,
+          estadosMensais, horasMes, businessEpics,
+          allocationPercent, loRealizado,
+        },
+        localStorageConfig,
+      };
+
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `planner-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.toast.show('Backup exportado com sucesso.', 'success');
+    } catch (err: any) {
+      this.toast.show(`Erro ao exportar: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 6000);
+    } finally {
+      this.exportando = false;
     }
-
-    const data: BackupData = {
-      _version: '1.0',
-      _exportedAt: new Date().toISOString(),
-      cadastros: {
-        perfis: this.perfis,
-        pessoas: this.pessoas,
-        consultorias: this.consultorias,
-        pontosFocais: this.pontosFocais,
-        linhasOrcamentarias: this.linhasOrcamentarias,
-        alocacoes: this.alocacoes,
-        horasMes: this.horasMes,
-        businessEpics: this.businessEpics,
-      },
-      localStorageConfig,
-    };
-
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `planner-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.toast.show('Backup exportado com sucesso.', 'success');
   }
 
   // ── Importar ───────────────────────────────────────────────────────────────
@@ -131,7 +162,9 @@ export class DataTransferPanelComponent {
 
   private async importarDados(data: BackupData) {
     const { perfis = [], pessoas = [], consultorias = [], pontosFocais = [],
-            linhasOrcamentarias = [], alocacoes = [], horasMes = [] } = data.cadastros;
+            linhasOrcamentarias = [], alocacoes = [], pagamentos = [],
+            estadosMensais = [], horasMes = [],
+            allocationPercent = [], loRealizado = [] } = data.cadastros;
     const config = data.localStorageConfig ?? {};
 
     const perfilIdMap: Record<string, string> = {};
@@ -251,7 +284,39 @@ export class DataTransferPanelComponent {
       } catch { this.importErros.push(`Alocação "${a.nomePessoa}": ignorada`); }
     }
 
-    // 7. Horas mensais
+    // 7. Pagamentos de alocação
+    this.importProgress = `Importando pagamentos (0 / ${pagamentos.length})…`;
+    for (let i = 0; i < pagamentos.length; i++) {
+      const p = pagamentos[i];
+      this.importProgress = `Importando pagamentos (${i + 1} / ${pagamentos.length})…`;
+      const newAllocId = p.allocationId ? (allocIdMap[p.allocationId] ?? p.allocationId) : null;
+      if (!newAllocId) continue;
+      try {
+        await lastValueFrom(
+          this.api.upsertAllocationPayment(this.token, newAllocId, Number(p.month ?? 0), Boolean(p.paid))
+        );
+      } catch { /* ignorar pagamentos órfãos */ }
+    }
+
+    // 8. Estados mensais de alocação (cancelamentos, overrides)
+    this.importProgress = `Importando estados mensais (0 / ${estadosMensais.length})…`;
+    for (let i = 0; i < estadosMensais.length; i++) {
+      const e = estadosMensais[i];
+      this.importProgress = `Importando estados mensais (${i + 1} / ${estadosMensais.length})…`;
+      const newAllocId = e.allocationId ? (allocIdMap[e.allocationId] ?? e.allocationId) : null;
+      if (!newAllocId) continue;
+      try {
+        await lastValueFrom(
+          this.api.upsertAllocationMonthlyState(this.token, newAllocId, Number(e.month ?? 0), {
+            canceled:      e.canceled      ?? null,
+            manualValue:   e.manualValue   ?? null,
+            manualPercent: e.manualPercent ?? null,
+          })
+        );
+      } catch { /* ignorar estados órfãos */ }
+    }
+
+    // 9. Horas mensais
     this.importProgress = 'Importando horas mensais…';
     for (const h of horasMes) {
       try {
@@ -259,16 +324,47 @@ export class DataTransferPanelComponent {
       } catch { /* ignore */ }
     }
 
-    // 8. Restaurar configs do localStorage com IDs remapeados
+    // 10. Restaurar configs do localStorage com IDs remapeados (allocId e loId)
     this.importProgress = 'Restaurando configurações de alocação…';
     for (const [oldKey, value] of Object.entries(config)) {
       let newKey = oldKey;
+      // remap allocation IDs (planner_lo_alloc_*, planner_lo_valor_manual_*, etc.)
       for (const [oldId, newId] of Object.entries(allocIdMap)) {
-        if (newKey.includes(oldId)) {
-          newKey = newKey.replace(oldId, newId);
-        }
+        if (newKey.includes(oldId)) newKey = newKey.replace(oldId, newId);
+      }
+      // remap LO IDs (planner_lo_realizado_${loId}_${month})
+      for (const [oldId, newId] of Object.entries(loIdMap)) {
+        if (newKey.includes(oldId)) newKey = newKey.replace(oldId, newId);
       }
       localStorage.setItem(newKey, value);
+    }
+
+    // 11. Percentuais de alocação (allocationPercent) — remapear allocationId
+    this.importProgress = `Importando percentuais de alocação (0 / ${allocationPercent.length})…`;
+    for (let i = 0; i < allocationPercent.length; i++) {
+      const ap = allocationPercent[i];
+      this.importProgress = `Importando percentuais de alocação (${i + 1} / ${allocationPercent.length})…`;
+      const newAllocId = ap.allocationId ? (allocIdMap[ap.allocationId] ?? ap.allocationId) : null;
+      if (!newAllocId) continue;
+      try {
+        await lastValueFrom(
+          this.api.upsertAllocationPercent(this.token, newAllocId, Number(ap.percentual ?? 100))
+        );
+      } catch { /* ignorar entradas órfãs */ }
+    }
+
+    // 12. Valores realizados mensais (loRealizado) — remapear loId
+    this.importProgress = `Importando valores realizados (0 / ${loRealizado.length})…`;
+    for (let i = 0; i < loRealizado.length; i++) {
+      const lr = loRealizado[i];
+      this.importProgress = `Importando valores realizados (${i + 1} / ${loRealizado.length})…`;
+      const newLoId = lr.loId ? (loIdMap[lr.loId] ?? lr.loId) : null;
+      if (!newLoId) continue;
+      try {
+        await lastValueFrom(
+          this.api.upsertLoRealizado(this.token, newLoId, Number(lr.month ?? 0), Number(lr.valor ?? 0))
+        );
+      } catch { /* ignorar entradas órfãs */ }
     }
   }
 

@@ -19,6 +19,25 @@ export class TechnicalDebtPanelComponent {
   @Output() update     = new EventEmitter<any>();
   @Output() remove     = new EventEmitter<string>();
   @Output() importCsv  = new EventEmitter<File>();
+  @Input()  currentUser = '';
+  @Output() transferOwnership = new EventEmitter<{ id: string; novoDono: string }>();
+
+  transferId    = '';
+  transferInput = '';
+
+  isDono(item: any): boolean {
+    const role = (localStorage.getItem('planner_role') || '').trim();
+    if (role === 'ADMIN') return true;
+    if (!item?.criadoPor) return true;
+    return item.criadoPor.toLowerCase() === (this.currentUser || '').toLowerCase();
+  }
+  iniciarTransferencia(id: string) { this.transferId = id; this.transferInput = ''; }
+  cancelarTransferencia()           { this.transferId = ''; this.transferInput = ''; }
+  confirmarTransferencia()          {
+    if (!this.transferInput.trim()) return;
+    this.transferOwnership.emit({ id: this.transferId, novoDono: this.transferInput.trim() });
+    this.cancelarTransferencia();
+  }
 
   formExpanded = false;
   editingId = '';
@@ -62,7 +81,7 @@ export class TechnicalDebtPanelComponent {
     { value: 'RESOLVIDO',     label: 'Resolvido' },
   ];
 
-  // ── form control ───────────────────────────────────────────────────────────
+  
   toggleForm() {
     this.formExpanded = !this.formExpanded;
     if (this.formExpanded) { this.editingId = ''; this.form = this.emptyForm(); }
@@ -143,7 +162,7 @@ export class TechnicalDebtPanelComponent {
     }
   }
 
-  // ── sorting / filtering ────────────────────────────────────────────────────
+  
   toggleSort(key: string) {
     if (this.sortKey === key) { this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'; return; }
     this.sortKey = key;
@@ -171,7 +190,7 @@ export class TechnicalDebtPanelComponent {
       });
   }
 
-  // ── label / badge helpers ──────────────────────────────────────────────────
+  
   categoriaLabel(c: string) { return this.categorias.find(x => x.value === c)?.label ?? c; }
   impactoLabel(i: string)   { return this.impactos.find(x => x.value === i)?.label ?? i; }
   prioridadeLabel(p: string){ return this.prioridades.find(x => x.value === p)?.label ?? p; }
@@ -225,7 +244,7 @@ export class TechnicalDebtPanelComponent {
     return `${hours}h (~${days}d)`;
   }
 
-  // ── private ────────────────────────────────────────────────────────────────
+  
   private emptyForm() {
     return {
       titulo: '', descricao: '', categoria: 'CODIGO', impacto: 'MEDIO',

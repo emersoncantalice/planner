@@ -1,4 +1,4 @@
-﻿import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
@@ -22,6 +22,25 @@ export class RiskPanelComponent implements OnChanges {
   @Output() postpone = new EventEmitter<{ riskId: string; novaDataFim: string; motivo: string }>();
   @Output() remove = new EventEmitter<string>();
   @Output() importCsv = new EventEmitter<File>();
+  @Input()  currentUser = '';
+  @Output() transferOwnership = new EventEmitter<{ id: string; novoDono: string }>();
+
+  transferId    = '';
+  transferInput = '';
+
+  isDono(item: any): boolean {
+    const role = (localStorage.getItem('planner_role') || '').trim();
+    if (role === 'ADMIN') return true;
+    if (!item?.criadoPor) return true;
+    return item.criadoPor.toLowerCase() === (this.currentUser || '').toLowerCase();
+  }
+  iniciarTransferencia(id: string) { this.transferId = id; this.transferInput = ''; }
+  cancelarTransferencia()           { this.transferId = ''; this.transferInput = ''; }
+  confirmarTransferencia()          {
+    if (!this.transferInput.trim()) return;
+    this.transferOwnership.emit({ id: this.transferId, novoDono: this.transferInput.trim() });
+    this.cancelarTransferencia();
+  }
 
   formExpanded = false;
   editingId = '';

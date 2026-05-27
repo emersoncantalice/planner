@@ -29,11 +29,11 @@ export class AusenciasPanelComponent implements OnChanges {
   @Output() update = new EventEmitter<AbsRow>();
   @Output() remove = new EventEmitter<string>();
 
-  // ── Year navigation ───────────────────────────────────────────────────────
+  
   ano = new Date().getFullYear();
   mesHover = -1;
 
-  // ── Form ─────────────────────────────────────────────────────────────────
+  
   formOpen = false;
   editingId = '';
   form = this.emptyForm();
@@ -55,7 +55,7 @@ export class AusenciasPanelComponent implements OnChanges {
       this.form.pessoaId = '';
   }
 
-  // ── Calendar helpers ──────────────────────────────────────────────────────
+  
   readonly MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   readonly TIPOS: Record<string, string> = {
     FERIAS: 'Férias', AUSENCIA: 'Ausência', LICENCA: 'Licença', OUTRO: 'Outro'
@@ -75,13 +75,13 @@ export class AusenciasPanelComponent implements OnChanges {
 
   ausenciasDoAno(): AbsRow[] {
     return this.ausencias.filter(a => {
-      if (a.recorrente) return true;          // always show recurring
+      if (a.recorrente) return true;          
       const y = Number(a.inicio?.split('-')[0]);
       return y === this.ano;
     });
   }
 
-  // Returns absence bars for a person in a given month (0-based)
+  
   barsForPersonMonth(pessoaId: string, mes: number): Array<{ ab: AbsRow; left: number; width: number; color: string; label: string }> {
     const daysInMonth = new Date(this.ano, mes + 1, 0).getDate();
     const monthStart  = new Date(this.ano, mes, 1);
@@ -95,7 +95,7 @@ export class AusenciasPanelComponent implements OnChanges {
         const s = new Date(inicioRaw + 'T00:00:00');
         const e = new Date(fimRaw   + 'T00:00:00');
 
-        // clip to this month
+        
         const clampS = s < monthStart ? monthStart : s;
         const clampE = e > monthEnd   ? monthEnd   : e;
 
@@ -118,7 +118,7 @@ export class AusenciasPanelComponent implements OnChanges {
     return map[tipo] ?? tipo.slice(0, 3).toUpperCase();
   }
 
-  // ── Filter / view ─────────────────────────────────────────────────────────
+  
   searchPessoa = '';
   filterTipo = '';
 
@@ -137,7 +137,7 @@ export class AusenciasPanelComponent implements OnChanges {
     return this.ausenciasDoAno().filter(a => a.tipo === tipo).length;
   }
 
-  // ── Form actions ──────────────────────────────────────────────────────────
+  
   openCreate(pessoaId = '') {
     this.editingId = '';
     this.form = { ...this.emptyForm(), pessoaId };
@@ -188,7 +188,7 @@ export class AusenciasPanelComponent implements OnChanges {
     this.form = this.emptyForm();
   }
 
-  // ── Stat: total days per person/year ─────────────────────────────────────
+  
   diasAusentePorPessoa(pessoaId: string): number {
     let total = 0;
     for (const a of this.ausenciasDoAno().filter(x => x.pessoaId === pessoaId)) {
@@ -212,7 +212,7 @@ export class AusenciasPanelComponent implements OnChanges {
     return this.ausenciasDoAno().filter(a => a.pessoaId === pessoaId);
   }
 
-  // expanded rows
+  
   expandedRows = new Set<string>();
   toggleRow(pessoaId: string) {
     if (this.expandedRows.has(pessoaId)) this.expandedRows.delete(pessoaId);

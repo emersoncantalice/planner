@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, CUSTOM_ELEMENTS_SCHEMA, computed, inject, signal } from '@angular/core';
 import { PlannerApiService } from './core/planner-api.service';
 import { LoggerService } from './core/logger.service';
@@ -80,6 +80,8 @@ export class App {
   ajustesLo = signal<any[]>([]);
   businessEpics = signal<any[]>([]);
   alocacoesLo = signal<any[]>([]);
+  pagamentosAlocacao = signal<any[]>([]);
+  estadosMensaisAlocacao = signal<any[]>([]);
   riscos = signal<any[]>([]);
   incidentes = signal<any[]>([]);
   debitosTecnicos = signal<any[]>([]);
@@ -90,6 +92,7 @@ export class App {
   pontosFocais = signal<any[]>([]);
   ausencias    = signal<any[]>([]);
   horasMes = signal<any[]>([]);
+  usuariosSistema = signal<string[]>([]);
   conta = signal<any>(null);
   projetoSelecionado = signal<any>(null);
   menuAberto = signal(false);
@@ -116,7 +119,7 @@ export class App {
   feriados = inject(FeriadosService);
   private notifications = inject(NotificationService);
 
-  /** Counts critical datasets that need to load before firing notifications */
+  
   private dadosCriticosCarregados = 0;
 
   constructor(private api: PlannerApiService, private logger: LoggerService) {
@@ -137,7 +140,7 @@ export class App {
       next: (res) => {
         this.authSubmitting.set(false);
         if (!res?.token) {
-          // PENDING: user registered but needs admin approval
+          
           this.mensagem.set('Cadastro realizado! Aguardando aprovação do administrador para acessar o sistema.');
           return;
         }
@@ -200,6 +203,7 @@ export class App {
     this.alocacoesExpanded.set(false);
     this.riscosExpanded.set(false);
     this.mensagem.set('');
+    this.usuariosSistema.set([]);
   }
 
   toggleMenu() {
@@ -220,7 +224,7 @@ export class App {
     this.riscosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.setFlyoutTop(el, 10); // Cadastros possui 10 itens
+      this.setFlyoutTop(el, 10); 
     }
     this.cadastrosExpanded.set(willOpen);
   }
@@ -276,13 +280,13 @@ export class App {
     const visualViewportHeight = window.visualViewport?.height;
     const viewportH = Number(visualViewportHeight || window.innerHeight || 900);
     const marginTop = 12;
-    const marginBottom = 72; // folga extra para barra de tarefas/área não visível
-    const headerHeight = 32; // label + respiros
-    const rowHeight = 42;    // item médio no flyout
+    const marginBottom = 72; 
+    const headerHeight = 32; 
+    const rowHeight = 42;    
     const estimatedHeight = headerHeight + (Math.max(0, itemCount) * rowHeight);
     const desiredTop = anchorEl.getBoundingClientRect().top;
 
-    // A partir de 6 itens, trava a altura visual em 6 linhas e habilita scroll interno.
+    
     if (itemCount >= 6) {
       const visibleRows = 6;
       const desiredMaxHeight = headerHeight + (visibleRows * rowHeight);
@@ -328,7 +332,6 @@ export class App {
   fecharModalProjeto() {
     this.projectCreateModalOpen.set(false);
   }
-
 
   abrirRiscoDoDashboard(riskId: string) {
     if (!riskId) return;
@@ -389,21 +392,21 @@ export class App {
     this.api.createProject(this.token(), { nome: projeto.nome, descricao: descricaoExpandida }).subscribe({
       next: (created) => {
         if (projeto.precisaArquitetura && created?.id) {
-          // ── Calcula datas em dias úteis ──────────────────────────────────
+          
           const hoje         = this.feriados.nextBusinessDay(new Date());
-          const discoveryFim = this.feriados.nthBusinessDay(hoje, 5);     // 5 dias úteis
+          const discoveryFim = this.feriados.nthBusinessDay(hoje, 5);     
 
           const ansInicio = this.feriados.nextBusinessDay(
             new Date(discoveryFim.getFullYear(), discoveryFim.getMonth(), discoveryFim.getDate() + 1)
           );
-          const ansFim = this.feriados.nthBusinessDay(ansInicio, 10);     // 10 dias úteis
+          const ansFim = this.feriados.nthBusinessDay(ansInicio, 10);     
 
           const aswInicio = this.feriados.nextBusinessDay(
             new Date(ansFim.getFullYear(), ansFim.getMonth(), ansFim.getDate() + 1)
           );
-          const aswFim = this.feriados.nthBusinessDay(aswInicio, 10);     // 10 dias úteis
+          const aswFim = this.feriados.nthBusinessDay(aswInicio, 10);     
 
-          // Próxima Terça (2) ou Quinta (4) após o fim de ASW
+          
           const findNextTueThu = (from: Date): Date => {
             let d = this.feriados.nextBusinessDay(new Date(from.getTime() + 86_400_000));
             for (let i = 0; i < 14; i++) {
@@ -417,7 +420,7 @@ export class App {
           const defesaInicio = findNextTueThu(aswFim);
 
           const toISO  = (d: Date) => `${dateToYmd(d)}T00:00:00Z`;
-          // Extrai o ID do último item adicionado ao cronograma (API retorna o projeto inteiro)
+          
           const lastId = (proj: any): string => {
             const arr: any[] = proj?.cronograma ?? [];
             return arr[arr.length - 1]?.id ?? '';
@@ -431,7 +434,7 @@ export class App {
             { id: crypto.randomUUID(), label: 'Desenho Técnico', done: false },
           ]);
 
-          // Cadeia: Discovery → Arquitetura ANS → Arquitetura ASW → Defesa no Fórum
+          
           this.api.addScheduleItem(this.token(), created.id, {
             titulo: 'Discovery',
             descricao: '',
@@ -465,7 +468,7 @@ export class App {
                 titulo: 'Defesa no Fórum',
                 descricao: `${aswId ? `##PRED:${aswId}##\n` : ''}##DOW:2,4##`,
                 inicioPlanejado: toISO(defesaInicio),
-                fimPlanejado:    toISO(defesaInicio), // 1 dia
+                fimPlanejado:    toISO(defesaInicio), 
                 permiteParalelo: false,
               });
             })
@@ -571,7 +574,11 @@ export class App {
   }
 
   excluirLinhaOrcamentaria(id: string) {
-    this.confirmarExclusao('Confirma a exclusao desta linha orcamentaria?', () => {
+    const numAlocs = this.alocacoesLo().filter((a: any) => a.linhaOrcamentariaId === id).length;
+    const aviso = numAlocs > 0
+      ? `Esta LO possui ${numAlocs} alocação(ões) que também serão excluídas. Confirma a exclusão?`
+      : 'Confirma a exclusao desta linha orcamentaria?';
+    this.confirmarExclusao(aviso, () => {
       this.api.deleteBudgetLine(this.token(), id).subscribe({
         next: () => {
           this.mensagem.set('Linha orcamentaria excluida.');
@@ -707,11 +714,20 @@ export class App {
   }
 
   excluirPessoa(id: string) {
-    this.confirmarExclusao('Confirma a exclusao desta pessoa?', () => {
+    const pessoa = this.pessoas().find((p: any) => p.id === id);
+    const nome = pessoa?.nome;
+    const numAlocs = nome
+      ? this.alocacoesLo().filter((a: any) => a.nomePessoa === nome).length
+      : 0;
+    const aviso = numAlocs > 0
+      ? `Esta pessoa possui ${numAlocs} alocação(ões) em LOs que também serão excluídas. Confirma a exclusão?`
+      : 'Confirma a exclusao desta pessoa?';
+    this.confirmarExclusao(aviso, () => {
       this.api.deletePerson(this.token(), id).subscribe({
         next: () => {
           this.mensagem.set('Pessoa excluida.');
           this.carregarPessoas();
+          if (numAlocs > 0) this.carregarAlocacoesLo();
         },
         error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir pessoa.')
       });
@@ -1047,7 +1063,14 @@ export class App {
     });
   }
 
-  // ── Incidentes ────────────────────────────────────────────────────────────
+  transferirDonoRisco(event: { id: string; novoDono: string }) {
+    this.api.transferRiskDono(this.token(), event.id, event.novoDono).subscribe({
+      next: () => { this.mensagem.set('Dono do risco transferido.'); this.carregarRiscos(); },
+      error: (err) => this.mensagem.set(err?.error?.message ?? err?.error?.error ?? 'Falha ao transferir dono do risco.')
+    });
+  }
+
+
   criarIncidente(payload: any) {
     this.api.createIncident(this.token(), payload).subscribe({
       next: () => { this.mensagem.set('Incidente registrado.'); this.carregarIncidentes(); },
@@ -1072,7 +1095,14 @@ export class App {
     });
   }
 
-  // ── Débitos Técnicos ──────────────────────────────────────────────────────
+  transferirDonoIncidente(event: { id: string; novoDono: string }) {
+    this.api.transferIncidentDono(this.token(), event.id, event.novoDono).subscribe({
+      next: () => { this.mensagem.set('Dono do incidente transferido.'); this.carregarIncidentes(); },
+      error: (err) => this.mensagem.set(err?.error?.message ?? err?.error?.error ?? 'Falha ao transferir dono do incidente.')
+    });
+  }
+
+  
   criarDebitoTecnico(payload: any) {
     this.api.createTechnicalDebt(this.token(), payload).subscribe({
       next: () => { this.mensagem.set('Débito técnico registrado.'); this.carregarDebitosTecnicos(); },
@@ -1097,7 +1127,14 @@ export class App {
     });
   }
 
-  // ── Indicadores ───────────────────────────────────────────────────────────
+  transferirDonoDebito(event: { id: string; novoDono: string }) {
+    this.api.transferTechnicalDebtDono(this.token(), event.id, event.novoDono).subscribe({
+      next: () => { this.mensagem.set('Dono do débito técnico transferido.'); this.carregarDebitosTecnicos(); },
+      error: (err) => this.mensagem.set(err?.error?.message ?? err?.error?.error ?? 'Falha ao transferir dono do débito técnico.')
+    });
+  }
+
+  
   criarIndicador(payload: any) {
     const { valorInicial, ...indPayload } = payload;
     this.api.createIndicator(this.token(), indPayload).subscribe({
@@ -1135,6 +1172,13 @@ export class App {
         next: () => { this.mensagem.set('Indicador excluído.'); this.carregarIndicadores(); },
         error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir indicador.')
       });
+    });
+  }
+
+  transferirDonoIndicador(event: { id: string; novoDono: string }) {
+    this.api.transferIndicatorDono(this.token(), event.id, event.novoDono).subscribe({
+      next: () => { this.mensagem.set('Dono do indicador transferido.'); this.carregarIndicadores(); },
+      error: (err) => this.mensagem.set(err?.error?.message ?? err?.error?.error ?? 'Falha ao transferir dono do indicador.')
     });
   }
 
@@ -1210,7 +1254,13 @@ export class App {
   }
 
   excluirProjeto(id: string) {
-    this.confirmarExclusao('Confirma a exclusao deste projeto?', () => {
+    const proj = this.resumo().find((p: any) => p.id === id);
+    const nome = proj?.nome ? `"${proj.nome}"` : 'este projeto';
+    const numAtivs = proj?.totalEtapas ?? 0;
+    const detalhe = numAtivs > 0
+      ? ` Todas as ${numAtivs} etapas, cronograma, alocações e registros do projeto serão excluídos permanentemente.`
+      : ' Todos os dados do projeto serão excluídos permanentemente.';
+    this.confirmarExclusao(`Confirma a exclusão de ${nome}?${detalhe}`, () => {
       this.api.deleteProject(this.token(), id).subscribe({
         next: () => {
           this.mensagem.set('Projeto excluido.');
@@ -1219,6 +1269,17 @@ export class App {
         },
         error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir projeto.')
       });
+    });
+  }
+
+  transferirDonoProjeto(event: { id: string; novoDono: string }) {
+    this.api.transferProjectDono(this.token(), event.id, event.novoDono).subscribe({
+      next: (updated) => {
+        this.mensagem.set('Dono do projeto transferido.');
+        this.projetoSelecionado.set(updated);
+        this.carregarResumo();
+      },
+      error: (err) => this.mensagem.set(err?.error?.message ?? err?.error?.error ?? 'Falha ao transferir dono do projeto.')
     });
   }
 
@@ -1244,8 +1305,8 @@ export class App {
 
   updateCronograma(payload: { itemId: string; titulo?: string; descricao?: string; inicioPlanejado?: string | null; fimPlanejado?: string | null; permiteParalelo?: boolean; status?: string }) {
     if (!this.projetoSelecionado()) return;
-    // Drag ops embed a _replanejamento field so we can chain it after the
-    // schedule-item write completes â€” avoiding the JSON file write race.
+    
+    
     const replanejamento = (payload as any)._replanejamento ?? null;
     const { itemId, ...rest } = payload;
     this.api.updateScheduleItem(this.token(), this.projetoSelecionado().id, itemId, {
@@ -1299,11 +1360,11 @@ export class App {
     });
   }
 
-  // â”€â”€ AusÃªncias / fÃ©rias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
   criarAusencia(payload: { pessoaId: string; pessoaNome: string; tipo: string; inicio: string; fim: string; recorrente: boolean; observacao: string }) {
     this.api.createAbsence(this.token(), payload).subscribe({
       next: () => this.carregarAusencias(),
-      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao registrar ausÃªncia.')
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao registrar ausência.')
     });
   }
 
@@ -1311,15 +1372,15 @@ export class App {
     const { id, ...rest } = payload;
     this.api.updateAbsence(this.token(), id, rest).subscribe({
       next: () => this.carregarAusencias(),
-      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar ausÃªncia.')
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar ausência.')
     });
   }
 
   excluirAusencia(id: string) {
-    this.confirmarExclusao('Confirma a exclusÃ£o desta ausÃªncia?', () => {
+    this.confirmarExclusao('Confirma a exclusão desta ausência?', () => {
       this.api.deleteAbsence(this.token(), id).subscribe({
         next: () => this.carregarAusencias(),
-        error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir ausÃªncia.')
+        error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir ausência.')
       });
     });
   }
@@ -1413,22 +1474,25 @@ export class App {
   }
 
   inicializarSessao() {
-    this.dadosCriticosCarregados = 0; // reset for each new session load
+    this.dadosCriticosCarregados = 0; 
     this.api.me(this.token()).subscribe({
       next: (res) => {
         if (!this.token()) return;
         this.conta.set(res);
-        // Sync role from server so admin promotions take effect on next load
+        
         if (res?.role) {
           this.role.set(res.role);
           localStorage.setItem('planner_role', res.role);
         }
+        this.carregarUsuariosSistema();
         this.carregarFotoPerfil();
         this.carregarResumo();
         this.carregarPerfis();
         this.carregarLinhasOrcamentarias();
         this.carregarBusinessEpics();
         this.carregarAlocacoesLo();
+        this.carregarPagamentosAlocacao();
+        this.carregarEstadosMensaisAlocacao();
         this.carregarAjustesLo();
         this.carregarRiscos();
         this.carregarIncidentes();
@@ -1438,6 +1502,7 @@ export class App {
         this.carregarPessoas();
         this.carregarHorasMes();
         this.carregarConsultorias();
+        this.carregarPontosFocais();
         this.carregarAusencias();
         this.feriados.syncFromApi(this.token());
       },
@@ -1450,6 +1515,32 @@ export class App {
           return;
         }
         this.mensagem.set(err?.error?.error ?? 'Não foi possível carregar seus dados agora.');
+      }
+    });
+  }
+
+  private carregarUsuariosSistema() {
+    const fallback = new Set<string>();
+    const me = (this.usuario() || '').trim();
+    if (me) fallback.add(me);
+    const donoProjeto = (this.projetoSelecionado()?.donoProjeto || '').trim();
+    if (donoProjeto) fallback.add(donoProjeto);
+
+    if (!this.isAdmin()) {
+      this.usuariosSistema.set([...fallback].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+      return;
+    }
+
+    this.api.adminListUsers(this.token()).subscribe({
+      next: (users) => {
+        for (const u of users || []) {
+          const username = String(u?.username || '').trim();
+          if (username) fallback.add(username);
+        }
+        this.usuariosSistema.set([...fallback].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+      },
+      error: () => {
+        this.usuariosSistema.set([...fallback].sort((a, b) => a.localeCompare(b, 'pt-BR')));
       }
     });
   }
@@ -1502,6 +1593,20 @@ export class App {
     });
   }
 
+  private carregarPagamentosAlocacao() {
+    this.api.listAllocationPayments(this.token()).subscribe({
+      next: (res) => this.pagamentosAlocacao.set(res),
+      error: () => {}
+    });
+  }
+
+  private carregarEstadosMensaisAlocacao() {
+    this.api.listAllocationMonthlyState(this.token()).subscribe({
+      next: (res) => this.estadosMensaisAlocacao.set(res),
+      error: () => {}
+    });
+  }
+
   private carregarAjustesLo() {
     this.api.listBudgetLineAdjustments(this.token()).subscribe({
       next: (res) => this.ajustesLo.set(res),
@@ -1533,7 +1638,7 @@ export class App {
   private carregarAtividades() {
     this.api.listActivities(this.token()).subscribe({
       next: (res) => this.atividades.set(res),
-      error: () => {} // non-critical, ignore silently
+      error: () => {} 
     });
   }
 
@@ -1575,11 +1680,11 @@ export class App {
   private carregarAusencias() {
     this.api.listAbsences(this.token()).subscribe({
       next: (res) => { this.ausencias.set(res); this.tentarNotificacoes(); },
-      error: (err) => this.tratarErroCarga('Falha ao carregar ausÃªncias.', err)
+      error: (err) => this.tratarErroCarga('Falha ao carregar ausências.', err)
     });
   }
 
-  /** Called after each critical dataset loads. Fires notifications once both are ready. */
+  
   private tentarNotificacoes() {
     this.dadosCriticosCarregados++;
     if (this.dadosCriticosCarregados >= 2) {
@@ -1590,31 +1695,31 @@ export class App {
   private verificarNotificacoesHoje(): void {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const hojeStr  = hoje.toISOString().slice(0, 10); // 'YYYY-MM-DD'
-    const hojeMMDD = hojeStr.slice(5);                // 'MM-DD'
+    const hojeStr  = hoje.toISOString().slice(0, 10); 
+    const hojeMMDD = hojeStr.slice(5);                
 
     const eventos: Array<{ id: string; titulo: string; corpo: string }> = [];
 
-    // â”€â”€ AniversÃ¡rios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    
     for (const p of this.pessoas()) {
       const dn = (p.dataNascimento || '');
       if (!dn) continue;
-      const mmdd = dn.slice(5, 10); // 'MM-DD'
+      const mmdd = dn.slice(5, 10); 
       if (mmdd === hojeMMDD) {
         eventos.push({
           id:    `aniv-${p.id}-${hojeStr}`,
-          titulo: `ðŸŽ‚ AniversÃ¡rio de ${p.nome}`,
-          corpo:  `Hoje Ã© o aniversÃ¡rio de ${p.nome}! NÃ£o esqueÃ§a de parabenizÃ¡-lo(a).`,
+          titulo: `🎂 Aniversário de ${p.nome}`,
+          corpo:  `Hoje é o aniversário de ${p.nome}! Não esqueça de parabenizá-lo(a).`,
         });
       }
     }
 
-    // â”€â”€ AusÃªncias / fÃ©rias iniciando hoje â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    
     const tipoLabel: Record<string, string> = {
-      FERIAS: 'fÃ©rias', AUSENCIA: 'ausÃªncia', LICENCA: 'licenÃ§a', OUTRO: 'afastamento',
+      FERIAS: 'férias', AUSENCIA: 'ausência', LICENCA: 'licença', OUTRO: 'afastamento',
     };
     for (const a of this.ausencias()) {
-      const stored = (a.inicio || '').slice(0, 10); // 'YYYY-MM-DD'
+      const stored = (a.inicio || '').slice(0, 10); 
       let inicioStr: string;
       if (a.recorrente) {
         inicioStr = `${hoje.getFullYear()}-${stored.slice(5)}`;
@@ -1622,13 +1727,13 @@ export class App {
         inicioStr = stored;
       }
       if (inicioStr === hojeStr) {
-        const tipo = tipoLabel[(a.tipo || '').toUpperCase()] ?? 'ausÃªncia';
+        const tipo = tipoLabel[(a.tipo || '').toUpperCase()] ?? 'ausência';
         const nome = a.pessoaNome || '';
         const fim  = (a.fim || '').slice(0, 10);
         eventos.push({
           id:    `aus-${a.id}-${hojeStr}`,
-          titulo: `ðŸ“… ${nome} â€” inÃ­cio de ${tipo}`,
-          corpo:  `${nome} comeÃ§a ${tipo} hoje${fim ? ` (atÃ© ${fim.split('-').reverse().join('/')})` : ''}.`,
+          titulo: `📅 ${nome} — início de ${tipo}`,
+          corpo:  `${nome} começa ${tipo} hoje${fim ? ` (até ${fim.split('-').reverse().join('/')})` : ''}.`,
         });
       }
     }

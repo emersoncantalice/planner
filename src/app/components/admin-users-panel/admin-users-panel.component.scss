@@ -1,4 +1,4 @@
-// ── Admin Users Panel ────────────────────────────────────────────────────────
+
 
 .aup-wrap {
   display: flex;
@@ -9,8 +9,6 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
-
-// ── Header ───────────────────────────────────────────────────────────────────
 
 .aup-header {
   display: flex;
@@ -72,8 +70,6 @@
   }
 }
 
-// ── Feedback message ──────────────────────────────────────────────────────────
-
 .aup-msg {
   padding: .6rem 1rem;
   border-radius: 8px;
@@ -95,8 +91,6 @@
     border-color: #fecaca;
   }
 }
-
-// ── Nova senha banner ─────────────────────────────────────────────────────────
 
 .aup-nova-senha-banner {
   display: flex;
@@ -201,8 +195,6 @@
   }
 }
 
-// ── Loading / empty ───────────────────────────────────────────────────────────
-
 .aup-loading {
   display: flex;
   align-items: center;
@@ -245,8 +237,6 @@
     font-size: .9rem;
   }
 }
-
-// ── Table ─────────────────────────────────────────────────────────────────────
 
 .aup-table-wrap {
   overflow-x: auto;
@@ -305,8 +295,6 @@
     background: #dbeafe !important;
   }
 }
-
-// ── Table columns ─────────────────────────────────────────────────────────────
 
 .aup-td-username {
   min-width: 7rem;
@@ -367,8 +355,6 @@
   gap: .35rem;
 }
 
-// ── Badges ────────────────────────────────────────────────────────────────────
-
 .aup-badge {
   display: inline-block;
   padding: .15rem .5rem;
@@ -399,8 +385,6 @@
   color: #92400e;
 }
 
-// ── Inline edit inputs ────────────────────────────────────────────────────────
-
 .aup-edit-input,
 .aup-edit-select {
   width: 100%;
@@ -420,8 +404,6 @@
     box-shadow: 0 0 0 2px rgba(29, 99, 218, .15);
   }
 }
-
-// ── Action buttons ────────────────────────────────────────────────────────────
 
 .aup-btn {
   display: inline-flex;

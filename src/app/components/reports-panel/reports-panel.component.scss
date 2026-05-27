@@ -2,7 +2,6 @@
   max-width: 100%;
 }
 
-/* ── Cabeçalho ─────────────────────────────────────────────────────────── */
 .rpt-header {
   display: flex;
   align-items: center;
@@ -33,7 +32,6 @@
   font-weight: 600;
 }
 
-/* ── Tabs ──────────────────────────────────────────────────────────────── */
 .rpt-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -70,7 +68,6 @@
   }
 }
 
-/* ── Filters strip ─────────────────────────────────────────────────────── */
 .rpt-filters {
   display: flex;
   gap: 8px;
@@ -79,7 +76,6 @@
   select { min-width: 200px; }
 }
 
-/* ── KPI row ───────────────────────────────────────────────────────────── */
 .rpt-kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -111,7 +107,6 @@
 .rpt-kpi-sky    { background: linear-gradient(135deg,#edf5fd,#d8edff); border-color:#82c8f0; color:#033a5c; }
 .rpt-kpi-gray   { background: linear-gradient(135deg,#f5f7fa,#eaeff5); border-color:#c0cde0; color:#1e2d40; }
 
-/* ── Section title ─────────────────────────────────────────────────────── */
 .rpt-section-title {
   font-size: .8rem;
   font-weight: 700;
@@ -123,7 +118,6 @@
   border-bottom: 1px solid #d8e6ff;
 }
 
-/* ── Table ─────────────────────────────────────────────────────────────── */
 .rpt-table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -174,7 +168,6 @@
 .rpt-center { text-align: center; }
 .rpt-lo-nome { margin-left: 4px; }
 
-/* ── Progress bar ─────────────────────────────────────────────────────── */
 .rpt-progress-wrap {
   height: 5px;
   background: rgba(0,0,0,.08);
@@ -196,7 +189,6 @@
 
 .rpt-pct { font-size: .68rem; color: #4a6da6; }
 
-/* ── Badges ─────────────────────────────────────────────────────────────── */
 .rpt-badge {
   display: inline-block;
   font-size: .68rem;
@@ -210,7 +202,6 @@
 .rpt-badge-teal { background: #d4f4f4; border-color: #7dd8d8; color: #064242; }
 .rpt-badge-gray { background: #eef2f8; border-color: #c8d6eb; color: #3a5276; }
 
-/* ── Empty state ─────────────────────────────────────────────────────────── */
 .rpt-empty {
   display: flex;
   flex-direction: column;

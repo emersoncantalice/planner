@@ -370,9 +370,7 @@ body {
 
 .detalhe {
   margin-top: 16px;
-  /* Remove the containing-block created by backdrop-filter so that
-     position:fixed descendants (Gantt modal backdrop) are anchored
-     to the viewport, not to this card. */
+  
   backdrop-filter: none;
   background: #fff;
 }
@@ -513,7 +511,6 @@ button.sec {
   flex: 0 0 auto;
 }
 
-/* ── Mobile hamburger button ── */
 .mobile-menu-btn {
   display: none;
   position: fixed;
@@ -550,7 +547,6 @@ button.sec {
   &.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 }
 
-/* ── Mobile overlay ── */
 .mobile-overlay {
   position: fixed;
   inset: 0;
@@ -584,7 +580,7 @@ button.sec {
     grid-template-columns: 1fr;
   }
 
-  /* Sidebar as off-canvas overlay on mobile */
+  
   .sidebar {
     position: fixed;
     top: 0;
@@ -603,7 +599,7 @@ button.sec {
     }
   }
 
-  /* Sidebar toggle arrow hidden on mobile (hamburger replaces it) */
+  
   .sb-toggle {
     display: none;
   }
@@ -654,8 +650,6 @@ button.sec {
   }
 }
 
-/* moved from app.scss to reduce component style budget */
-/* ── Toast ── */
 .toast-container {
   position: fixed;
   bottom: 24px;
@@ -684,7 +678,6 @@ button.sec {
 .toast-success { background: linear-gradient(160deg, #0e5c36, #084d28); color: #d0f5e3; }
 .toast-error   { background: linear-gradient(160deg, #7a120e, #5e0909); color: #ffe8e8; }
 
-/* Cabeçalho */
 .toast-header {
   display: flex;
   align-items: center;
@@ -728,7 +721,6 @@ button.sec {
 }
 .toast-close:hover { background: rgba(255,255,255,.25); transform: none; filter: none; }
 
-/* Corpo */
 .toast-body { padding: 12px 14px; display: grid; gap: 4px; }
 .toast-label {
   margin: 6px 0 3px;
@@ -760,7 +752,6 @@ button.sec {
   white-space: pre-wrap;
 }
 
-/* Ações */
 .toast-actions {
   display: flex;
   gap: 8px;
@@ -800,12 +791,6 @@ button.sec {
   pointer-events: none;
 }
 
-
-/* moved from dashboard-panel.component.scss for budget */
-/* ─────────────────────────────────────────────────────────────────────────── */
-/*  Dashboard Panel                                                            */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
 .dash-wrap {
   padding: 24px;
   display: flex;
@@ -813,11 +798,10 @@ button.sec {
   gap: 20px;
   width: 100%;
   max-width: 2000px;
-  min-height: calc(100dvh - 36px); /* altura total - padding do .page (18px × 2) */
+  min-height: calc(100dvh - 36px); 
   box-sizing: border-box;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────────── */
 .dash-header {
   display: flex;
   align-items: flex-start;
@@ -857,7 +841,6 @@ button.sec {
 .dash-year-label { font-size: .62rem; opacity: .8; text-transform: uppercase; letter-spacing: .06em; }
 .dash-year-num   { font-size: 1.4rem; font-weight: 900; line-height: 1.1; }
 
-/* ── KPI Row ─────────────────────────────────────────────────────────────── */
 .dash-kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -900,7 +883,6 @@ button.sec {
   small  { font-size: .66rem; opacity: .65; white-space: nowrap; }
 }
 
-/* Color variants */
 .dash-kpi-blue   { background: linear-gradient(135deg,#eef4ff,#dce8ff); border-color:#b3cef8; color:#1a3a7a;
   .dash-kpi-icon { background: rgba(29,99,218,.12); color: #1d63da; } }
 
@@ -922,7 +904,6 @@ button.sec {
 .dash-kpi-gray   { background: linear-gradient(135deg,#f5f7fa,#eaeff5); border-color:#c0cde0; color:#1e2d40;
   .dash-kpi-icon { background: rgba(71,85,105,.12); color: #475569; } }
 
-/* ── Cards ───────────────────────────────────────────────────────────────── */
 .dash-card {
   background: #fff;
   border: 1px solid #d8e6ff;
@@ -978,7 +959,6 @@ button.sec {
   &:hover { text-decoration: underline; }
 }
 
-/* ── Main grid ───────────────────────────────────────────────────────────── */
 .dash-main-grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -987,7 +967,6 @@ button.sec {
   @media (max-width: 900px) { grid-template-columns: 1fr; }
 }
 
-/* ── LO utilization ─────────────────────────────────────────────────────── */
 .dash-lo-list {
   display: flex;
   flex-direction: column;
@@ -1068,7 +1047,6 @@ button.sec {
   .saldo-neg strong { color: #dc2626; }
 }
 
-/* Folha vs Terceiros breakdown */
 .dash-breakdown {
   display: flex;
   align-items: center;
@@ -1110,7 +1088,6 @@ button.sec {
   &.dot-gray  { background: #64748b; }
 }
 
-/* ── Risks ───────────────────────────────────────────────────────────────── */
 .dash-risk-list {
   list-style: none;
   margin: 0;
@@ -1185,7 +1162,6 @@ button.sec {
   padding: 4px 0 0;
 }
 
-/* ── Empty states ────────────────────────────────────────────────────────── */
 .dash-empty {
   display: flex;
   flex-direction: column;
@@ -1217,7 +1193,6 @@ button.sec {
   &:hover { background: #1550b8; }
 }
 
-/* ── Projects table ──────────────────────────────────────────────────────── */
 .dash-proj-table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -1317,7 +1292,6 @@ button.sec {
   &.neg { color: #dc2626; }
 }
 
-/* ── Shortcuts ───────────────────────────────────────────────────────────── */
 .dash-shortcuts {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1368,7 +1342,6 @@ button.sec {
   line-height: 1.3;
 }
 
-/* shortcut color variants */
 .sc-blue   { color: #1a3a7a;  border-color: #b3cef8;  .dash-shortcut-icon { background: #dce8ff; } }
 .sc-teal   { color: #064242;  border-color: #7dd8d8;  .dash-shortcut-icon { background: #d4f4f4; } }
 .sc-amber  { color: #7a3e00;  border-color: #f5d990;  .dash-shortcut-icon { background: #fff3cc; } }
@@ -1378,8 +1351,6 @@ button.sec {
 .sc-sky    { color: #033a5c;  border-color: #82c8f0;  .dash-shortcut-icon { background: #d8edff; } }
 .sc-gray   { color: #1e2d40;  border-color: #c0cde0;  .dash-shortcut-icon { background: #eaeff5; } }
 
-
-/* moved from budget-allocation-panel.component.scss for budget */
 .lo-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1426,7 +1397,6 @@ button.sec {
   padding: 1px 6px;
 }
 
-/* ── LO Overview ──────────────────────────────────── */
 .lo-overview {
   margin-bottom: 20px;
 }
@@ -1534,7 +1504,6 @@ button.sec {
   text-overflow: ellipsis;
 }
 
-/* Progress bar (utilizado) */
 .lo-progress {
   height: 5px;
   background: rgba(0, 0, 0, .1);
@@ -1551,7 +1520,6 @@ button.sec {
   transition: width .4s;
 }
 
-/* Per-card colour themes */
 .lo-card-blue {
   background: linear-gradient(135deg, #eef4ff, #dce8ff);
   border-color: #b3cef8;
@@ -1632,7 +1600,6 @@ button.sec {
   .lo-card-icon { background: #a7f3d0; color: #059669; }
 }
 
-/* ── Searchable person combo (datalist) ───────────── */
 .pessoa-combo {
   width: 100%;
   padding: 6px 8px;
@@ -1644,7 +1611,6 @@ button.sec {
   &:focus { outline: none; border-color: #1d63da; background-color: #fff; }
 }
 
-/* ── LO Summary Card ──────────────────────────────── */
 .lo-summary-card {
   margin: 10px 0 14px;
   padding: 14px 16px;
@@ -1901,7 +1867,6 @@ button.sec {
   &.over { background: #dc2626; }
 }
 
-/* ── Vaga ─────────────────────────────────────────── */
 .vaga-cell { white-space: nowrap; }
 
 .vaga-link-cell {
@@ -1912,7 +1877,6 @@ button.sec {
   &:hover { background: #dce8ff; border-color: #93b8f5; }
 }
 
-/* ── Per-LO KPI strip ─────────────────────────────── */
 .kpi-grid {
   display: grid;
   gap: 8px;
@@ -2019,7 +1983,6 @@ button.sec {
   margin: 0;
 }
 
-/* ── Table toolbar (hint + col picker) ──────────────────────────────────── */
 .table-toolbar {
   display: flex;
   align-items: flex-start;
@@ -2036,7 +1999,6 @@ button.sec {
   line-height: 1.4;
 }
 
-/* ── Column picker button ────────────────────────────────────────────────── */
 .col-picker-wrap {
   position: relative;
   flex-shrink: 0;
@@ -2060,7 +2022,6 @@ button.sec {
   &:hover { background: #dce8ff; }
 }
 
-/* ── Dropdown ────────────────────────────────────────────────────────────── */
 .col-picker-dropdown {
   position: absolute;
   right: 0;
@@ -2127,7 +2088,6 @@ button.sec {
   &:hover  { background: #f0f5ff; }
 }
 
-/* ── Exportar Excel + cabeçalho da seção de alocações ───────────────────── */
 .lo-export-row {
   display: flex;
   align-items: center;
@@ -2157,12 +2117,11 @@ button.sec {
   &:hover { background: linear-gradient(180deg, #dcfce7, #bbf7d0); }
 }
 
-
 .alloc-table-wrap {
   margin-top: 4px;
   width: 100%;
-  overflow-x: scroll;   /* sempre visível */
-  overflow-y: scroll;   /* sempre visível */
+  overflow-x: scroll;   
+  overflow-y: scroll;   
   max-height: 68vh;
   border: 1px solid #d8e6ff;
   border-radius: 12px;
@@ -2212,7 +2171,6 @@ button.sec {
   background: #f3f8ff;
 }
 
-/* Linhas de alocação cujo perfil não debita LO */
 .alloc-table tbody tr.no-charge-row {
   background: #eef1f5;
 }
@@ -2398,7 +2356,6 @@ button.sec {
   border: 1px solid #e7a9b0;
 }
 
-/* Mês com disponibilidade parcial (existe alocação mas sobrou %) — apenas na linha nova */
 .month-col.parcial {
   background: #fffbeb;
   border: 1px solid #f5c542;
@@ -2488,7 +2445,6 @@ button.sec {
   box-sizing: border-box;
 }
 
-/* Indicativo de alocação sem custo na LO (folha sem repasse, etc.) */
 .sem-custo-lo {
   display: inline-flex;
   align-items: center;
@@ -2509,7 +2465,6 @@ button.sec {
   margin: 2px 0;
 }
 
-/* Converte motivo de bloqueio em link navegável para a LO */
 .month-unavailable-link {
   cursor: pointer;
   font: inherit;
@@ -2566,7 +2521,6 @@ button.sec {
   flex: 1;
 }
 
-// ── LO tab search ──────────────────────────────────────────────────────────
 .lo-search-wrap {
   display: flex;
   align-items: center;
@@ -2693,7 +2647,6 @@ button.sec {
   margin-top: 2px;
 }
 
-/* Em telas internas, centraliza modal na area de conteudo (sem sidebar) */
 .page .modal-backdrop {
   position: absolute;
   inset: 0;
@@ -2705,6 +2658,59 @@ button.sec {
   left: 50%;
   transform: translate(-50%, -50%);
   max-height: calc(100% - 24px);
+}
+
+// ── Transferência de dono (inline row) ───────────────────────────────────────
+.transfer-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface-2, #f8f9fa);
+  border-radius: 6px;
+  flex-wrap: wrap;
+
+  span { font-size: 0.8rem; color: var(--text-muted, #666); white-space: nowrap; }
+
+  input {
+    flex: 1;
+    min-width: 160px;
+    max-width: 280px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border: 1px solid var(--border, #dee2e6);
+    border-radius: 4px;
+  }
+}
+
+.lo-transfer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border, #dee2e6);
+  border-radius: 4px;
+  background: var(--surface, #fff);
+  color: var(--text, #333);
+  cursor: pointer;
+  white-space: nowrap;
+
+  svg { width: 14px; height: 14px; fill: currentColor; }
+
+  &:hover { background: var(--surface-2, #f0f0f0); }
+}
+
+.detalhe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+
+  h3 { margin: 0; }
+  .detalhe-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 }
 
 .project-list-toolbar {
@@ -2738,12 +2744,9 @@ button.sec {
   }
 }
 
-
-/* moved from app.scss for budget */
-/* Flyout dropdown para sidebar retraída */
 .sb-flyout {
-  position: fixed;          /* fixed evita clipping por qualquer ancestor */
-  left: 90px;               /* logo após o sidebar collapsed (90px) */
+  position: fixed;          
+  left: 90px;               
   z-index: 9000;
   background: linear-gradient(160deg, #0e3a7a 0%, #0a2a60 100%);
   border: 1px solid rgba(255,255,255,.2);
@@ -2761,7 +2764,7 @@ button.sec {
   align-content: start;
   pointer-events: all;
 }
-/* sem seta — posição dinâmica via fixed torna a seta imprecisa */
+
 .sb-flyout-label {
   margin: 0 0 5px;
   padding: 0 8px;
@@ -2799,7 +2802,7 @@ button.sec {
   border-color: rgba(120,173,255,.5);
   box-shadow: 0 4px 12px rgba(10,34,78,.3);
 }
-/* Garante que os links do flyout não herdem estilos do sidebar collapsed */
+
 .sidebar.collapsed .sb-flyout a {
   width: 100%;
   justify-content: flex-start !important;
@@ -2807,7 +2810,7 @@ button.sec {
   margin: 0;
   min-height: unset;
 }
-/* Ícone nos subitens do sidebar expandido */
+
 .sb-subicon {
   width: 24px;
   height: 24px;
@@ -2824,7 +2827,7 @@ button.sec {
   height: 14px;
   fill: currentColor;
 }
-/* Ícone maior no flyout (sidebar retraído) */
+
 .sb-flyout .sb-subicon {
   width: 30px;
   height: 30px;
@@ -2836,8 +2839,6 @@ button.sec {
   height: 18px;
 }
 
-
-/* moved full app.scss for budget */
 * { box-sizing: border-box; }
 :host {
   --brand-900: #082a5e;
@@ -3178,7 +3179,6 @@ button.sec {
   box-shadow: 0 10px 24px rgba(25, 75, 160, .08);
 }
 
-/* Evita "borda dupla" quando o componente ja esta dentro de <planner-card> */
 planner-card .card {
   border: 0 !important;
   box-shadow: none !important;
@@ -3282,7 +3282,6 @@ button.danger:hover { background: #c93030; }
   font-size: .68rem;
 }
 
-/* hotfix pós-refatoração: corrige contraste e alinhamento do menu lateral */
 .sb-avatar {
   background: #1a4ea8;
   color: #fff;
@@ -3340,7 +3339,6 @@ button.danger {
   color: #1146a8;
 }
 
-/* footer/sidebar user card refinado */
 .sb-user {
   margin-top: auto;
   padding: 10px;
@@ -3446,7 +3444,6 @@ button.danger {
   line-height: 1.15;
 }
 
-/* Mobile override final: sidebar apenas via hamburger */
 @media (max-width: 768px) {
   .mobile-menu-btn {
     display: flex !important;
@@ -3487,7 +3484,6 @@ button.danger {
   }
 }
 
-/* Padrao visual de acoes */
 button {
   background: #2f6fdd;
   color: #fff;

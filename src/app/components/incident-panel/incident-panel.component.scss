@@ -5,7 +5,6 @@
   gap: 1.25rem;
 }
 
-/* Header */
 .inc-header {
   display: flex;
   align-items: center;
@@ -66,7 +65,6 @@
   &:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
 }
 
-/* Form card */
 .inc-form-card {
   background: #f8faff;
   border: 1px solid #d8e6ff;
@@ -121,7 +119,6 @@
   flex-wrap: wrap;
 }
 
-/* Buttons */
 .inc-btn {
   display: inline-flex;
   align-items: center;
@@ -161,7 +158,6 @@
 .inc-act-edit { background: #e8f1ff; border-color: #b7d0fb; color: #1d63da; }
 .inc-act-delete { background: #fee2e2; border-color: #fca5a5; color: #b91c1c !important; }
 
-/* Search */
 .inc-search-row {
   display: flex;
   align-items: center;
@@ -182,7 +178,6 @@
   &::placeholder { color: #8ba8cc; }
 }
 
-/* Empty */
 .inc-empty {
   display: flex;
   flex-direction: column;
@@ -194,7 +189,6 @@
   p { margin: 0; font-size: .9rem; }
 }
 
-/* Table */
 .inc-table-wrap {
   overflow-x: hidden;
   border-radius: .6rem;
@@ -248,7 +242,6 @@
 .inc-table th:last-child,
 .inc-table td:last-child { min-width: 0; }
 
-/* Expand button */
 .inc-expand-btn {
   background: none;
   border: none;
@@ -260,7 +253,6 @@
   .rotated { transform: rotate(180deg); }
 }
 
-/* Detail row */
 .inc-detalhe-row td { background: #f0f6ff !important; padding: 0 !important; }
 
 .inc-detalhe {
@@ -279,7 +271,6 @@
   p { margin: 0; font-size: .83rem; color: #1a2d4a; white-space: pre-wrap; }
 }
 
-/* Tipo chip */
 .inc-tipo {
   font-size: .75rem;
   color: #4a6da6;
@@ -289,7 +280,6 @@
   padding: .15rem .55rem;
 }
 
-/* Badges */
 .inc-badge {
   display: inline-block;
   padding: .18rem .6rem;
@@ -310,7 +300,6 @@
 .badge-resolvido     { background: #d4f5e3; color: #064e24; border-color: #86e5b0; }
 .badge-pos-mortem    { background: #f6f0ff; color: #3d1a7a; border-color: #c4a8f8; }
 
-/* ── Histórico expansível ── */
 .inc-bloco-hist {
   grid-column: 1 / -1;
   border-top: 1px solid #d8e6ff;

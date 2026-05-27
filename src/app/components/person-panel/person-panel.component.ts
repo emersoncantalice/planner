@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
@@ -57,7 +57,7 @@ export class PersonPanelComponent {
       vagaAlias: p.vagaAlias || '',
       dataNascimento: p.dataNascimento || '',
       contato: p.contato || '',
-      ativo: p.ativo !== false   // treat null/undefined as true (legacy)
+      ativo: p.ativo !== false   
     };
     this.valorHoraMasked = this.formatCurrency(this.pessoa.valorHora ?? 0);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal ?? 0);
