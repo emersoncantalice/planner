@@ -1016,6 +1016,7 @@ export class App {
       next: (res) => {
         this.projetoSelecionado.set(res);
         this.carregarAtividades();
+        this.carregarResumo();
       },
       error: () => {}
     });
@@ -1317,11 +1318,13 @@ export class App {
       next: (res) => {
         this.projetoSelecionado.set(res);
         this.carregarAtividades();
+        this.carregarResumo();
         if (replanejamento) {
           this.api.addReplanningEvent(this.token(), res.id, replanejamento).subscribe({
             next: (res2) => {
               this.projetoSelecionado.set(res2);
               this.carregarAtividades();
+              this.carregarResumo();
             },
             error: () => {}
           });
@@ -1338,6 +1341,7 @@ export class App {
         next: () => {
           this.selecionarProjeto(this.projetoSelecionado().id);
           this.carregarAtividades();
+          this.carregarResumo();
         },
         error: () => {}
       });
@@ -1388,7 +1392,10 @@ export class App {
   reorderCronograma(itemIdsOrdered: string[]) {
     if (!this.projetoSelecionado()) return;
     this.api.reorderSchedule(this.token(), this.projetoSelecionado().id, itemIdsOrdered).subscribe({
-      next: (res) => this.projetoSelecionado.set(res),
+      next: (res) => {
+        this.projetoSelecionado.set(res);
+        this.carregarResumo();
+      },
       error: () => {}
     });
   }
