@@ -52,6 +52,7 @@ export class DataTransferPanelComponent {
   private toast = inject(ToastService);
 
   importando    = false;
+  zerando       = false;
   importProgress = '';
   importErros: string[] = [];
 
@@ -374,5 +375,192 @@ export class DataTransferPanelComponent {
     return this.perfis.length + this.pessoas.length + this.consultorias.length +
            this.pontosFocais.length + this.linhasOrcamentarias.length +
            this.alocacoes.length + this.horasMes.length + this.businessEpics.length;
+  }
+
+  async zerarDadosNegocio() {
+    if (!this.token || this.zerando) return;
+
+    const ok = confirm(
+      'Confirma zerar os dados de negócio?\n\n' +
+      'Isso vai remover projetos, alocações, LOs, riscos, incidentes, débitos, indicadores e cadastros relacionados.\n' +
+      'Usuários e sessão atual serão preservados.'
+    );
+    if (!ok) return;
+
+    this.zerando = true;
+    this.importProgress = 'Zerando dados...';
+    this.importErros = [];
+
+    try {
+      await this.deleteProjects();
+      await this.deleteIndicators();
+      await this.deleteTechnicalDebts();
+      await this.deleteIncidents();
+      await this.deleteRisks();
+      await this.deleteAllocations();
+      await this.deleteBudgetLineAdjustments();
+      await this.deleteBudgetLines();
+      await this.deleteBusinessEpics();
+      await this.deleteFocalPoints();
+      await this.deletePeople();
+      await this.deleteConsultancies();
+      await this.deleteProfiles();
+      await this.resetMonthlyHours();
+
+      this.clearNonEssentialLocalStorage();
+
+      this.toast.show('Dados de negócio zerados com sucesso. Usuários e sessão preservados.', 'success', 7000);
+      this.imported.emit();
+    } catch (err: any) {
+      this.toast.show(`Erro ao zerar dados: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 8000);
+    } finally {
+      this.zerando = false;
+      this.importProgress = '';
+    }
+  }
+
+  private async deleteProjects() {
+    this.importProgress = 'Removendo projetos...';
+    const rows = await lastValueFrom(this.api.listProjects(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteProject(this.token, r.id)); }
+      catch { this.importErros.push(`Projeto "${r?.nome || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteIndicators() {
+    this.importProgress = 'Removendo indicadores...';
+    const rows = await lastValueFrom(this.api.listIndicators(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteIndicator(this.token, r.id)); }
+      catch { this.importErros.push(`Indicador "${r?.nome || r?.titulo || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteTechnicalDebts() {
+    this.importProgress = 'Removendo débitos técnicos...';
+    const rows = await lastValueFrom(this.api.listTechnicalDebts(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteTechnicalDebt(this.token, r.id)); }
+      catch { this.importErros.push(`Débito técnico "${r?.titulo || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteIncidents() {
+    this.importProgress = 'Removendo incidentes...';
+    const rows = await lastValueFrom(this.api.listIncidents(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteIncident(this.token, r.id)); }
+      catch { this.importErros.push(`Incidente "${r?.titulo || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteRisks() {
+    this.importProgress = 'Removendo riscos...';
+    const rows = await lastValueFrom(this.api.listRisks(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteRisk(this.token, r.id)); }
+      catch { this.importErros.push(`Risco "${r?.titulo || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteAllocations() {
+    this.importProgress = 'Removendo alocações...';
+    const rows = await lastValueFrom(this.api.listBudgetAllocations(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteBudgetAllocation(this.token, r.id)); }
+      catch { this.importErros.push(`Alocação "${r?.nomePessoa || r?.id}" não removida`); }
+    }
+  }
+
+  private async deleteBudgetLineAdjustments() {
+    this.importProgress = 'Removendo ajustes de LO...';
+    const rows = await lastValueFrom(this.api.listBudgetLineAdjustments(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteBudgetLineAdjustment(this.token, r.id)); }
+      catch { this.importErros.push(`Ajuste de LO "${r?.descricao || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteBudgetLines() {
+    this.importProgress = 'Removendo linhas orçamentárias...';
+    const rows = await lastValueFrom(this.api.listBudgetLines(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteBudgetLine(this.token, r.id)); }
+      catch { this.importErros.push(`LO "${r?.codigo || r?.id}" não removida`); }
+    }
+  }
+
+  private async deleteBusinessEpics() {
+    this.importProgress = 'Removendo Business Epics...';
+    const rows = await lastValueFrom(this.api.listBusinessEpics(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteBusinessEpic(this.token, r.id)); }
+      catch { this.importErros.push(`Business Epic "${r?.nome || r?.id}" não removido`); }
+    }
+  }
+
+  private async deleteFocalPoints() {
+    this.importProgress = 'Removendo pontos focais...';
+    const rows = await lastValueFrom(this.api.listFocalPoints(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteFocalPoint(this.token, r.id)); }
+      catch { this.importErros.push(`Ponto focal "${r?.area || r?.id}" não removido`); }
+    }
+  }
+
+  private async deletePeople() {
+    this.importProgress = 'Removendo pessoas...';
+    const rows = await lastValueFrom(this.api.listPeople(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deletePerson(this.token, r.id)); }
+      catch { this.importErros.push(`Pessoa "${r?.nome || r?.id}" não removida`); }
+    }
+  }
+
+  private async deleteConsultancies() {
+    this.importProgress = 'Removendo consultorias...';
+    const rows = await lastValueFrom(this.api.listConsultancies(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteConsultancy(this.token, r.id)); }
+      catch { this.importErros.push(`Consultoria "${r?.nome || r?.id}" não removida`); }
+    }
+  }
+
+  private async deleteProfiles() {
+    this.importProgress = 'Removendo perfis...';
+    const rows = await lastValueFrom(this.api.listProfiles(this.token));
+    for (const r of rows || []) {
+      try { await lastValueFrom(this.api.deleteProfile(this.token, r.id)); }
+      catch { this.importErros.push(`Perfil "${r?.nomePerfil || r?.id}" não removido`); }
+    }
+  }
+
+  private async resetMonthlyHours() {
+    this.importProgress = 'Reiniciando horas mensais...';
+    const rows = await lastValueFrom(this.api.listMonthlyHours(this.token));
+    for (const r of rows || []) {
+      const mes = Number(r?.mes);
+      if (!Number.isFinite(mes)) continue;
+      try { await lastValueFrom(this.api.upsertMonthlyHours(this.token, mes, 160)); }
+      catch { this.importErros.push(`Horas do mês ${mes} não reiniciadas`); }
+    }
+  }
+
+  private clearNonEssentialLocalStorage() {
+    const keep = new Set([
+      'planner_token',
+      'planner_user',
+      'planner_role',
+      'planner_sidebar_collapsed',
+      'planner_profile_image',
+    ]);
+    const toDelete: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith('planner_') && !keep.has(key)) toDelete.push(key);
+    }
+    for (const k of toDelete) localStorage.removeItem(k);
   }
 }

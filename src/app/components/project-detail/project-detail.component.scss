@@ -1,7 +1,91 @@
 
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.project-owner-row {
+  margin-bottom: 10px;
+}
+
+.project-owner-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .cronograma-wrap {
   margin-top: 8px;
   width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.cronograma-fs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  background: #eef4ff;
+  border: 1px solid #c5d8fb;
+  color: #1d4fa4;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .14s, border-color .14s, color .14s, transform .12s;
+
+  svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+  }
+
+  &:hover {
+    background: #dce8ff;
+    border-color: #93b8f8;
+    color: #1040c0;
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(.96);
+  }
+}
+
+.detalhe-fullscreen .cronograma-fs-btn {
+  background: rgba(255,255,255,.15);
+  border-color: rgba(255,255,255,.3);
+  color: #fff;
+
+  &:hover {
+    background: rgba(255,255,255,.28);
+    border-color: rgba(255,255,255,.5);
+  }
+}
+
+.detalhe-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.detalhe-fullscreen .cronograma-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .table-wrap {
@@ -198,4 +282,30 @@
 
 .user-chip:hover {
   background: #edf4ff;
+}
+
+.transfer-close-x {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #c5d8fb;
+  background: #eef4ff;
+  color: #1d4fa4;
+  border-radius: 8px;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .14s, border-color .14s, transform .1s;
+
+  &:hover {
+    background: #dce8ff;
+    border-color: #93b8f8;
+  }
+
+  &:active {
+    transform: scale(.98);
+  }
 }

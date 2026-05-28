@@ -186,6 +186,8 @@ body {
 .page {
   min-height: 100vh;
   padding: 24px;
+  flex: 1;
+  min-width: 0;
 }
 
 .auth-center {
@@ -618,6 +620,41 @@ button.sec {
   }
 }
 
+app-dashboard-panel,
+app-overview-list,
+app-project-detail {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1366px) {
+  .page {
+    padding: 14px;
+  }
+
+  .grid {
+    gap: 14px;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 220px 1fr;
+  }
+
+  .sidebar {
+    width: 220px;
+    padding: 14px 10px;
+  }
+
+  .page {
+    padding: 12px;
+  }
+}
+
 @media (max-width: 480px) {
   .app-shell.mobile-sidebar-open .mobile-menu-btn {
     opacity: 0;
@@ -797,8 +834,7 @@ button.sec {
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 2000px;
-  min-height: calc(100dvh - 36px); 
+  min-height: calc(100dvh - 36px);
   box-sizing: border-box;
 }
 
@@ -1959,7 +1995,7 @@ button.sec {
   padding: 6px 8px;
 }
 
-.actions {
+.actions:not(td) {
   display: flex;
   gap: 6px;
 }
@@ -2142,6 +2178,35 @@ button.sec {
   white-space: nowrap;
 }
 
+.alloc-table td.actions {
+  vertical-align: middle;
+  min-width: 190px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  white-space: nowrap;
+}
+
+.alloc-table td.actions .actions-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+}
+
+.alloc-table td.actions .actions-wrap button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 6px 10px;
+  line-height: 1;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
 .alloc-table thead th {
   position: sticky;
   top: 0;
@@ -2315,6 +2380,24 @@ button.sec {
   min-width: 86px;
   font-weight: 700;
 }
+.new-row td {
+  background: #eef4ff !important;
+  border-bottom: 4px solid #6b9ef8;
+}
+.new-row input,
+.new-row select {
+  background: #fff;
+  border-color: #9dbcf9;
+  color: #1a2a4a;
+  &::placeholder { color: #9aaccf; }
+  &:focus { background: #fff; border-color: #4a7de8; }
+}
+.new-row .readonly-cell {
+  color: #4a6a9a;
+}
+.new-row .pessoa-badge {
+  opacity: 1;
+}
 .new-row select {
   min-width: 120px;
 }
@@ -2326,6 +2409,30 @@ button.sec {
 .new-row td:nth-child(2) { min-width: 150px; }
 .new-row td:nth-child(3) { min-width: 110px; }
 .new-row td:nth-child(4) { min-width: 120px; }
+
+.add-aloc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 14px;
+  height: 34px;
+  border-radius: 8px;
+  background: #1d63da;
+  color: #fff;
+  border: none;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .14s, transform .1s;
+  svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+  &:hover { background: #1550b8; }
+  &:active { transform: scale(.97); }
+  &.active {
+    background: #0e3a8c;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.25);
+  }
+}
 
 .paid-check {
   display: flex;
@@ -2648,16 +2755,16 @@ button.sec {
 }
 
 .page .modal-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
 }
 
 .page .modal-card {
-  position: absolute;
+  position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  max-height: calc(100% - 24px);
+  max-height: calc(100vh - 24px);
 }
 
 // ── Transferência de dono (inline row) ───────────────────────────────────────
@@ -2984,13 +3091,33 @@ button.sec {
     width: 100%;
   }
 }
-.sb-toggle {
-  width: 32px;
-  height: 32px;
+.sb-brand-link {
+  cursor: pointer;
+  transition: opacity .15s;
+  &:hover { opacity: .82; }
+}
+
+.sb-top-btns {
   position: absolute;
   top: 14px;
   right: 8px;
   z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar.collapsed .sb-top-btns {
+  position: static;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+.sb-toggle {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #ffffff;
   color: #0f4cb8;
@@ -3006,6 +3133,39 @@ button.sec {
   width: 16px;
   height: 16px;
   fill: currentColor;
+}
+.sb-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0f4cb8;
+  border: 1px solid #c8dbff;
+  box-shadow: 0 8px 16px rgba(10,43,99,.24);
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s, transform .12s;
+  &:hover {
+    background: #e8f0ff;
+    color: #0a35a0;
+    box-shadow: 0 10px 20px rgba(10,43,99,.32);
+    transform: scale(1.06);
+  }
+  &.active {
+    background: #1d63da;
+    color: #fff;
+    border-color: #1d63da;
+    box-shadow: 0 6px 14px rgba(29,99,218,.45);
+  }
+  svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
 }
 .sb-nav {
   display: grid;
@@ -3089,8 +3249,8 @@ button.sec {
   font-style: italic;
 }
 .sb-icon {
-  min-width: 30px;
-  height: 30px;
+  min-width: 48px;
+  height: 35px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
@@ -3113,7 +3273,7 @@ button.sec {
 }
 .sidebar.collapsed .sb-nav a {
   justify-content: center;
-  width: 48px;
+  width: 68px;
   padding: 8px 0;
   margin: 0 auto;
 }
@@ -3125,6 +3285,7 @@ button.sec {
   min-height: 100dvh;
   padding: 18px;
   position: relative;
+  overflow-x: hidden;
   background:
     linear-gradient(rgba(251, 253, 255, 0.8), rgba(251, 253, 255, 0.8)),
     url('/assets/branding/bg-pattern.jpg') top right/450px auto repeat;
@@ -3147,8 +3308,14 @@ button.sec {
 }
 .menu-drop p { margin: 0 0 8px; font-size: .9rem; }
 .menu-item { width: 100%; background: #1d5fd1; }
-.grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .grid > .full-row { grid-column: 1 / -1; }
+.grid > * { min-width: 0; }
+.grid > .full-row { min-width: 0; }
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+}
 .app-alert {
   display: flex;
   margin-bottom: 12px;
@@ -3506,4 +3673,138 @@ button.warn:hover {
 button.danger {
   background: #d93b3b;
   color: #fff;
+}
+
+// ── Badges Folha / Prestador ──────────────────────────────────────────────────
+.pessoa-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.badge-folha {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.badge-terceiro {
+  background: #fff3e0;
+  color: #b45309;
+  border: 1px solid #fcd38e;
+}
+
+// ── Célula da pessoa (drag handle + info) ────────────────────────────────────
+.pessoa-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pessoa-cell-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+// ── Drag handle ───────────────────────────────────────────────────────────────
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-width: 20px;
+  height: 28px;
+  cursor: grab;
+  color: #b8cce8;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+  user-select: none;
+  flex-shrink: 0;
+
+  &:hover {
+    color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// ── Drag-and-drop row states ──────────────────────────────────────────────────
+.alloc-table tbody tr.drag-over > td {
+  background: #eff6ff !important;
+  box-shadow: inset 0 -2px 0 #3b82f6;
+}
+
+.alloc-table tbody tr.drag-over > td:first-child {
+  background: #eff6ff !important;
+}
+
+.alloc-table tbody tr.dragging {
+  opacity: 0.45;
+}
+
+// ── Sortable column headers ───────────────────────────────────────────────────
+.alloc-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  &:hover {
+    background: #e8f0ff;
+  }
+}
+
+.sort-icon {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: .68rem;
+  color: #7a9ec8;
+  vertical-align: middle;
+  opacity: .75;
+}
+
+// ── Barra de ordem personalizada ─────────────────────────────────────────────
+.ordem-custom-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.ordem-custom-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: .73rem;
+  font-weight: 600;
+}
+
+.ordem-reset-btn {
+  font-size: .72rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+
+  &:hover {
+    background: #c7d2fe;
+    filter: none;
+  }
 }

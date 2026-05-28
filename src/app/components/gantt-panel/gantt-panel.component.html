@@ -456,9 +456,9 @@
 
           <!-- Período + Zoom — pill unificada -->
           <div class="gp-ctrl-pill" role="group" aria-label="Escala e zoom da linha do tempo">
-            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"    (click)="timelineScale = 'DIA'">Dia</button>
-            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'" (click)="timelineScale = 'SEMANA'">Semana</button>
-            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"    (click)="timelineScale = 'MES'">Mês</button>
+            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"    (click)="setTimelineScale('DIA')">Dia</button>
+            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'" (click)="setTimelineScale('SEMANA')">Semana</button>
+            <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"    (click)="setTimelineScale('MES')">Mês</button>
             <span class="gp-ctrl-pill-sep"></span>
             <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Diminuir zoom">
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zM7 9h5v1H7z"/></svg>
@@ -536,11 +536,11 @@
       <div class="gp-tb-row gp-tb-controls">
         <div class="gp-ctrl-pill" role="group" aria-label="Escala e zoom da linha do tempo">
           <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'DIA'"
-                  (click)="timelineScale = 'DIA'">Dia</button>
+                  (click)="setTimelineScale('DIA')">Dia</button>
           <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'SEMANA'"
-                  (click)="timelineScale = 'SEMANA'">Semana</button>
+                  (click)="setTimelineScale('SEMANA')">Semana</button>
           <button class="gp-seg-btn" [class.gp-seg-active]="timelineScale === 'MES'"
-                  (click)="timelineScale = 'MES'">Mês</button>
+                  (click)="setTimelineScale('MES')">Mês</button>
           <span class="gp-ctrl-pill-sep"></span>
           <button class="gp-zoom-step" (click)="zoomOut()" [disabled]="!canZoomOut()" title="Reduzir zoom">
             <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zM7 9h5v1H7z"/></svg>
@@ -615,7 +615,12 @@
         <button class="gp-add-first-btn" (click)="toggleForm()">Adicionar primeira atividade</button>
       </div>
     } @else {
-      <div class="gp-gantt-outer" (mouseenter)="onTimelineMouseEnter()" (mouseleave)="onTimelineMouseLeave()">
+      <div class="gp-gantt-outer"
+           #ganttOuter
+           [class.gp-panning]="isTimelinePanning"
+           (mousedown)="onTimelinePanMouseDown($event)"
+           (mouseenter)="onTimelineMouseEnter()"
+           (mouseleave)="onTimelineMouseLeave()">
         <div class="gp-gantt-table" #ganttTable [style.minWidth.px]="totalWidth()">
 
           <!-- ─ Header row ──────────────────────────────────────────────────── -->

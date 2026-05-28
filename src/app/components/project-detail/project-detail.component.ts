@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { GanttPanelComponent } from '../gantt-panel/gantt-panel.component';
@@ -29,6 +29,7 @@ export class ProjectDetailComponent implements OnChanges {
   @Input() usuariosSistema: string[] = [];
   @Input() token = '';
   @Input() currentUser = '';
+  @Input() openTransferRequestId = 0;
   @Output() addScheduleItem    = new EventEmitter<{ titulo: string; descricao: string; inicioPlanejado: string | null; fimPlanejado: string | null; permiteParalelo: boolean }>();
   @Output() updateScheduleItem = new EventEmitter<{ itemId: string; titulo?: string; descricao?: string; inicioPlanejado?: string | null; fimPlanejado?: string | null; permiteParalelo?: boolean; status?: string }>();
   @Output() deleteScheduleItem = new EventEmitter<string>();
@@ -45,6 +46,7 @@ export class ProjectDetailComponent implements OnChanges {
 
   donoModalAberto = false;
   donoNovoInput   = '';
+  cronogramaTelaCheia = false;
 
   isDonoDoProjeto(): boolean {
     const role = (localStorage.getItem('planner_role') || '').trim();
@@ -56,6 +58,29 @@ export class ProjectDetailComponent implements OnChanges {
   abrirDonoModal()  { this.donoNovoInput = ''; this.donoModalAberto = true; }
   fecharDonoModal() { this.donoModalAberto = false; this.donoNovoInput = ''; }
   selecionarNovoDono(username: string) { this.donoNovoInput = username; }
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    if (event.key === 'F11') {
+      event.preventDefault();
+      this.toggleCronogramaTelaCheia();
+    }
+  }
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange() {
+    if (!document.fullscreenElement) {
+      this.cronogramaTelaCheia = false;
+    }
+  }
+
+  toggleCronogramaTelaCheia() {
+    this.cronogramaTelaCheia = !this.cronogramaTelaCheia;
+    if (this.cronogramaTelaCheia) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+  }
 
   usuariosSugeridos(): string[] {
     const base = (this.usuariosSistema || []).filter(Boolean);
@@ -74,6 +99,9 @@ export class ProjectDetailComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['projeto']) this.visibleReplanCount = 5;
+    if (changes['openTransferRequestId'] && this.openTransferRequestId > 0 && this.isDonoDoProjeto()) {
+      this.abrirDonoModal();
+    }
   }
 
   historicoReplanejamento(): ReplanEvent[] {
@@ -82,7 +110,14 @@ export class ProjectDetailComponent implements OnChanges {
   }
 
   historicoVisivel(): ReplanEvent[] {
-    return this.historicoReplanejamento().slice(0, this.visibleReplanCount);
+    return this.historicoReplanejamento()
+      .slice()
+      .sort((a, b) => {
+        const ta = a?.registradoEm ? new Date(a.registradoEm).getTime() : 0;
+        const tb = b?.registradoEm ? new Date(b.registradoEm).getTime() : 0;
+        return tb - ta;
+      })
+      .slice(0, this.visibleReplanCount);
   }
 
   tipoLabel(tipo: string): string {

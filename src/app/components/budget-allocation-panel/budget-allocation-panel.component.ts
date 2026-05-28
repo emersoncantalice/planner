@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
+import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
@@ -11,7 +11,102 @@ import { PlannerApiService } from '../../core/planner-api.service';
   templateUrl: './budget-allocation-panel.component.html',
   styleUrl: './budget-allocation-panel.component.scss'
 })
-export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
+export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, AfterViewInit {
+  @ViewChild('tableWrap') tableWrapRef!: ElementRef<HTMLElement>;
+
+  private dragScrolling = false;
+  private dragScrollCandidate = false;
+  private dragScrollStartX = 0;
+  private dragScrollStartY = 0;
+  private dragScrollLeft = 0;
+  private dragScrollTop = 0;
+  private readonly dragScrollThreshold = 4;
+  private readonly dragScrollSpeed = 1.45;
+  private suppressClickUntil = 0;
+  private panRaf: number | null = null;
+  private panLastMouseX = 0;
+  private panLastMouseY = 0;
+  private panDeltaX = 0;
+  private panDeltaY = 0;
+  private onDocumentDragOverRef: ((e: DragEvent) => void) | null = null;
+
+  scrollToCurrentMonth() {
+    if (this.anoSelecionado !== this.currentYear) return;
+    const el = this.tableWrapRef?.nativeElement;
+    if (!el) return;
+    setTimeout(() => {
+      const col = el.querySelector<HTMLElement>('th.current-month');
+      if (!col) return;
+      el.scrollLeft = col.offsetLeft - el.clientWidth / 2 + col.offsetWidth / 2;
+    }, 50);
+  }
+
+  ngAfterViewInit() {
+    this.scrollToCurrentMonth();
+    const el = this.tableWrapRef?.nativeElement;
+    if (!el) return;
+    el.addEventListener('mousedown', (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest('span.drag-handle')) return;
+      this.dragScrollCandidate = true;
+      this.dragScrolling = false;
+      this.dragScrollStartX = e.clientX;
+      this.dragScrollStartY = e.clientY;
+      this.dragScrollLeft = el.scrollLeft;
+      this.dragScrollTop = el.scrollTop;
+    });
+    el.addEventListener('mouseleave', () => {
+      this.dragScrollCandidate = false;
+      this.dragScrolling = false;
+      el.style.cursor = '';
+      el.style.userSelect = '';
+    });
+    el.addEventListener('mouseup', () => {
+      if (this.dragScrolling) this.suppressClickUntil = Date.now() + 120;
+      this.dragScrollCandidate = false;
+      this.dragScrolling = false;
+      el.style.cursor = '';
+      el.style.userSelect = '';
+    });
+    el.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!this.dragScrollCandidate) return;
+      const dx = e.clientX - this.dragScrollStartX;
+      const dy = e.clientY - this.dragScrollStartY;
+      if (!this.dragScrolling) {
+        if ((Math.abs(dx) + Math.abs(dy)) < this.dragScrollThreshold) return;
+        this.dragScrolling = true;
+        this.panLastMouseX = e.clientX;
+        this.panLastMouseY = e.clientY;
+        this.panDeltaX = 0;
+        this.panDeltaY = 0;
+        this.startPanLoop();
+        el.style.cursor = 'grabbing';
+        el.style.userSelect = 'none';
+      }
+      e.preventDefault();
+      this.panDeltaX += (e.clientX - this.panLastMouseX);
+      this.panDeltaY += (e.clientY - this.panLastMouseY);
+      this.panLastMouseX = e.clientX;
+      this.panLastMouseY = e.clientY;
+    });
+    el.addEventListener('click', (e: MouseEvent) => {
+      if (Date.now() < this.suppressClickUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+
+    this.onDocumentDragOverRef = (e: DragEvent) => {
+      if (this.dragSourceIndex == null) return;
+      this.dragPointerX = e.clientX;
+      this.dragPointerY = e.clientY;
+    };
+    document.addEventListener('dragover', this.onDocumentDragOverRef);
+
+    const stopPan = () => this.stopPanLoop();
+    el.addEventListener('mouseup', stopPan);
+    el.addEventListener('mouseleave', stopPan);
+  }
   @Input() linhasOrcamentarias: any[] = [];
   @Input() ajustes: any[] = [];
   @Input() horasMes: any[] = [];
@@ -27,10 +122,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   @Output() createPerson = new EventEmitter<{ nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl: string }>();
   form = { linhaOrcamentariaId: '', nomePessoa: '', perfilId: '', horasPlanejadas: 0 };
   editingId = '';
+  novaLinhaAberta = false;
   novaPessoaSelecionadaId = '';
   pessoaEdicaoSelecionadaId = '';
   loSelecionadaId = '';
   anoSelecionado = new Date().getFullYear();
+  currentYear = new Date().getFullYear();
+  currentMonthIdx = new Date().getMonth();
   meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   searchTerm = '';
   searchLoTerm = '';
@@ -52,6 +150,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   usuariosLoAberta: Array<{ username: string }> = [];
   private canceladoMensal: Record<string, boolean> = {};
   private valorMensalManual: Record<string, number> = {};
+  private valorMensalMaskedMap: Record<string, string> = {};
   private percentualMensalManual: Record<string, number> = {};
   percentualAviso = '';
   novaAlocacaoPercentual = 100;
@@ -62,6 +161,18 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   pessoaRapida = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '' };
   pessoaValorHoraMasked = '';
   pessoaValorMensalMasked = '';
+
+  private ordemPorLo: Record<string, string[]> = {};
+  dragSourceIndex: number | null = null;
+  dragOverIndex: number | null = null;
+  private readonly dragAutoScrollEdge = 84;
+  private readonly dragAutoScrollMaxStep = 18;
+  private readonly dragViewportEdge = 72;
+  private dragPointerX = 0;
+  private dragPointerY = 0;
+  private dragAutoScrollRaf: number | null = null;
+  sortColuna: string | null = null;
+  sortDirecao: 'asc' | 'desc' = 'asc';
 
   // transferência de dono da LO
   donoModalAberto = false;
@@ -140,12 +251,18 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       }
       this.form.linhaOrcamentariaId = this.loSelecionadaId;
       this.aplicarSelecaoPendenteLo();
+      if (this.loSelecionadaId && !this.ordemPorLo[this.loSelecionadaId]) {
+        this.ordemPorLo[this.loSelecionadaId] = this.carregarOrdemLo(this.loSelecionadaId);
+      }
     }
     if (changes['alocacoes']) {
 
       this.aplicarConfigsPendentes();
       this.loadPagamentosDoBackend();
       this.loadAllocationPercentsFromBackend();
+      if (this.loSelecionadaId && !this.ordemPorLo[this.loSelecionadaId]) {
+        this.ordemPorLo[this.loSelecionadaId] = this.carregarOrdemLo(this.loSelecionadaId);
+      }
     }
     if (changes['linhasOrcamentarias']) {
       this.loadLoRealizadoFromBackend();
@@ -186,6 +303,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
       clearInterval(this.loRealizadoSyncTimer);
       this.loRealizadoSyncTimer = null;
     }
+    if (this.onDocumentDragOverRef) {
+      document.removeEventListener('dragover', this.onDocumentDragOverRef);
+      this.onDocumentDragOverRef = null;
+    }
+    this.stopPanLoop();
   }
 
   @HostListener('document:mousemove', ['$event'])
@@ -296,21 +418,35 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   alocacoesFiltradas() {
     const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
     const query = this.searchTerm.trim().toLowerCase();
-    return this.alocacoes
-      .filter((a: any) => {
-        if (!idsAno.has(a.linhaOrcamentariaId)) return false;
-        if (this.loSelecionadaId && a.linhaOrcamentariaId !== this.loSelecionadaId) return false;
-        if (!query) return true;
-        return `${a?.nomePessoa ?? ''} ${a?.perfilNome ?? ''} ${a?.linhaOrcamentariaCodigo ?? ''}`.toLowerCase().includes(query);
-      })
-      .sort((a: any, b: any) => {
-        const oa = this.ordemVisualAlocacao(a);
-        const ob = this.ordemVisualAlocacao(b);
-        if (oa !== ob) return oa - ob;
-        const na = String(a?.nomePessoa || '');
-        const nb = String(b?.nomePessoa || '');
-        return na.localeCompare(nb, 'pt-BR');
+    const filtered = this.alocacoes.filter((a: any) => {
+      if (!idsAno.has(a.linhaOrcamentariaId)) return false;
+      if (this.loSelecionadaId && a.linhaOrcamentariaId !== this.loSelecionadaId) return false;
+      if (!query) return true;
+      return `${a?.nomePessoa ?? ''} ${a?.perfilNome ?? ''} ${a?.linhaOrcamentariaCodigo ?? ''}`.toLowerCase().includes(query);
+    });
+
+    const customOrder = !query ? (this.ordemPorLo[this.loSelecionadaId] ?? []) : [];
+    if (customOrder.length) {
+      return [...filtered].sort((a: any, b: any) => {
+        const ia = customOrder.indexOf(a.id);
+        const ib = customOrder.indexOf(b.id);
+        if (ia === -1 && ib === -1) return 0;
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
       });
+    }
+
+    if (this.sortColuna) {
+      return [...filtered].sort((a: any, b: any) => this.compararPorColuna(a, b));
+    }
+
+    return [...filtered].sort((a: any, b: any) => {
+      const oa = this.ordemVisualAlocacao(a);
+      const ob = this.ordemVisualAlocacao(b);
+      if (oa !== ob) return oa - ob;
+      return String(a?.nomePessoa || '').localeCompare(String(b?.nomePessoa || ''), 'pt-BR');
+    });
   }
 
   private ordemVisualAlocacao(a: any): number {
@@ -1038,9 +1174,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     if (!this.editingId) {
       this.form.linhaOrcamentariaId = loId;
     }
+    if (!this.ordemPorLo[loId]) {
+      this.ordemPorLo[loId] = this.carregarOrdemLo(loId);
+    }
     this.heartbeatLoAberta();
     this.loadLoPresence();
     this.loadAllocationCursors();
+    this.scrollToCurrentMonth();
   }
 
   cursorLeft(c: { x: number; y: number }): string { return `${Math.max(0, Math.min(100, c.x * 100))}vw`; }
@@ -1176,6 +1316,22 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     this.form.perfilId = '';
     this.novaPessoaSelecionadaId = '';
     this.pessoaNovaNome = '';
+    this.novaAlocacaoPercentual = 100;
+    this.novaPctMasked = this.formatPct(100);
+    this.novaLinhaAberta = false;
+  }
+
+  abrirNovaLinha() {
+    this.novaLinhaAberta = true;
+    this.editingId = '';
+  }
+
+  fecharNovaLinha() {
+    this.novaLinhaAberta = false;
+    this.novaPessoaSelecionadaId = '';
+    this.pessoaNovaNome = '';
+    this.form.nomePessoa = '';
+    this.form.perfilId = '';
     this.novaAlocacaoPercentual = 100;
     this.novaPctMasked = this.formatPct(100);
   }
@@ -1384,6 +1540,40 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
     return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  private formatCurrencyMasked(value: number | null): string {
+    return Number(value || 0).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  private valorMensalMaskKey(allocationId: string, month: number): string {
+    return `${allocationId}_${month}`;
+  }
+
+  getValorMensalMasked(allocationId: string, month: number, valorHora: number): string {
+    const key = this.valorMensalMaskKey(allocationId, month);
+    const masked = this.valorMensalMaskedMap[key];
+    if (masked != null) return masked;
+    return this.formatCurrencyMasked(this.getValorMensalDigitavel(allocationId, month, valorHora));
+  }
+
+  onValorMensalMaskedChange(value: string, allocationId: string, month: number) {
+    const digits = String(value ?? '').replace(/\D/g, '');
+    const cents = digits ? Number.parseInt(digits, 10) : 0;
+    const amount = cents / 100;
+    const key = this.valorMensalMaskKey(allocationId, month);
+    this.valorMensalMaskedMap[key] = this.formatCurrencyMasked(amount);
+    this.setValorMensalDigitavel(allocationId, month, amount);
+  }
+
+  syncValorMensalMasked(allocationId: string, month: number, valorHora: number) {
+    const key = this.valorMensalMaskKey(allocationId, month);
+    this.valorMensalMaskedMap[key] = this.formatCurrencyMasked(
+      this.getValorMensalDigitavel(allocationId, month, valorHora)
+    );
+  }
+
   getValorMensalManual(allocationId: string, month: number): number | null {
     const key = this.valorMensalManualKey(allocationId, month);
     return this.valorMensalManual[key] ?? null;
@@ -1429,6 +1619,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
   limparValorMensalManual(allocationId: string, month: number, valorHora: number) {
     const key = this.valorMensalManualKey(allocationId, month);
     delete this.valorMensalManual[key];
+    delete this.valorMensalMaskedMap[this.valorMensalMaskKey(allocationId, month)];
     if (this.token) {
       this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualValue: null }).subscribe();
     }
@@ -1859,11 +2050,305 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy {
 
   private applyExcelStyle(ws: any, colCount: number) {
     if (!ws['!cols']) ws['!cols'] = [];
-    
+
     for (let i = 0; i < colCount; i++) {
       ws['!cols'][i] = { wch: i < 5 ? 22 : 14 };
     }
   }
 
-}
+  // ── Ordenação personalizada (drag-and-drop) ────────────────────────────────
 
+  temOrdemCustom(): boolean {
+    return !!(this.ordemPorLo[this.loSelecionadaId]?.length);
+  }
+
+  resetarOrdemCustom() {
+    if (this.loSelecionadaId) {
+      delete this.ordemPorLo[this.loSelecionadaId];
+      try { localStorage.removeItem(this.ordemLoKey(this.loSelecionadaId)); } catch {}
+    }
+    this.sortColuna = null;
+    this.sortDirecao = 'asc';
+  }
+
+  confirmToast: { msg: string; onConfirm: () => void } | null = null;
+
+  private showConfirmToast(msg: string, onConfirm: () => void) {
+    this.confirmToast = { msg, onConfirm };
+  }
+
+  confirmToastAction(confirmed: boolean) {
+    const pending = this.confirmToast;
+    this.confirmToast = null;
+    if (confirmed && pending) pending.onConfirm();
+  }
+
+  ordenarPor(coluna: string) {
+    if (this.temOrdemCustom()) {
+      this.showConfirmToast('Ordenar pela coluna vai perder sua ordenação personalizada. Continuar?', () => {
+        this.resetarOrdemCustom();
+        this._aplicarOrdenacao(coluna);
+      });
+      return;
+    }
+    this._aplicarOrdenacao(coluna);
+  }
+
+  private _aplicarOrdenacao(coluna: string) {
+    if (this.sortColuna === coluna) {
+      this.sortDirecao = this.sortDirecao === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColuna = coluna;
+      this.sortDirecao = 'asc';
+    }
+  }
+
+  getSortIcon(coluna: string): string {
+    if (this.sortColuna !== coluna) return '↕';
+    return this.sortDirecao === 'asc' ? '↑' : '↓';
+  }
+
+  private compararPorColuna(a: any, b: any): number {
+    const mult = this.sortDirecao === 'asc' ? 1 : -1;
+    switch (this.sortColuna) {
+      case 'nome':
+        return mult * String(a?.nomePessoa || '').localeCompare(String(b?.nomePessoa || ''), 'pt-BR');
+      case 'categoria': {
+        const ca = this.getCategoriaDaPessoa(a);
+        const cb = this.getCategoriaDaPessoa(b);
+        return mult * ca.localeCompare(cb);
+      }
+      case 'pct':
+        return mult * (Number(this.getConfig(a.id).percentual) - Number(this.getConfig(b.id).percentual));
+      case 'valorH':
+        return mult * (this.getValorHoraDaAlocacao(a) - this.getValorHoraDaAlocacao(b));
+      case 'total': {
+        const ta = this.meses.reduce((s: number, _: string, mi: number) => s + this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), mi), 0);
+        const tb = this.meses.reduce((s: number, _: string, mi: number) => s + this.custoMensal(b.id, this.getValorHoraDaAlocacao(b), mi), 0);
+        return mult * (ta - tb);
+      }
+      default: return 0;
+    }
+  }
+
+  onDragStart(idx: number, event: DragEvent) {
+    if (this.searchTerm.trim() || this.editingId) { event.preventDefault(); return; }
+    this.dragSourceIndex = idx;
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    this.startDragAutoScrollLoop();
+  }
+
+  onDragOver(event: DragEvent, idx: number) {
+    event.preventDefault();
+    if (this.dragSourceIndex == null) return;
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.dragOverIndex = idx;
+    this.dragPointerX = event.clientX;
+    this.dragPointerY = event.clientY;
+    this.autoScrollTableWhileDragging(event);
+    this.autoScrollTableByRowPosition(event);
+  }
+
+  onTableDragOver(event: DragEvent) {
+    if (this.dragSourceIndex == null) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.dragPointerX = event.clientX;
+    this.dragPointerY = event.clientY;
+    this.autoScrollTableWhileDragging(event);
+  }
+
+  onDragLeave() {
+    this.dragOverIndex = null;
+  }
+
+  onDragEnd() {
+    this.dragSourceIndex = null;
+    this.dragOverIndex = null;
+    this.stopDragAutoScrollLoop();
+  }
+
+  onDrop(event: DragEvent, idx: number) {
+    event.preventDefault();
+    if (this.dragSourceIndex == null || this.dragSourceIndex === idx) {
+      this.onDragEnd();
+      return;
+    }
+    const allocs = this.alocacoesFiltradas();
+    const ids = allocs.map((a: any) => a.id);
+    const [moved] = ids.splice(this.dragSourceIndex, 1);
+    ids.splice(idx, 0, moved);
+    this.ordemPorLo[this.loSelecionadaId] = ids;
+    this.salvarOrdemLo(this.loSelecionadaId, ids);
+    this.sortColuna = null;
+    this.onDragEnd();
+  }
+
+  private autoScrollTableWhileDragging(event: DragEvent) {
+    const wrap = this.tableWrapRef?.nativeElement;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const x = event.clientX;
+    const y = event.clientY;
+
+    const topDist = y - rect.top;
+    const bottomDist = rect.bottom - y;
+    const leftDist = x - rect.left;
+    const rightDist = rect.right - x;
+
+    if (y < rect.top) {
+      wrap.scrollTop -= this.dragAutoScrollMaxStep;
+    } else if (y > rect.bottom) {
+      wrap.scrollTop += this.dragAutoScrollMaxStep;
+    } else if (topDist >= 0 && topDist < this.dragAutoScrollEdge) {
+      const ratio = (this.dragAutoScrollEdge - topDist) / this.dragAutoScrollEdge;
+      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+      wrap.scrollTop -= step;
+    } else if (bottomDist >= 0 && bottomDist < this.dragAutoScrollEdge) {
+      const ratio = (this.dragAutoScrollEdge - bottomDist) / this.dragAutoScrollEdge;
+      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+      wrap.scrollTop += step;
+    }
+
+    if (x < rect.left) {
+      wrap.scrollLeft -= this.dragAutoScrollMaxStep;
+    } else if (x > rect.right) {
+      wrap.scrollLeft += this.dragAutoScrollMaxStep;
+    } else if (leftDist >= 0 && leftDist < this.dragAutoScrollEdge) {
+      const ratio = (this.dragAutoScrollEdge - leftDist) / this.dragAutoScrollEdge;
+      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+      wrap.scrollLeft -= step;
+    } else if (rightDist >= 0 && rightDist < this.dragAutoScrollEdge) {
+      const ratio = (this.dragAutoScrollEdge - rightDist) / this.dragAutoScrollEdge;
+      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+      wrap.scrollLeft += step;
+    }
+  }
+
+  private autoScrollTableByRowPosition(event: DragEvent) {
+    const wrap = this.tableWrapRef?.nativeElement;
+    const row = event.currentTarget as HTMLElement | null;
+    if (!wrap || !row) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const edge = 44;
+    const step = Math.max(8, Math.round(this.dragAutoScrollMaxStep * 0.8));
+
+    if (rowRect.bottom > (wrapRect.bottom - edge)) {
+      wrap.scrollTop += step;
+    } else if (rowRect.top < (wrapRect.top + edge)) {
+      wrap.scrollTop -= step;
+    }
+  }
+
+  private startDragAutoScrollLoop() {
+    this.stopDragAutoScrollLoop();
+    const tick = () => {
+      if (this.dragSourceIndex == null) {
+        this.dragAutoScrollRaf = null;
+        return;
+      }
+      const wrap = this.tableWrapRef?.nativeElement;
+      if (wrap) {
+        const rect = wrap.getBoundingClientRect();
+        const x = this.dragPointerX;
+        const y = this.dragPointerY;
+        const viewportBottomEdge = window.innerHeight - this.dragViewportEdge;
+        const viewportTopEdge = this.dragViewportEdge;
+
+        const topDist = y - rect.top;
+        const bottomDist = rect.bottom - y;
+        const leftDist = x - rect.left;
+        const rightDist = rect.right - x;
+
+        if (y >= viewportBottomEdge) {
+          wrap.scrollTop += this.dragAutoScrollMaxStep;
+        } else if (y <= viewportTopEdge) {
+          wrap.scrollTop -= this.dragAutoScrollMaxStep;
+        } else if (y < rect.top) {
+          wrap.scrollTop -= this.dragAutoScrollMaxStep;
+        } else if (y > rect.bottom) {
+          wrap.scrollTop += this.dragAutoScrollMaxStep;
+        } else if (topDist >= 0 && topDist < this.dragAutoScrollEdge) {
+          const ratio = (this.dragAutoScrollEdge - topDist) / this.dragAutoScrollEdge;
+          const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+          wrap.scrollTop -= step;
+        } else if (bottomDist >= 0 && bottomDist < this.dragAutoScrollEdge) {
+          const ratio = (this.dragAutoScrollEdge - bottomDist) / this.dragAutoScrollEdge;
+          const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+          wrap.scrollTop += step;
+        }
+
+        if (x < rect.left) {
+          wrap.scrollLeft -= this.dragAutoScrollMaxStep;
+        } else if (x > rect.right) {
+          wrap.scrollLeft += this.dragAutoScrollMaxStep;
+        } else if (leftDist >= 0 && leftDist < this.dragAutoScrollEdge) {
+          const ratio = (this.dragAutoScrollEdge - leftDist) / this.dragAutoScrollEdge;
+          const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+          wrap.scrollLeft -= step;
+        } else if (rightDist >= 0 && rightDist < this.dragAutoScrollEdge) {
+          const ratio = (this.dragAutoScrollEdge - rightDist) / this.dragAutoScrollEdge;
+          const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
+          wrap.scrollLeft += step;
+        }
+      }
+      this.dragAutoScrollRaf = requestAnimationFrame(tick);
+    };
+    this.dragAutoScrollRaf = requestAnimationFrame(tick);
+  }
+
+  private stopDragAutoScrollLoop() {
+    if (this.dragAutoScrollRaf != null) {
+      cancelAnimationFrame(this.dragAutoScrollRaf);
+      this.dragAutoScrollRaf = null;
+    }
+  }
+
+  private startPanLoop() {
+    this.stopPanLoop();
+    const wrap = this.tableWrapRef?.nativeElement;
+    if (!wrap) return;
+    const tick = () => {
+      if (!this.dragScrolling) {
+        this.panRaf = null;
+        return;
+      }
+      if (this.panDeltaX !== 0 || this.panDeltaY !== 0) {
+        wrap.scrollLeft -= this.panDeltaX * this.dragScrollSpeed;
+        wrap.scrollTop -= this.panDeltaY * this.dragScrollSpeed;
+        this.panDeltaX = 0;
+        this.panDeltaY = 0;
+      }
+      this.panRaf = requestAnimationFrame(tick);
+    };
+    this.panRaf = requestAnimationFrame(tick);
+  }
+
+  private stopPanLoop() {
+    if (this.panRaf != null) {
+      cancelAnimationFrame(this.panRaf);
+      this.panRaf = null;
+    }
+    this.panDeltaX = 0;
+    this.panDeltaY = 0;
+  }
+
+  private ordemLoKey(loId: string): string {
+    return `planner_lo_custom_order_${loId}`;
+  }
+
+  private salvarOrdemLo(loId: string, ids: string[]) {
+    try { localStorage.setItem(this.ordemLoKey(loId), JSON.stringify(ids)); } catch {}
+  }
+
+  private carregarOrdemLo(loId: string): string[] {
+    try {
+      const raw = localStorage.getItem(this.ordemLoKey(loId));
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+
+}

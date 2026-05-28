@@ -133,6 +133,12 @@
   &:hover:not(:disabled) { background: #1b5e20; }
 }
 
+.dt-btn-danger {
+  background: #c62828;
+  color: #fff;
+  &:hover:not(:disabled) { background: #a91f1f; }
+}
+
 .dt-progress {
   display: flex;
   align-items: center;

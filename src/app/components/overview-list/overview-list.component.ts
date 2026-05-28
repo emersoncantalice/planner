@@ -34,6 +34,7 @@ export class OverviewListComponent {
   @Output() updateProject = new EventEmitter<{ id: string; nome: string; descricao: string }>();
   @Output() deleteProject = new EventEmitter<string>();
   @Output() updateProjectSituacao = new EventEmitter<{ id: string; situacao: 'DRAFT' | 'PUBLISHED' }>();
+  @Output() requestTransferOwnership = new EventEmitter<string>();
   editingProjectId = '';
   projectForm = {
     nome: '',
@@ -210,6 +211,10 @@ export class OverviewListComponent {
       businessEpicId:      epic?.id ?? '',
       percentualLo,
     };
+  }
+
+  abrirTransferenciaProjeto(projectId: string) {
+    this.requestTransferOwnership.emit(projectId);
   }
 
   orcamentoPrevistoDerivadoEdit(): number {

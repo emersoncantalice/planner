@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, computed, inject, signal } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { PlannerApiService } from './core/planner-api.service';
 import { LoggerService } from './core/logger.service';
 import { ToastService } from './core/toast.service';
@@ -95,6 +95,7 @@ export class App {
   usuariosSistema = signal<string[]>([]);
   conta = signal<any>(null);
   projetoSelecionado = signal<any>(null);
+  openTransferRequestId = signal(0);
   menuAberto = signal(false);
   sidebarCollapsed = signal(localStorage.getItem('planner_sidebar_collapsed') === '1');
   cadastrosExpanded = signal(false);
@@ -110,6 +111,7 @@ export class App {
   mobileSidebarOpen = signal(false);
   secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados'>('dashboard');
   riscoEmFocoId = signal('');
+  isFullscreen = signal(false);
 
   get authLoading() {
     return this.authSubmitting();
@@ -119,10 +121,17 @@ export class App {
   feriados = inject(FeriadosService);
   private notifications = inject(NotificationService);
 
-  
+
   private dadosCriticosCarregados = 0;
 
   constructor(private api: PlannerApiService, private logger: LoggerService) {
+    effect(() => {
+      const msg = (this.mensagem() || '').trim();
+      if (!msg || !this.token()) return;
+      this.toast.show(msg, this.mensagemEhErro() ? 'error' : 'success', 5000);
+      this.mensagem.set('');
+    });
+
     if (this.token()) {
       this.logger.info('Sessão encontrada, carregando dashboard inicial');
       this.inicializarSessao();
@@ -935,6 +944,14 @@ export class App {
       },
       error: () => {}
     });
+  }
+
+  solicitarTransferenciaProjeto(projectId: string) {
+    if (!projectId) return;
+    this.selecionarProjeto(projectId);
+    setTimeout(() => {
+      this.openTransferRequestId.update(v => v + 1);
+    }, 220);
   }
 
   addEtapa(etapa: { titulo: string }) {
@@ -1826,5 +1843,28 @@ export class App {
     if (!raw) return null;
     if (raw.includes('T')) return raw;
     return `${raw}T00:00:00Z`;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    if (event.key === 'F11') {
+      event.preventDefault();
+      if (!this.projetoSelecionado()) {
+        this.toggleFullscreen();
+      }
+    }
+  }
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange() {
+    this.isFullscreen.set(!!document.fullscreenElement);
+  }
+
+  toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
   }
 }

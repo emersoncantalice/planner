@@ -1,11 +1,17 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .dash-wrap {
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 2000px;
   box-sizing: border-box;
+  min-width: 0;
 }
 
 .dash-header {
@@ -44,6 +50,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 .dash-kpi {
   display: flex;
@@ -137,6 +144,120 @@
   grid-template-columns: 1.4fr 1fr;
   gap: 20px;
   @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1100px) {
+  .dash-wrap {
+    padding: 16px;
+  }
+
+  .dash-kpi-row {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-wrap {
+    padding: 12px;
+    gap: 14px;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .dash-year-badge {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    min-width: unset;
+    border-radius: 10px;
+  }
+
+  .dash-year-num {
+    font-size: 1.1rem;
+  }
+
+  .dash-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .dash-kpi {
+    padding: 12px 12px;
+    gap: 10px;
+  }
+
+  .dash-kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    svg { width: 18px; height: 18px; }
+  }
+
+  .dash-lo-nome {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .dash-ind-titulo {
+    max-width: 100%;
+  }
+
+  .dash-breakdown {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dash-breakdown-sep {
+    display: none;
+  }
+
+  .dash-shortcuts {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .dash-wrap {
+    padding: 8px;
+    gap: 10px;
+  }
+
+  .dash-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .dash-kpi {
+    padding: 10px 10px;
+    gap: 8px;
+  }
+
+  .dash-kpi-body {
+    strong { font-size: .88rem; }
+  }
+
+  .dash-shortcuts {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+  }
+
+  .dash-shortcut {
+    padding: 11px 12px;
+  }
+
+  .dash-proj-table-wrap {
+    font-size: .72rem;
+  }
+
+  .dash-sem-resp-table-wrap {
+    font-size: .72rem;
+  }
 }
 
 .dash-lo-list { display: flex; flex-direction: column; gap: 12px; }

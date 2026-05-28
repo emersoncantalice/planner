@@ -259,12 +259,26 @@
   <div class="toolbar-row">
     <input [(ngModel)]="searchTerm" placeholder="Pesquisar alocações por pessoa ou perfil..." />
     <button class="sec" type="button" (click)="abrirPessoaModal()">Nova pessoa</button>
+    <button type="button" class="add-aloc-btn" (click)="abrirNovaLinha()" [class.active]="novaLinhaAberta">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      Adicionar alocação
+    </button>
   </div>
 
-  <section class="alloc-table-wrap">
+  <section class="alloc-table-wrap" #tableWrap (dragover)="onTableDragOver($event)">
     <div class="table-toolbar">
       <p class="table-hint">Cálculo mensal: Valor/hora x Horas do cadastro do mes x Alocação (%).</p>
-      
+
+      @if (temOrdemCustom()) {
+        <div class="ordem-custom-bar">
+          <span class="ordem-custom-info">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M3 15h18v-2H3zm0 4h18v-2H3zm0-8h18V9H3zm0-6v2h18V5z"/></svg>
+            Ordenação personalizada ativa
+          </span>
+          <button type="button" class="sec ordem-reset-btn" (click)="resetarOrdemCustom()" title="Voltar para a ordenação padrão">↺ Resetar ordem</button>
+        </div>
+      }
+
       <div class="col-picker-wrap">
         <button type="button" class="col-picker-btn" (click)="toggleColPicker()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h4V6H3zm7 0h4V3h-4zm7 0h4V10h-4z"/></svg>
@@ -295,26 +309,26 @@
     <table class="modern-table alloc-table">
       <thead>
         <tr>
-          <th>Pessoa</th>
+          <th class="sortable" (click)="ordenarPor('nome')">Pessoa <span class="sort-icon">{{ getSortIcon('nome') }}</span></th>
           @if (col('vaga'))      { <th>Vaga</th> }
           @if (col('perfil'))    { <th>Perfil</th> }
-          @if (col('categoria')) { <th>Categoria</th> }
-          @if (col('pct'))       { <th>Alocação (%)</th> }
-          @if (col('valorH'))    { <th>Valor/h</th> }
+          @if (col('categoria')) { <th class="sortable" (click)="ordenarPor('categoria')">Categoria <span class="sort-icon">{{ getSortIcon('categoria') }}</span></th> }
+          @if (col('pct'))       { <th class="sortable" (click)="ordenarPor('pct')">Alocação (%) <span class="sort-icon">{{ getSortIcon('pct') }}</span></th> }
+          @if (col('valorH'))    { <th class="sortable" (click)="ordenarPor('valorH')">Valor/h <span class="sort-icon">{{ getSortIcon('valorH') }}</span></th> }
           @for (m of meses; track m; let monthIndex = $index) {
             @if (col(mesKey(monthIndex))) {
-              <th class="month-head">
+              <th class="month-head" [class.current-month]="anoSelecionado === currentYear && monthIndex === currentMonthIdx">
                 <span>{{ m }}</span>
                 <small>{{ horasDoCadastro(monthIndex) }}h</small>
               </th>
             }
           }
-          @if (col('total'))     { <th>Total anual</th> }
+          @if (col('total'))     { <th class="sortable" (click)="ordenarPor('total')">Total anual <span class="sort-icon">{{ getSortIcon('total') }}</span></th> }
           <th>Ações</th>
         </tr>
       </thead>
       <tbody>
-        @if (!editingId) {
+        @if (novaLinhaAberta && !editingId) {
           <tr class="new-row">
             <td>
               <input
@@ -329,6 +343,11 @@
                   <option [value]="p.nome"></option>
                 }
               </datalist>
+              @if (novaPessoaSelecionadaId) {
+                <span class="pessoa-badge" [class.badge-folha]="!isTerceiroNovaPessoa()" [class.badge-terceiro]="isTerceiroNovaPessoa()">
+                  {{ isTerceiroNovaPessoa() ? 'Prestador' : 'Folha' }}
+                </span>
+              }
             </td>
             @if (col('vaga')) {
               <td class="vaga-cell">
@@ -394,13 +413,23 @@
             }
             @if (col('total'))     { <td><strong>{{ currency(custoAnualNovaPessoa()) }}</strong></td> }
             <td class="actions">
-              <button type="button" (click)="adicionarAlocacao()">Adicionar</button>
+              <div class="actions-wrap">
+                <button type="button" (click)="adicionarAlocacao()">Adicionar</button>
+                <button type="button" class="sec" (click)="fecharNovaLinha()">Cancelar</button>
+              </div>
             </td>
           </tr>
         }
 
-        @for (a of alocacoesFiltradas(); track a.id) {
-          <tr [class.no-charge-row]="pessoaSemCustoLo(a)">
+        @for (a of alocacoesFiltradas(); track a.id; let idx = $index) {
+          <tr
+            [class.no-charge-row]="pessoaSemCustoLo(a)"
+            [class.drag-over]="dragOverIndex === idx && dragSourceIndex !== idx"
+            [class.dragging]="dragSourceIndex === idx"
+            (dragover)="onDragOver($event, idx)"
+            (dragleave)="onDragLeave()"
+            (drop)="onDrop($event, idx)"
+            (dragend)="onDragEnd()">
             <td>
               @if (editingId === a.id) {
                 <input
@@ -416,7 +445,26 @@
                   }
                 </datalist>
               } @else {
-                <strong>{{ a.nomePessoa }}</strong>
+                <div class="pessoa-cell-wrap">
+                  @if (!searchTerm.trim()) {
+                    <span class="drag-handle"
+                      draggable="true"
+                      (dragstart)="onDragStart(idx, $event)"
+                      title="Arrastar para reordenar">
+                      <svg viewBox="0 0 10 16" width="10" height="16" fill="currentColor" aria-hidden="true">
+                        <circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/>
+                        <circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/>
+                        <circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/>
+                      </svg>
+                    </span>
+                  }
+                  <div class="pessoa-cell-info">
+                    <strong>{{ a.nomePessoa }}</strong>
+                    <span class="pessoa-badge" [class.badge-folha]="getCategoriaDaPessoa(a) === 'FOLHA'" [class.badge-terceiro]="getCategoriaDaPessoa(a) === 'TERCEIRO'">
+                      {{ getCategoriaDaPessoa(a) === 'FOLHA' ? 'Folha' : 'Prestador' }}
+                    </span>
+                  </div>
+                </div>
               }
             </td>
             @if (col('vaga')) {
@@ -508,15 +556,14 @@
                       <span class="sem-custo-lo sem-custo-lo-mes">Não cobra da LO</span>
                     } @else {
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        lang="en"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="0,00"
                         [disabled]="isCancelado(a.id, monthIndex)"
                         [readonly]="isPago(a.id, monthIndex)"
-                        [ngModel]="getValorMensalDigitavel(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))"
-                        (ngModelChange)="setValorMensalDigitavel(a.id, monthIndex, $event)"
-                        (blur)="setValorMensalDigitavel(a.id, monthIndex, getValorMensalDigitavel(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a)))" />
+                        [ngModel]="getValorMensalMasked(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))"
+                        (ngModelChange)="onValorMensalMaskedChange($event, a.id, monthIndex)"
+                        (blur)="syncValorMensalMasked(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))" />
                       @if (!isCancelado(a.id, monthIndex) && valorMaximoMes(a, monthIndex) > 0) {
                         <small class="month-max-hint">máx {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
                       }
@@ -584,13 +631,15 @@
               </td>
             }
             <td class="actions">
-              @if (editingId === a.id) {
-                <button class="sec" type="button" (click)="saveEdit()">Salvar</button>
-                <button type="button" (click)="cancelEdit()">Cancelar</button>
-              } @else {
-                <button class="sec" type="button" (click)="startEdit(a)">Editar</button>
-                <button type="button" (click)="remove.emit(a.id)">Excluir</button>
-              }
+              <div class="actions-wrap">
+                @if (editingId === a.id) {
+                  <button class="sec" type="button" (click)="saveEdit()">Salvar</button>
+                  <button type="button" (click)="cancelEdit()">Cancelar</button>
+                } @else {
+                  <button class="sec" type="button" (click)="startEdit(a)">Editar</button>
+                  <button type="button" (click)="remove.emit(a.id)">Excluir</button>
+                }
+              </div>
             </td>
           </tr>
         }
@@ -598,6 +647,16 @@
     </table>
   </section>
 </article></planner-card>
+
+@if (confirmToast) {
+  <div class="alloc-toast alloc-toast-confirm">
+    <span class="alloc-toast-msg">{{ confirmToast.msg }}</span>
+    <div class="alloc-toast-actions">
+      <button type="button" class="alloc-toast-ok" (click)="confirmToastAction(true)">Confirmar</button>
+      <button type="button" class="alloc-toast-cancel" (click)="confirmToastAction(false)">Cancelar</button>
+    </div>
+  </div>
+}
 
 @if (donoModalAberto) {
   <div class="modal-backdrop" (click)="fecharDonoModal()"></div>

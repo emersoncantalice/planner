@@ -101,7 +101,7 @@
 
   @if (token()) {
     <aside class="sidebar" [class.collapsed]="sidebarCollapsed()" [class.mobile-open]="mobileSidebarOpen()">
-      <div class="sb-brand">
+      <div class="sb-brand sb-brand-link" (click)="selecionarSecao('dashboard')" title="Ir para o Cockpit">
         @if (!sidebarCollapsed()) {
           <div class="sb-logo-wrap">
             <img class="sb-logo" src="assets/branding/logo-full.png" alt="Planner" />
@@ -112,13 +112,22 @@
           </div>
         }
       </div>
-      <button class="sb-toggle" (click)="toggleSidebar()" [title]="sidebarCollapsed() ? 'Expandir menu' : 'Retrair menu'">
-        @if (sidebarCollapsed()) {
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.41L10.71 6.7a1 1 0 0 0-1.42 0z"/></svg>
-        } @else {
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.71 6.71a1 1 0 0 1 0 1.41L10.83 12l3.88 3.88a1 1 0 0 1-1.42 1.41l-4.58-4.58a1 1 0 0 1 0-1.41L13.29 6.7a1 1 0 0 1 1.42 0z"/></svg>
-        }
-      </button>
+      <div class="sb-top-btns">
+        <button class="sb-toggle" (click)="toggleSidebar()" [title]="sidebarCollapsed() ? 'Expandir menu' : 'Retrair menu'">
+          @if (sidebarCollapsed()) {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.41L10.71 6.7a1 1 0 0 0-1.42 0z"/></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.71 6.71a1 1 0 0 1 0 1.41L10.83 12l3.88 3.88a1 1 0 0 1-1.42 1.41l-4.58-4.58a1 1 0 0 1 0-1.41L13.29 6.7a1 1 0 0 1 1.42 0z"/></svg>
+          }
+        </button>
+        <button class="sb-fullscreen-btn" (click)="toggleFullscreen()" [class.active]="isFullscreen()" title="Tela cheia (F11)">
+          @if (isFullscreen()) {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          }
+        </button>
+      </div>
       <nav class="sb-nav">
         <a [class.active]="secaoAtiva() === 'dashboard'" (click)="selecionarSecao('dashboard')" title="Planner">
           <span class="sb-icon" aria-hidden="true">
@@ -414,15 +423,10 @@
   }
 
   <section class="page fade-in">
-    @if (mensagem()) {
-      <div class="app-alert" [class.error]="mensagemEhErro()">
-        <span>{{ mensagem() }}</span>
-        <button type="button" class="app-alert-close" (click)="fecharMensagem()" aria-label="Fechar mensagem">×</button>
-      </div>
-    }
     <section class="grid">
       @if (secaoAtiva() === 'dashboard') {
         <app-dashboard-panel
+          class="full-row"
           [nomeUsuario]="nomeExibicaoUsuario()"
           [usernameAtual]="usuario()"
           [token]="token()"
@@ -493,6 +497,7 @@
           (openCreateProject)="abrirModalProjeto()"
           (exportJira)="exportarProjetosParaJira()"
           (select)="selecionarProjeto($event)"
+          (requestTransferOwnership)="solicitarTransferenciaProjeto($event)"
           (updateProject)="atualizarProjeto($event)"
           (deleteProject)="excluirProjeto($event)"
           (updateProjectSituacao)="atualizarSituacaoProjeto($event)"></app-overview-list>
@@ -712,6 +717,7 @@
         [usuariosSistema]="usuariosSistema()"
         [token]="token()"
         [currentUser]="usuario()"
+        [openTransferRequestId]="openTransferRequestId()"
         (addScheduleItem)="addCronograma($event)"
         (updateScheduleItem)="updateCronograma($event)"
         (deleteScheduleItem)="excluirAtividadeCronograma($event)"

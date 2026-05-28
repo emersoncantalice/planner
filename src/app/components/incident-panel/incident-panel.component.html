@@ -165,7 +165,12 @@
                 <td colspan="7">
                   <div class="transfer-inline">
                     <span>Transferir para:</span>
-                    <input [(ngModel)]="transferInput" placeholder="Username do novo dono" (keydown.enter)="confirmarTransferencia()" />
+                    <input [(ngModel)]="transferInput" list="inc-transfer-users" placeholder="Username do novo dono" (keydown.enter)="confirmarTransferencia()" />
+                    <datalist id="inc-transfer-users">
+                      @for (u of usuariosTransferenciaFiltrados(); track u) {
+                        <option [value]="u"></option>
+                      }
+                    </datalist>
                     <button type="button" (click)="confirmarTransferencia()" [disabled]="!transferInput.trim()">Confirmar</button>
                     <button type="button" class="sec" (click)="cancelarTransferencia()">Cancelar</button>
                   </div>

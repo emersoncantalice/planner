@@ -144,8 +144,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   exportandoImagem = false;
   @ViewChild('ganttTable') private ganttTableRef?: ElementRef<HTMLElement>;
+  @ViewChild('ganttOuter') private ganttOuterRef?: ElementRef<HTMLElement>;
   timelineHovered = false;
   selectedTimelineDate = '';
+  isTimelinePanning = false;
 
   
   dragState:   DragState   | null = null;
@@ -153,6 +155,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   dragPreviewMap: Record<string, { start: Date; end: Date }> = {};
   private _groupPreviewRaf = 0;
   private _justDragged = false;
+  private _justPanned = false;
 
   
   private _dragBarEl:     HTMLElement | null = null;
@@ -168,6 +171,13 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   resizingRowHeight = false;
   private readonly _onRowResizeMoveBound = (e: MouseEvent) => this._onRowResizeMove(e);
   private readonly _onRowResizeUpBound = () => this._onRowResizeUp();
+  private timelinePanStartX = 0;
+  private timelinePanStartY = 0;
+  private timelinePanScrollLeft = 0;
+  private timelinePanScrollTop = 0;
+  private timelinePanMoved = false;
+  private readonly _onTimelinePanMoveBound = (e: MouseEvent) => this._onTimelinePanMove(e);
+  private readonly _onTimelinePanUpBound = () => this._onTimelinePanUp();
   private readonly DAY_MS = 86_400_000;
 
   ngOnChanges(c: SimpleChanges) {
@@ -183,6 +193,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         this.rowHeight = 42;
       }
       this.loadMarkers();
+      this.scheduleCenterToday();
     }
   }
 
@@ -191,6 +202,56 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (this._groupPreviewRaf) cancelAnimationFrame(this._groupPreviewRaf);
     this._removeListeners();
     this.detachRowResizeListeners();
+    this.detachTimelinePanListeners();
+  }
+
+  onTimelinePanMouseDown(event: MouseEvent) {
+    if (event.button !== 0) return;
+    if (this.dragState || this.resizingRowHeight) return;
+    const outer = this.ganttOuterRef?.nativeElement;
+    if (!outer) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, input, select, textarea, a, .gp-bar, .gp-bar-handle, .gp-row-resize-handle, .gp-marker-pill-remove, .gp-marker-remove')) {
+      return;
+    }
+    this.isTimelinePanning = true;
+    this.timelinePanMoved = false;
+    this.timelinePanStartX = event.clientX;
+    this.timelinePanStartY = event.clientY;
+    this.timelinePanScrollLeft = outer.scrollLeft;
+    this.timelinePanScrollTop = outer.scrollTop;
+    this.zone.runOutsideAngular(() => {
+      document.addEventListener('mousemove', this._onTimelinePanMoveBound);
+      document.addEventListener('mouseup', this._onTimelinePanUpBound);
+    });
+    event.preventDefault();
+  }
+
+  private _onTimelinePanMove(event: MouseEvent) {
+    if (!this.isTimelinePanning) return;
+    const outer = this.ganttOuterRef?.nativeElement;
+    if (!outer) return;
+    const dx = event.clientX - this.timelinePanStartX;
+    const dy = event.clientY - this.timelinePanStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this.timelinePanMoved = true;
+    outer.scrollLeft = this.timelinePanScrollLeft - dx;
+    outer.scrollTop = this.timelinePanScrollTop - dy;
+  }
+
+  private _onTimelinePanUp() {
+    if (!this.isTimelinePanning) return;
+    this.zone.run(() => {
+      this.isTimelinePanning = false;
+      this._justPanned = this.timelinePanMoved;
+      this.timelinePanMoved = false;
+      this.cdr.detectChanges();
+    });
+    this.detachTimelinePanListeners();
+  }
+
+  private detachTimelinePanListeners() {
+    document.removeEventListener('mousemove', this._onTimelinePanMoveBound);
+    document.removeEventListener('mouseup', this._onTimelinePanUpBound);
   }
 
   onRowHeightHandleMouseDown(event: MouseEvent) {
@@ -581,6 +642,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   
   onRowClick(event: MouseEvent, item: any) {
+    if (this._justPanned) { this._justPanned = false; return; }
     if (this._justDragged) { this._justDragged = false; return; }
     if (event.ctrlKey || event.metaKey) {
       if (this.selectedItemIds.has(item.id)) this.selectedItemIds.delete(item.id);
@@ -719,15 +781,47 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   get zoomLevelCount(): number { return this.zoomLevels.length; }
 
-  zoomIn()  { if (this._zoomIndex < this.zoomLevels.length - 1) this._zoomIndex++; }
-  zoomOut() { if (this._zoomIndex > 0) this._zoomIndex--; }
-  setZoomIndex(v: number) { this._zoomIndex = Math.max(0, Math.min(this.zoomLevels.length - 1, v)); }
+  zoomIn()  {
+    if (this._zoomIndex < this.zoomLevels.length - 1) {
+      this._zoomIndex++;
+      this.scheduleCenterToday();
+    }
+  }
+  zoomOut() {
+    if (this._zoomIndex > 0) {
+      this._zoomIndex--;
+      this.scheduleCenterToday();
+    }
+  }
+  setZoomIndex(v: number) {
+    this._zoomIndex = Math.max(0, Math.min(this.zoomLevels.length - 1, v));
+    this.scheduleCenterToday();
+  }
+  setTimelineScale(scale: 'DIA' | 'SEMANA' | 'MES') {
+    this.timelineScale = scale;
+    this.scheduleCenterToday();
+  }
   zoomLabel(): string { return `${Math.round(this.zoomLevels[this._zoomIndex] * 100)}%`; }
   canZoomIn(): boolean { return this._zoomIndex < this.zoomLevels.length - 1; }
   canZoomOut(): boolean { return this._zoomIndex > 0; }
 
   onTimelineMouseEnter() { this.timelineHovered = true; }
   onTimelineMouseLeave() { this.timelineHovered = false; }
+
+  private scheduleCenterToday() {
+    setTimeout(() => this.centerTodayInView(), 0);
+  }
+
+  private centerTodayInView() {
+    const outer = this.ganttOuterRef?.nativeElement;
+    if (!outer) return;
+    const today = this.todayLeft();
+    if (today < 0) return;
+    const todayX = this.LEFT_W + today;
+    const target = todayX - (outer.clientWidth / 2);
+    const maxScroll = Math.max(0, outer.scrollWidth - outer.clientWidth);
+    outer.scrollLeft = Math.max(0, Math.min(maxScroll, target));
+  }
 
   onWindowKeydown(event: KeyboardEvent) {
     if (!this.timelineHovered || !event.ctrlKey) return;

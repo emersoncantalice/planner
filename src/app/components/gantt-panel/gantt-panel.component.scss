@@ -697,6 +697,12 @@ $surface   : #fff;
   overflow-y: visible;
   max-height: calc(100dvh - 280px);
   box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  cursor: grab;
+}
+
+.gp-gantt-outer.gp-panning {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .gp-gantt-table {
@@ -1035,6 +1041,7 @@ $surface   : #fff;
 
 .gp-gantt-row {
   display: flex;
+  position: relative;
   height: $row-h;
   border-bottom: 1px solid #edf2fc;
   cursor: pointer;
@@ -1057,10 +1064,11 @@ $surface   : #fff;
   padding: 0 10px;
   position: sticky;
   left: 0;
-  z-index: 5;
-  background: inherit;
+  z-index: 80;
+  background: #f8fbff;
   border-right: 1px solid $border;
   flex-shrink: 0;
+  isolation: isolate;
 }
 
 .gr-num {
@@ -1156,6 +1164,9 @@ $surface   : #fff;
 
 .gp-gantt-row .gp-rcol {
   height: $row-h;
+  z-index: 1;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .gp-today-line {
@@ -1239,8 +1250,8 @@ $surface   : #fff;
 }
 
 .gp-rcol-dragging {
-  overflow: visible;
-  z-index: 10;
+  overflow: hidden;
+  z-index: 1;
 }
 
 .gp-bar {
@@ -1263,7 +1274,7 @@ $surface   : #fff;
 .gp-bar-dragging {
   opacity: .85;
   box-shadow: 0 4px 20px rgba(0,0,0,.28);
-  z-index: 20;
+  z-index: 2;
 }
 
 .gp-bar-selected {
