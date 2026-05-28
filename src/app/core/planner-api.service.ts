@@ -83,6 +83,19 @@ export class PlannerApiService {
     return this.http.delete<void>(`${this.api}/budget-lines/${budgetLineId}`, { headers: this.headers(token) });
   }
 
+  listProjectBudgets(token: string) {
+    return this.http.get<any[]>(`${this.api}/project-budgets`, { headers: this.headers(token) });
+  }
+  createProjectBudget(token: string, payload: any) {
+    return this.http.post<any>(`${this.api}/project-budgets`, payload, { headers: this.headers(token) });
+  }
+  updateProjectBudget(token: string, id: string, payload: any) {
+    return this.http.put<any>(`${this.api}/project-budgets/${id}`, payload, { headers: this.headers(token) });
+  }
+  deleteProjectBudget(token: string, id: string) {
+    return this.http.delete<void>(`${this.api}/project-budgets/${id}`, { headers: this.headers(token) });
+  }
+
   listBudgetLineAdjustments(token: string) {
     return this.http.get<any[]>(`${this.api}/budget-line-adjustments`, { headers: this.headers(token) });
   }

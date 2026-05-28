@@ -32,6 +32,7 @@ import { TechnicalDebtPanelComponent } from './components/technical-debt-panel/t
 import { IndicatorsPanelComponent } from './components/indicators-panel/indicators-panel.component';
 import { PersonActivityPanelComponent } from './components/person-activity-panel/person-activity-panel.component';
 import { DataTransferPanelComponent } from './components/data-transfer-panel/data-transfer-panel.component';
+import { ProjectBudgetPanelComponent } from './components/project-budget-panel/project-budget-panel.component';
 
 @Component({
   selector: 'app-root',
@@ -61,7 +62,8 @@ import { DataTransferPanelComponent } from './components/data-transfer-panel/dat
     TechnicalDebtPanelComponent,
     IndicatorsPanelComponent,
     PersonActivityPanelComponent,
-    DataTransferPanelComponent
+    DataTransferPanelComponent,
+    ProjectBudgetPanelComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './app.html',
@@ -101,6 +103,8 @@ export class App {
   cadastrosExpanded = signal(false);
   alocacoesExpanded = signal(false);
   riscosExpanded = signal(false);
+  projetosExpanded = signal(false);
+  orcamentosProjeto = signal<any[]>([]);
   flyoutTop = signal(0);
   flyoutBottom = signal<number | null>(null);
   flyoutMaxHeight = signal<number | null>(null);
@@ -109,7 +113,7 @@ export class App {
   confirmModalMessage = signal('');
   authSubmitting = signal(false);
   mobileSidebarOpen = signal(false);
-  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados'>('dashboard');
+  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto'>('dashboard');
   riscoEmFocoId = signal('');
   isFullscreen = signal(false);
 
@@ -231,6 +235,7 @@ export class App {
     const willOpen = !this.cadastrosExpanded();
     this.alocacoesExpanded.set(false);
     this.riscosExpanded.set(false);
+    this.projetosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
       this.setFlyoutTop(el, 10); 
@@ -242,11 +247,24 @@ export class App {
     const willOpen = !this.alocacoesExpanded();
     this.cadastrosExpanded.set(false);
     this.riscosExpanded.set(false);
+    this.projetosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
       this.setFlyoutTop(el, 3);
     }
     this.alocacoesExpanded.set(willOpen);
+  }
+
+  toggleProjetosMenu(event?: MouseEvent) {
+    const willOpen = !this.projetosExpanded();
+    this.cadastrosExpanded.set(false);
+    this.riscosExpanded.set(false);
+    this.alocacoesExpanded.set(false);
+    if (event && this.sidebarCollapsed()) {
+      const el = event.currentTarget as HTMLElement;
+      this.setFlyoutTop(el, 2);
+    }
+    this.projetosExpanded.set(willOpen);
   }
 
   toggleMobileSidebar() {
@@ -263,14 +281,16 @@ export class App {
     this.selecionarSecao('conta');
   }
 
-  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados') {
+  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto') {
     this.secaoAtiva.set(secao);
     if (secao !== 'riscos') this.riscoEmFocoId.set('');
     if (secao !== 'projetos') this.projectCreateModalOpen.set(false);
+    if (secao === 'orcamento_projeto' && !this.orcamentosProjeto().length) this.carregarOrcamentosProjeto();
     this.menuAberto.set(false);
     this.cadastrosExpanded.set(false);
     this.alocacoesExpanded.set(false);
     this.riscosExpanded.set(false);
+    this.projetosExpanded.set(false);
     this.mobileSidebarOpen.set(false);
   }
 
@@ -278,6 +298,7 @@ export class App {
     const willOpen = !this.riscosExpanded();
     this.cadastrosExpanded.set(false);
     this.alocacoesExpanded.set(false);
+    this.projetosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
       this.setFlyoutTop(el, 3);
@@ -1492,6 +1513,7 @@ export class App {
     this.secaoAtiva.set('dashboard');
     this.cadastrosExpanded.set(false);
     this.alocacoesExpanded.set(false);
+    this.projetosExpanded.set(false);
     this.conta.set(null);
     this.resumo.set([]);
     this.perfis.set([]);
@@ -1658,6 +1680,34 @@ export class App {
     this.api.listIndicators(this.token()).subscribe({
       next: (res) => this.indicadores.set(res),
       error: (err) => this.tratarErroCarga('Falha ao carregar indicadores.', err)
+    });
+  }
+
+  carregarOrcamentosProjeto() {
+    this.api.listProjectBudgets(this.token()).subscribe({
+      next: (res) => this.orcamentosProjeto.set(res),
+      error: () => this.orcamentosProjeto.set([])
+    });
+  }
+
+  criarOrcamentoProjeto(payload: any) {
+    this.api.createProjectBudget(this.token(), payload).subscribe({
+      next: () => { this.mensagem.set('Orçamento criado.'); this.carregarOrcamentosProjeto(); },
+      error: () => this.mensagem.set('Erro ao criar orçamento.')
+    });
+  }
+
+  atualizarOrcamentoProjeto(event: { id: string; payload: any }) {
+    this.api.updateProjectBudget(this.token(), event.id, event.payload).subscribe({
+      next: () => this.carregarOrcamentosProjeto(),
+      error: () => this.mensagem.set('Erro ao salvar orçamento.')
+    });
+  }
+
+  excluirOrcamentoProjeto(id: string) {
+    this.api.deleteProjectBudget(this.token(), id).subscribe({
+      next: () => { this.mensagem.set('Orçamento excluído.'); this.carregarOrcamentosProjeto(); },
+      error: () => this.mensagem.set('Erro ao excluir orçamento.')
     });
   }
 

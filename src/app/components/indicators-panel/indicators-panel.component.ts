@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+﻿import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -52,7 +52,7 @@ export class IndicatorsPanelComponent {
     return base.filter(n => n.toLowerCase().includes(q));
   }
 
-  // ── view state ────────────────────────────────────────────────────────────
+  // â”€â”€ view state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   selectedId    = '';
   searchTerm    = '';
   filterTipo    = '';   // '' | 'TECNICO' | 'NEGOCIO'
@@ -91,7 +91,7 @@ export class IndicatorsPanelComponent {
     acoesConcluidasIds: string[];
   }> = [];
 
-  // ── enums ─────────────────────────────────────────────────────────────────
+  // â”€â”€ enums â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly tipos = [
     { value: 'TECNICO',  label: 'Técnico' },
     { value: 'NEGOCIO',  label: 'Negócio' },
@@ -142,7 +142,7 @@ export class IndicatorsPanelComponent {
     return v !== '' && v != null;
   }
 
-  // ── filter/list helpers ───────────────────────────────────────────────────
+  // â”€â”€ filter/list helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   filtered(): any[] {
     const q = this.searchTerm.trim().toLowerCase();
     return this.indicadores.filter(ind => {
@@ -163,7 +163,7 @@ export class IndicatorsPanelComponent {
     this.detailTab = 'ciclos';
   }
 
-  // ── computed helpers per indicator ────────────────────────────────────────
+  // â”€â”€ computed helpers per indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   valorAtual(ind: any): number | null {
     const ciclos = (ind.ciclos ?? []) as any[];
     if (!ciclos.length) return null;
@@ -237,7 +237,7 @@ export class IndicatorsPanelComponent {
     return 'ind-card-abaixo';
   }
 
-  // ── indicator CRUD ────────────────────────────────────────────────────────
+  // â”€â”€ indicator CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   openCreate() {
     this.editingId = '';
     this.indForm = this.emptyIndForm();
@@ -249,7 +249,7 @@ export class IndicatorsPanelComponent {
     this.indForm = {
       titulo:              ind.titulo ?? '',
       descricao:           ind.descricao ?? '',
-      tipo:                ind.tipo ?? 'TECNICO',
+      tipo:                this.normalizeTipo(ind.tipo),
       categoria:           ind.categoria ?? 'QUALIDADE',
       unidade:             ind.unidade ?? '',
       meta:                ind.meta != null ? String(ind.meta) : '',
@@ -274,6 +274,7 @@ export class IndicatorsPanelComponent {
     const { valorInicial, novoValor, novaDataReferencia, ...rest } = this.indForm;
     const payload = {
       ...rest,
+      tipo: this.normalizeTipo(rest.tipo),
       meta: rest.meta !== '' ? Number(rest.meta) : null,
     };
     if (this.editingId) {
@@ -300,7 +301,7 @@ export class IndicatorsPanelComponent {
     this.remove.emit(id);
   }
 
-  // ── single cycle modal ────────────────────────────────────────────────────
+  // â”€â”€ single cycle modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   openCycleModal(ind: any) {
     this.cycleModalId = ind.id;
     this.cycleForm = this.emptyCycleForm();
@@ -333,7 +334,7 @@ export class IndicatorsPanelComponent {
     this.closeCycleModal();
   }
 
-  // ── batch modal ───────────────────────────────────────────────────────────
+  // â”€â”€ batch modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   openBatch() {
     const ativos = this.indicadores.filter(i => i.status === 'ATIVO');
     this.batchEntries = ativos.map(ind => ({
@@ -385,7 +386,7 @@ export class IndicatorsPanelComponent {
     return this.batchEntries.filter(e => this.hasVal(e.novoValor)).length;
   }
 
-  // ── cycle edit/delete (admin) ─────────────────────────────────────────────
+  // â”€â”€ cycle edit/delete (admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   openCycleEdit(indId: string, ciclo: any) {
     this.cycleEditModalIndId = indId;
     this.cycleEditModalCicloId = ciclo.id;
@@ -421,7 +422,7 @@ export class IndicatorsPanelComponent {
     this.removeCycle.emit({ indicatorId, cycleId });
   }
 
-  // ── action CRUD ───────────────────────────────────────────────────────────
+  // â”€â”€ action CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   openActionModal(indicatorId: string, action?: any) {
     this.actionModalId = indicatorId;
     if (action) {
@@ -491,8 +492,8 @@ export class IndicatorsPanelComponent {
     });
   }
 
-  // ── label helpers ─────────────────────────────────────────────────────────
-  tipoLabel(t: string)       { return this.tipos.find(x => x.value === t)?.label ?? t; }
+  // â”€â”€ label helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  tipoLabel(t: string)       { return this.tipos.find(x => x.value === this.normalizeTipo(t))?.label ?? 'Técnico'; }
   categoriaLabel(c: string)  { return this.categorias.find(x => x.value === c)?.label ?? c; }
   frequenciaLabel(f: string) { return this.frequencias.find(x => x.value === f)?.label ?? f; }
   polaridadeLabel(p: string) { return this.polaridades.find(x => x.value === p)?.label ?? p; }
@@ -511,7 +512,305 @@ export class IndicatorsPanelComponent {
     return `${num.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}${unidade ? ' ' + unidade : ''}`;
   }
 
-  // ── private ───────────────────────────────────────────────────────────────
+  // â”€â”€ PDF export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  exportandoPDF = false;
+
+  async exportarPDF() {
+    if (this.exportandoPDF) return;
+    this.exportandoPDF = true;
+
+    try {
+      const inds = this.filtered();
+      if (!inds.length) return;
+
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const W = doc.internal.pageSize.getWidth();   // 297
+      const H = doc.internal.pageSize.getHeight();  // 210
+      const now = new Date();
+      const exportDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+      const exportTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const total = inds.length;
+
+      const drawFooter = (pageNum: number) => {
+        doc.setFillColor(241, 245, 249);
+        doc.rect(0, H - 7, W, 7, 'F');
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.3);
+        doc.line(0, H - 7, W, H - 7);
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Sistema de Planejamento - Relatorio confidencial', 12, H - 2.5);
+        doc.text(`Indicador ${pageNum} de ${total}`, W - 12, H - 2.5, { align: 'right' });
+      };
+
+      // ── one page per indicator ────────────────────────────────────────────
+      inds.forEach((ind, pageIdx) => {
+        if (pageIdx > 0) doc.addPage();
+
+        // Header band
+        doc.setFillColor(30, 64, 175);
+        doc.rect(0, 0, W, 19, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(String(ind.titulo ?? 'Indicador').slice(0, 65), 12, 9.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.text(`${this.tipoLabel(ind.tipo)}  -  ${this.categoriaLabel(ind.categoria)}`, 12, 15);
+        doc.text(`Gerado em ${exportDate} as ${exportTime}`, W - 12, 9.5, { align: 'right' });
+
+        // Status badge
+        if (ind.status === 'ATIVO') { doc.setFillColor(34, 197, 94); } else { doc.setFillColor(148, 163, 184); }
+        doc.roundedRect(W - 44, 12.5, 32, 5.5, 1, 1, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6);
+        doc.setTextColor(255, 255, 255);
+        doc.text(ind.status === 'ATIVO' ? 'ATIVO' : 'INATIVO', W - 28, 15.8, { align: 'center' });
+
+        // Info boxes
+        const boxTop = 22;
+        const boxH = 18;
+        const pad = 3;
+        const boxW = (W - 24 - pad * 3) / 4;
+
+        const drawBox = (x: number, label: string, value: string, sub: string = '') => {
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(x, boxTop, boxW, boxH, 1.5, 1.5, 'F');
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(x, boxTop, boxW, boxH, 1.5, 1.5, 'S');
+          doc.setTextColor(100, 116, 139);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6);
+          doc.text(label, x + 3, boxTop + 5);
+          doc.setTextColor(15, 23, 42);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.text(value.slice(0, 22), x + 3, boxTop + 12);
+          if (sub) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(5.5);
+            doc.setTextColor(100, 116, 139);
+            doc.text(sub.slice(0, 36), x + 3, boxTop + 16.5);
+          }
+        };
+
+        const valAtual = this.valorAtual(ind);
+        const pct = this.pctMeta(ind);
+        const metaOk = this.metaAtingida(ind);
+
+        drawBox(12,                    'Responsavel',  ind.responsavel ?? '—',              this.frequenciaLabel(ind.frequencia));
+        drawBox(12 + (boxW + pad),     'Meta',         this.formatVal(ind.meta, ind.unidade),    this.polaridadeLabel(ind.polaridade));
+        drawBox(12 + (boxW + pad) * 2, 'Valor Atual',  this.formatVal(valAtual, ind.unidade),    ind.descricao ? String(ind.descricao).slice(0, 36) : '');
+
+        // % meta box with accent colour
+        const pctBgR = metaOk ? 240 : pct >= 80 ? 254 : 254;
+        const pctBgG = metaOk ? 253 : pct >= 80 ? 252 : 242;
+        const pctBgB = metaOk ? 244 : pct >= 80 ? 232 : 242;
+        const pctFgR = metaOk ?  22 : pct >= 80 ? 161 : 185;
+        const pctFgG = metaOk ? 163 : pct >= 80 ?  98 :  28;
+        const pctFgB = metaOk ?  74 : pct >= 80 ?   7 :  28;
+        const pctX = 12 + (boxW + pad) * 3;
+        doc.setFillColor(pctBgR, pctBgG, pctBgB);
+        doc.roundedRect(pctX, boxTop, boxW, boxH, 1.5, 1.5, 'F');
+        doc.setDrawColor(pctFgR, pctFgG, pctFgB);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(pctX, boxTop, boxW, boxH, 1.5, 1.5, 'S');
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.text('% da Meta', pctX + 3, boxTop + 5);
+        doc.setTextColor(pctFgR, pctFgG, pctFgB);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(pct > 0 ? `${pct}%` : '—', pctX + 3, boxTop + 12);
+        doc.setFontSize(5.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(metaOk ? 'Meta atingida' : pct >= 80 ? 'Proximo da meta' : 'Abaixo da meta', pctX + 3, boxTop + 16.5);
+
+        // Chart
+        const cTop = boxTop + boxH + 4;  // 44
+        const cLeft = 12;
+        const cW = W - 24;
+        const cH = 54;
+
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(cLeft, cTop, cW, cH, 2, 2, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(cLeft, cTop, cW, cH, 2, 2, 'S');
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.text('Historico de Valores (ciclos)', cLeft + 3, cTop + 5.5);
+
+        const ciclos = ((ind.ciclos ?? []) as any[])
+          .filter((c: any) => c.valor != null)
+          .sort((a: any, b: any) =>
+            new Date(a.dataReferencia ?? a.criadoEm).getTime() -
+            new Date(b.dataReferencia ?? b.criadoEm).getTime()
+          );
+
+        if (ciclos.length >= 2) {
+          const gx = cLeft + 16;
+          const gy = cTop + 9;
+          const gw = cW - 24;
+          const gh = cH - 16;
+          const vals = ciclos.map((c: any) => Number(c.valor));
+          const minV = Math.min(...vals);
+          const maxV = Math.max(...vals);
+          const range = maxV - minV || 1;
+
+          // Y-axis grid lines
+          doc.setLineWidth(0.2);
+          for (let gi = 0; gi <= 4; gi++) {
+            const lineY = gy + (gi / 4) * gh;
+            doc.setDrawColor(226, 232, 240);
+            doc.line(gx, lineY, gx + gw, lineY);
+            const yLbl = (maxV - (gi / 4) * range).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+            doc.setTextColor(148, 163, 184);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(5);
+            doc.text(yLbl, gx - 2, lineY + 1, { align: 'right' });
+          }
+
+          // Axes
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.4);
+          doc.line(gx, gy, gx, gy + gh);
+          doc.line(gx, gy + gh, gx + gw, gy + gh);
+
+          // Meta line (manual dashes)
+          if (ind.meta != null) {
+            const metaLineY = gy + gh - ((Number(ind.meta) - minV) / range) * gh;
+            if (metaLineY >= gy && metaLineY <= gy + gh) {
+              doc.setDrawColor(239, 68, 68);
+              doc.setLineWidth(0.5);
+              let dx = gx;
+              while (dx < gx + gw) { doc.line(dx, metaLineY, Math.min(dx + 3, gx + gw), metaLineY); dx += 5; }
+              doc.setTextColor(239, 68, 68);
+              doc.setFont('helvetica', 'italic');
+              doc.setFontSize(5);
+              doc.text('meta', gx + gw + 2, metaLineY + 1.5);
+            }
+          }
+
+          // Data line
+          doc.setDrawColor(37, 99, 235);
+          doc.setLineWidth(0.9);
+          for (let i = 1; i < ciclos.length; i++) {
+            const x0 = gx + ((i - 1) / (ciclos.length - 1)) * gw;
+            const x1 = gx + (i       / (ciclos.length - 1)) * gw;
+            const y0 = gy + gh - ((vals[i - 1] - minV) / range) * gh;
+            const y1 = gy + gh - ((vals[i]     - minV) / range) * gh;
+            doc.line(x0, y0, x1, y1);
+          }
+
+          // Dots + x-axis labels
+          doc.setLineWidth(0.3);
+          ciclos.forEach((c: any, i: number) => {
+            const px = gx + (i / (ciclos.length - 1)) * gw;
+            const py = gy + gh - ((vals[i] - minV) / range) * gh;
+            doc.setFillColor(37, 99, 235);
+            doc.circle(px, py, 1, 'F');
+            if (ciclos.length <= 24) {
+              const dt = c.dataReferencia ?? c.criadoEm;
+              if (dt) {
+                const lbl = new Date(dt).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                doc.setTextColor(100, 116, 139);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(4.5);
+                doc.text(lbl, px, gy + gh + 4, { align: 'center' });
+              }
+            }
+          });
+        } else {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          const msg = ciclos.length === 0 ? 'Sem ciclos registrados.' : `1 ciclo: ${this.formatVal(ciclos[0].valor, ind.unidade)}`;
+          doc.text(msg, cLeft + cW / 2, cTop + cH / 2, { align: 'center' });
+        }
+
+        // Tasks section (open left | closed right)
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const tY = cTop + cH + 6;  // ≈ 104
+        const halfW = (W - 24 - 6) / 2;  // ≈ 133.5
+
+        const openAcoes   = ((ind.acoes ?? []) as any[]).filter((a: any) => a?.status === 'ABERTA');
+        const closedAcoes = ((ind.acoes ?? []) as any[]).filter((a: any) => a?.status === 'CONCLUIDA');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Acoes Abertas (${openAcoes.length})`, 12, tY - 1.5);
+        doc.text(`Acoes Concluidas (${closedAcoes.length})`, 12 + halfW + 6, tY - 1.5);
+
+        const openRows = openAcoes.map((a: any) => {
+          const prazoDate = a?.prazo ? new Date(a.prazo) : null;
+          const isLate = !!prazoDate && !isNaN(prazoDate.getTime()) && prazoDate < today;
+          return [
+            a?.descricao ?? '—',
+            a?.responsavel ?? '—',
+            prazoDate && !isNaN(prazoDate.getTime()) ? prazoDate.toLocaleDateString('pt-BR') : '—',
+            isLate ? 'Atrasada' : 'OK',
+          ];
+        });
+
+        const closedRows = closedAcoes.map((a: any) => {
+          const prazoDate = a?.prazo ? new Date(a.prazo) : null;
+          return [
+            a?.descricao ?? '—',
+            a?.responsavel ?? '—',
+            prazoDate && !isNaN(prazoDate.getTime()) ? prazoDate.toLocaleDateString('pt-BR') : '—',
+          ];
+        });
+
+        autoTable(doc, {
+          startY: tY,
+          head: [['Descricao', 'Responsavel', 'Prazo', 'Sit.']],
+          body: openRows.length ? openRows : [['Nenhuma acao aberta', '', '', '']],
+          theme: 'striped',
+          margin: { left: 12, right: W - 12 - halfW },
+          headStyles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontSize: 6.5, cellPadding: 1.5 },
+          bodyStyles: { fontSize: 6, cellPadding: 1.4 },
+          columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 28 }, 2: { cellWidth: 18, halign: 'center' }, 3: { cellWidth: 14, halign: 'center' } },
+          didParseCell: (data: any) => {
+            if (data.section !== 'body' || data.column.index !== 3) return;
+            if (String(data.cell.raw) === 'Atrasada') {
+              data.cell.styles.textColor = [185, 28, 28];
+              data.cell.styles.fontStyle = 'bold';
+            } else {
+              data.cell.styles.textColor = [5, 150, 105];
+            }
+          },
+        });
+
+        autoTable(doc, {
+          startY: tY,
+          head: [['Descricao', 'Responsavel', 'Prazo']],
+          body: closedRows.length ? closedRows : [['Nenhuma acao concluida', '', '']],
+          theme: 'striped',
+          margin: { left: 12 + halfW + 6, right: 12 },
+          headStyles: { fillColor: [22, 163, 74], textColor: [255, 255, 255], fontSize: 6.5, cellPadding: 1.5 },
+          bodyStyles: { fontSize: 6, cellPadding: 1.4, textColor: [107, 114, 128] },
+          columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 28 }, 2: { cellWidth: 18, halign: 'center' } },
+        });
+
+        drawFooter(pageIdx + 1);
+      });
+
+      doc.save(`indicadores-${now.toISOString().slice(0, 10)}.pdf`);
+    } finally {
+      this.exportandoPDF = false;
+    }
+  }
+
+  // â”€â”€ private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   private emptyIndForm() {
     return {
       titulo: '', descricao: '', tipo: 'TECNICO', categoria: 'QUALIDADE',
@@ -523,6 +822,13 @@ export class IndicatorsPanelComponent {
     };
   }
 
+  private normalizeTipo(raw: any): 'TECNICO' | 'NEGOCIO' {
+    const v = String(raw ?? '').trim().toUpperCase();
+    if (v === 'TECNICO' || v === 'TÉCNICO') return 'TECNICO';
+    if (v === 'NEGOCIO' || v === 'NEGÓCIO' || v === 'NAO' || v === 'NÃO') return 'NEGOCIO';
+    return 'TECNICO';
+  }
+
   private emptyCycleForm() {
     return { valor: '', observacao: '', dataReferencia: '', acoesConcluidasIds: [] as string[] };
   }
@@ -531,3 +837,4 @@ export class IndicatorsPanelComponent {
     return { descricao: '', responsavel: '', prazo: '' };
   }
 }
+

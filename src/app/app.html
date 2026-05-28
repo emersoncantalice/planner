@@ -135,12 +135,45 @@
           </span>
           <span class="sb-text"><strong>Cockpit</strong></span>
         </a>
-        <a [class.active]="secaoAtiva() === 'projetos'" (click)="selecionarSecao('projetos')" title="Projetos">
-          <span class="sb-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h8v2H8zm0 4h5v2H8z"/></svg>
-          </span>
-          <span class="sb-text"><strong>Projetos</strong></span>
-        </a>
+        <div class="sb-group">
+          <a [class.active]="secaoAtiva() === 'projetos' || secaoAtiva() === 'orcamento_projeto'" (click)="toggleProjetosMenu($event)" title="Projetos">
+            <span class="sb-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h8v2H8zm0 4h5v2H8z"/></svg>
+            </span>
+            <span class="sb-text"><strong>Projetos</strong></span>
+            @if (!sidebarCollapsed()) {
+              <span class="sb-caret" aria-hidden="true">
+                @if (projetosExpanded()) {
+                  <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                }
+              </span>
+            }
+          </a>
+          @if (projetosExpanded() && !sidebarCollapsed()) {
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'projetos'" (click)="selecionarSecao('projetos')" title="Lista de projetos">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></span>
+              <span class="sb-text"><strong>Lista</strong></span>
+            </a>
+            <a class="sb-subitem" [class.active]="secaoAtiva() === 'orcamento_projeto'" (click)="selecionarSecao('orcamento_projeto')" title="Orçamentos de Projeto">
+              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+              <span class="sb-text"><strong>Orçamentos</strong></span>
+            </a>
+          } @else if (projetosExpanded() && sidebarCollapsed()) {
+            <div class="sb-flyout" [style.top.px]="flyoutTop()" [style.bottom]="flyoutBottom() !== null ? flyoutBottom() + 'px' : null" [style.max-height]="flyoutMaxHeight() !== null ? flyoutMaxHeight() + 'px' : null">
+              <p class="sb-flyout-label">Projetos</p>
+              <a [class.active]="secaoAtiva() === 'projetos'" (click)="selecionarSecao('projetos')">
+                <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></span>
+                <span>Lista</span>
+              </a>
+              <a [class.active]="secaoAtiva() === 'orcamento_projeto'" (click)="selecionarSecao('orcamento_projeto')">
+                <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></span>
+                <span>Orçamentos</span>
+              </a>
+            </div>
+          }
+        </div>
         <div class="sb-group">
           <a [class.active]="secaoAtiva() === 'alocacoes_lo' || secaoAtiva() === 'alocacoes_pessoa' || secaoAtiva() === 'pessoas_atividade'" (click)="toggleAlocacoesMenu($event)" title="Alocações">
             <span class="sb-icon" aria-hidden="true">
@@ -680,6 +713,16 @@
           (removeAction)="excluirAcaoIndicador($event)"
           (transferOwnership)="transferirDonoIndicador($event)">
         </app-indicators-panel>
+      }
+      @if (secaoAtiva() === 'orcamento_projeto') {
+        <app-project-budget-panel
+          [orcamentos]="orcamentosProjeto()"
+          [perfis]="perfis()"
+          [token]="token()"
+          (create)="criarOrcamentoProjeto($event)"
+          (update)="atualizarOrcamentoProjeto($event)"
+          (remove)="excluirOrcamentoProjeto($event)">
+        </app-project-budget-panel>
       }
       @if (secaoAtiva() === 'usuarios' && isAdmin()) {
         <app-admin-users-panel [token]="token()"></app-admin-users-panel>

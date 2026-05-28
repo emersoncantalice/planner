@@ -1,0 +1,376 @@
+<div class="pb-wrap">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="pb-header">
+    <div class="pb-header-info">
+      <svg class="pb-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <div>
+        <h2 class="pb-title">Orçamentos de Projeto</h2>
+        <p class="pb-subtitle">{{ filtered().length }} orçamento{{ filtered().length !== 1 ? 's' : '' }}</p>
+      </div>
+    </div>
+    <button class="pb-add-btn" (click)="openCreate()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+      Novo Orçamento
+    </button>
+  </div>
+
+  <!-- ── Body ────────────────────────────────────────────────────────────── -->
+  <div class="pb-body">
+
+    <!-- LEFT: list -->
+    <aside class="pb-sidebar">
+      <input class="pb-search" type="search" [(ngModel)]="searchTerm" placeholder="Buscar orçamento…" />
+
+      @if (!filtered().length) {
+        <div class="pb-empty-list">
+          <svg viewBox="0 0 24 24"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+          <p>Nenhum orçamento</p>
+        </div>
+      }
+
+      @for (orc of filtered(); track orc.id) {
+        <div class="pb-card" [class.active]="selectedId === orc.id" (click)="selectedId = orc.id; activeTab = 'atividades'">
+          <div class="pb-card-name">{{ orc.nome }}</div>
+          @if (orc.descricao) {
+            <div class="pb-card-desc">{{ orc.descricao }}</div>
+          }
+          <div class="pb-card-meta">
+            <span>{{ (orc.atividades ?? []).length }} atividade{{ (orc.atividades ?? []).length !== 1 ? 's' : '' }}</span>
+            <span class="pb-card-cost">{{ currency(totalCustoBudget(orc)) }}</span>
+          </div>
+          <div class="pb-card-actions" (click)="$event.stopPropagation()">
+            <button type="button" class="pb-card-btn" (click)="openEdit(orc)" title="Editar">
+              <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </button>
+            <button type="button" class="pb-card-btn danger" (click)="excluirOrcamento(orc.id)" title="Excluir">
+              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
+          </div>
+        </div>
+      }
+    </aside>
+
+    <!-- RIGHT: detail -->
+    <main class="pb-detail">
+      @if (!selectedId) {
+        <div class="pb-empty-detail">
+          <svg viewBox="0 0 24 24"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+          <p>Selecione um orçamento na lista ou crie um novo</p>
+        </div>
+      }
+
+      @if (selectedId && selectedOrcamento()) {
+        <div class="pb-detail-inner">
+          <!-- detail header -->
+          <div class="pb-detail-header">
+            <div class="pb-detail-title-block">
+              <h3 class="pb-detail-title">{{ selectedOrcamento()!.nome }}</h3>
+              @if (selectedOrcamento()!.descricao) {
+                <p class="pb-detail-desc">{{ selectedOrcamento()!.descricao }}</p>
+              }
+            </div>
+            <button class="pb-export-btn" (click)="exportarPDF()" [disabled]="exportandoPDF">
+              @if (exportandoPDF) {
+                <svg class="pb-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
+                Gerando…
+              } @else {
+                <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>
+                Exportar PDF
+              }
+            </button>
+          </div>
+
+          <!-- KPI strip -->
+          <div class="pb-kpis">
+            <div class="pb-kpi pb-kpi-blue">
+              <span class="pb-kpi-val">{{ atividades().length }}</span>
+              <span class="pb-kpi-lbl">Atividades</span>
+            </div>
+            <div class="pb-kpi pb-kpi-green">
+              <span class="pb-kpi-val">{{ totalHoras() }}h</span>
+              <span class="pb-kpi-lbl">Total Horas</span>
+            </div>
+            <div class="pb-kpi pb-kpi-purple">
+              <span class="pb-kpi-val">{{ resumoPorPerfil().length }}</span>
+              <span class="pb-kpi-lbl">Perfis</span>
+            </div>
+            <div class="pb-kpi pb-kpi-amber">
+              <span class="pb-kpi-val">{{ currency(totalGeral()) }}</span>
+              <span class="pb-kpi-lbl">Custo Total</span>
+            </div>
+          </div>
+
+          <!-- tabs -->
+          <div class="pb-tabs">
+            <button class="pb-tab" [class.active]="activeTab === 'atividades'" (click)="activeTab = 'atividades'">
+              <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+              Atividades
+            </button>
+            <button class="pb-tab" [class.active]="activeTab === 'cronograma'" (click)="activeTab = 'cronograma'">
+              <svg viewBox="0 0 24 24"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+              Cronograma
+            </button>
+            <button class="pb-tab" [class.active]="activeTab === 'resumo'" (click)="activeTab = 'resumo'">
+              <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+              Resumo de Custos
+            </button>
+          </div>
+
+          <!-- ── ATIVIDADES TAB ─────────────────────────────────────────── -->
+          @if (activeTab === 'atividades') {
+            <div class="pb-tab-content">
+              <div class="pb-tab-toolbar">
+                <button class="pb-add-atv-btn" (click)="openAtividadeCreate()" [class.active]="atividadeFormOpen && !editingAtividadeId">
+                  <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                  Adicionar Atividade
+                </button>
+              </div>
+
+              <!-- activity form (inline) -->
+              @if (atividadeFormOpen) {
+                <div class="pb-atv-form">
+                  <div class="pb-atv-form-title">{{ editingAtividadeId ? 'Editar Atividade' : 'Nova Atividade' }}</div>
+                  <div class="pb-atv-form-grid">
+                    <div class="pb-field full">
+                      <label>Nome da atividade *</label>
+                      <input type="text" [(ngModel)]="atividadeForm.nome" placeholder="Ex.: Análise de requisitos" />
+                    </div>
+                    <div class="pb-field">
+                      <label>Perfil *</label>
+                      <select [(ngModel)]="atividadeForm.perfilId">
+                        <option value="">Selecione o perfil</option>
+                        @for (p of perfis; track p.id) {
+                          <option [value]="p.id">{{ p.nomePerfil.split('|')[0].trim() }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="pb-field">
+                      <label>Horas *</label>
+                      <input type="number" min="1" [(ngModel)]="atividadeForm.horas" placeholder="0" />
+                    </div>
+                    <div class="pb-field">
+                      <label>Data de início</label>
+                      <input type="date" [(ngModel)]="atividadeForm.dataInicio" />
+                    </div>
+                    <div class="pb-field">
+                      <label>Data de fim</label>
+                      <input type="date" [(ngModel)]="atividadeForm.dataFim" [min]="atividadeForm.dataInicio" />
+                    </div>
+                  </div>
+                  @if (atividadeForm.perfilId) {
+                    <div class="pb-atv-cost-preview">
+                      Custo estimado:
+                      <strong>{{ currency(Number(atividadeForm.horas) * perfilValorHora(atividadeForm.perfilId)) }}</strong>
+                      <span>({{ atividadeForm.horas }}h × {{ currency(perfilValorHora(atividadeForm.perfilId)) }}/h)</span>
+                    </div>
+                  }
+                  <div class="pb-atv-form-actions">
+                    <button type="button" (click)="submitAtividade()" [disabled]="!atividadeForm.nome.trim() || !atividadeForm.perfilId">
+                      {{ editingAtividadeId ? 'Salvar' : 'Adicionar' }}
+                    </button>
+                    <button type="button" class="sec" (click)="cancelAtividadeForm()">Cancelar</button>
+                  </div>
+                </div>
+              }
+
+              <!-- activities table -->
+              @if (!atividades().length) {
+                <div class="pb-empty-atv">
+                  <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+                  <p>Nenhuma atividade cadastrada</p>
+                </div>
+              } @else {
+                <div class="pb-table-wrap">
+                  <table class="pb-table">
+                    <thead>
+                      <tr>
+                        <th>Atividade</th>
+                        <th>Perfil</th>
+                        <th class="num">Horas</th>
+                        <th>Início</th>
+                        <th>Fim</th>
+                        <th class="num">Custo</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (a of atividadesOrdenadas(); track a.id) {
+                        <tr>
+                          <td>
+                            <span class="pb-atv-dot" [style.background]="a.cor || '#4f87f0'"></span>
+                            {{ a.nome }}
+                          </td>
+                          <td>{{ perfilNome(a.perfilId) }}</td>
+                          <td class="num"><strong>{{ a.horas }}h</strong></td>
+                          <td>{{ formatDate(a.dataInicio) }}</td>
+                          <td>{{ formatDate(a.dataFim) }}</td>
+                          <td class="num"><strong>{{ currency(Number(a.horas) * perfilValorHora(a.perfilId)) }}</strong></td>
+                          <td class="pb-atv-actions">
+                            <button type="button" (click)="openAtividadeEdit(a)" title="Editar">
+                              <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                            <button type="button" class="danger" (click)="excluirAtividade(a.id)" title="Excluir">
+                              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr class="pb-table-total">
+                        <td colspan="2"><strong>Total</strong></td>
+                        <td class="num"><strong>{{ totalHoras() }}h</strong></td>
+                        <td colspan="2"></td>
+                        <td class="num"><strong>{{ currency(totalGeral()) }}</strong></td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- ── CRONOGRAMA TAB ─────────────────────────────────────────── -->
+          @if (activeTab === 'cronograma') {
+            <div class="pb-tab-content">
+              @if (!ganttRange()) {
+                <div class="pb-empty-atv">
+                  <svg viewBox="0 0 24 24"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+                  <p>Adicione atividades com datas de início e fim para visualizar o cronograma</p>
+                </div>
+              } @else {
+                <div class="pb-gantt-wrap">
+                  <!-- month header -->
+                  <div class="pb-gantt-header">
+                    <div class="pb-gantt-label"></div>
+                    <div class="pb-gantt-bar-area">
+                      @for (m of ganttMonths(); track m.label) {
+                        <div class="pb-gantt-month" [style.left.%]="m.leftPct" [style.width.%]="m.widthPct">{{ m.label }}</div>
+                      }
+                    </div>
+                  </div>
+                  <!-- rows -->
+                  @for (a of atividadesOrdenadas(); track a.id; let idx = $index) {
+                    @if (a.dataInicio && a.dataFim) {
+                      <div class="pb-gantt-row" [class.even]="idx % 2 === 0">
+                        <div class="pb-gantt-label" [title]="a.nome">
+                          <span class="pb-atv-dot" [style.background]="a.cor || '#4f87f0'"></span>
+                          <span class="pb-gantt-label-text">{{ a.nome }}</span>
+                        </div>
+                        <div class="pb-gantt-bar-area">
+                          <div class="pb-gantt-bar" [ngStyle]="ganttBarStyle(a)" [title]="a.nome + ' — ' + a.horas + 'h'">
+                            <span class="pb-gantt-bar-label">{{ a.horas }}h</span>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  }
+                  <!-- legend -->
+                  <div class="pb-gantt-legend">
+                    @for (a of atividadesOrdenadas(); track a.id) {
+                      @if (a.dataInicio && a.dataFim) {
+                        <div class="pb-gantt-leg-item">
+                          <span class="pb-gantt-leg-dot" [style.background]="a.cor || '#4f87f0'"></span>
+                          <span>{{ a.nome }} ({{ perfilNome(a.perfilId) }})</span>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- ── RESUMO TAB ─────────────────────────────────────────────── -->
+          @if (activeTab === 'resumo') {
+            <div class="pb-tab-content">
+              @if (!resumoPorPerfil().length) {
+                <div class="pb-empty-atv">
+                  <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                  <p>Adicione atividades para ver o resumo de custos por perfil</p>
+                </div>
+              } @else {
+                <div class="pb-resumo-wrap">
+                  <table class="pb-table pb-resumo-table">
+                    <thead>
+                      <tr>
+                        <th>Perfil</th>
+                        <th class="num">Total Horas</th>
+                        <th class="num">Valor/hora</th>
+                        <th class="num">Total</th>
+                        <th>% do custo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (r of resumoPorPerfil(); track r.perfilId) {
+                        <tr>
+                          <td><strong>{{ r.nome }}</strong></td>
+                          <td class="num">{{ r.horas }}h</td>
+                          <td class="num">{{ currency(r.valorHora) }}</td>
+                          <td class="num"><strong>{{ currency(r.total) }}</strong></td>
+                          <td>
+                            <div class="pb-bar-pct">
+                              <div class="pb-bar-fill" [style.width.%]="totalGeral() ? (r.total / totalGeral()) * 100 : 0"></div>
+                              <span>{{ totalGeral() ? ((r.total / totalGeral()) * 100).toFixed(1) : 0 }}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr class="pb-table-total">
+                        <td><strong>Total Geral</strong></td>
+                        <td class="num"><strong>{{ totalHoras() }}h</strong></td>
+                        <td></td>
+                        <td class="num"><strong class="pb-total-highlight">{{ currency(totalGeral()) }}</strong></td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+
+                  <!-- visual bars -->
+                  <div class="pb-resumo-bars">
+                    @for (r of resumoPorPerfil(); track r.perfilId) {
+                      <div class="pb-resumo-bar-row">
+                        <span class="pb-resumo-bar-name">{{ r.nome }}</span>
+                        <div class="pb-resumo-bar-track">
+                          <div class="pb-resumo-bar-fill" [style.width.%]="totalGeral() ? (r.total / totalGeral()) * 100 : 0"></div>
+                        </div>
+                        <span class="pb-resumo-bar-val">{{ currency(r.total) }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </main>
+  </div>
+</div>
+
+<!-- ── Budget form modal ────────────────────────────────────────────────── -->
+@if (formOpen) {
+  <div class="modal-backdrop" (click)="cancelForm()"></div>
+  <div class="pb-modal" (click)="$event.stopPropagation()">
+    <div class="pb-modal-head">
+      <h3>{{ editingBudgetId ? 'Editar Orçamento' : 'Novo Orçamento' }}</h3>
+      <button type="button" class="pb-modal-close" (click)="cancelForm()">×</button>
+    </div>
+    <div class="pb-modal-body">
+      <label>Nome *</label>
+      <input type="text" [(ngModel)]="budgetForm.nome" placeholder="Ex.: Projeto Alpha — v1" (keydown.enter)="submitBudget()" />
+      <label>Descrição</label>
+      <textarea [(ngModel)]="budgetForm.descricao" rows="3" placeholder="Descrição opcional do orçamento…"></textarea>
+    </div>
+    <div class="pb-modal-footer">
+      <button type="button" (click)="submitBudget()" [disabled]="!budgetForm.nome.trim()">
+        {{ editingBudgetId ? 'Salvar' : 'Criar Orçamento' }}
+      </button>
+      <button type="button" class="sec" (click)="cancelForm()">Cancelar</button>
+    </div>
+  </div>
+}

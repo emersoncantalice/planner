@@ -36,6 +36,29 @@
   flex-wrap: wrap;
 }
 
+.ind-export-btn {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem .9rem;
+  border-radius: .5rem;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, opacity .15s;
+  border: 1px solid #fca5a5;
+  background: #fff1f1;
+  color: #b91c1c;
+  svg { width: 1rem; height: 1rem; fill: currentColor; }
+  &:hover { background: #fde8e8; border-color: #f87171; }
+  &:disabled { opacity: .6; cursor: default; }
+}
+
+@keyframes ind-spin {
+  to { transform: rotate(360deg); }
+}
+.ind-spin { animation: ind-spin .8s linear infinite; }
+
 .ind-add-btn, .ind-batch-btn {
   display: flex;
   align-items: center;
