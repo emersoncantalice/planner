@@ -1,4 +1,4 @@
-<div class="td-wrap">
+﻿<div class="td-wrap">
   <div class="td-header">
     <div class="td-header-info">
       <svg class="td-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -108,7 +108,7 @@
   @if (debitos.length) {
     <div class="td-search-row">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <input class="td-search" [(ngModel)]="searchTerm" placeholder="Buscar por título, categoria, status, projeto…" />
+      <input class="td-search" [(ngModel)]="searchTerm" placeholder="Buscar por título, categoria, status, projeto..." />
     </div>
   }
 
@@ -128,6 +128,7 @@
             <th (click)="toggleSort('impacto')" class="sortable">Impacto{{ sortIndicator('impacto') }}</th>
             <th (click)="toggleSort('prioridade')" class="sortable">Prioridade{{ sortIndicator('prioridade') }}</th>
             <th (click)="toggleSort('status')" class="sortable">Status{{ sortIndicator('status') }}</th>
+            <th>Dono</th>
             <th (click)="toggleSort('esforcoEstimado')" class="sortable">Esforço{{ sortIndicator('esforcoEstimado') }}</th>
             <th (click)="toggleSort('dataAlvo')" class="sortable">Data alvo{{ sortIndicator('dataAlvo') }}</th>
             <th>Ações</th>
@@ -149,6 +150,7 @@
               <td><span class="td-badge" [class]="impactoBadge(d.impacto)">{{ impactoLabel(d.impacto) }}</span></td>
               <td><span class="td-badge" [class]="prioridadeBadge(d.prioridade)">{{ prioridadeLabel(d.prioridade) }}</span></td>
               <td><span class="td-badge" [class]="statusBadge(d.status)">{{ statusLabel(d.status) }}</span></td>
+              <td>{{ d.criadoPor || d.dono || '—' }}</td>
               <td>{{ esforcoLabel(d.esforcoEstimado) }}</td>
               <td>{{ formatDate(d.dataAlvo) }}</td>
               <td class="td-td-actions">
@@ -167,7 +169,7 @@
             </tr>
             @if (transferId === d.id) {
               <tr>
-                <td colspan="8">
+                <td colspan="9">
                   <div class="transfer-inline">
                     <span>Transferir para:</span>
                     <input [(ngModel)]="transferInput" list="td-transfer-users" placeholder="Username do novo dono" (keydown.enter)="confirmarTransferencia()" />
@@ -184,7 +186,7 @@
             }
             @if (detalheId === d.id) {
               <tr class="td-detalhe-row">
-                <td colspan="8">
+                <td colspan="9">
                   <div class="td-detalhe">
                     @if (d.descricao) {
                       <div class="td-detalhe-bloco td-bloco-full">
@@ -242,3 +244,4 @@
     </div>
   }
 </div>
+

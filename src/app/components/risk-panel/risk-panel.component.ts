@@ -16,6 +16,7 @@ export class RiskPanelComponent implements OnChanges {
   @Input() riscos: any[] = [];
   @Input() focoRiscoId = '';
   @Input() pessoas: any[] = [];
+  @Input() usuariosSistema: string[] = [];
   @Output() create = new EventEmitter<{ titulo: string; descricao: string; planoAcao: string; status: string; dataFim: string | null; responsavel: string | null }>();
   @Output() update = new EventEmitter<{ id: string; titulo: string; descricao: string; planoAcao: string; status: string; dataFim: string | null; responsavel: string | null }>();
   @Output() updateStatus = new EventEmitter<{ riskId: string; status: string }>();
@@ -43,10 +44,9 @@ export class RiskPanelComponent implements OnChanges {
   }
 
   usuariosTransferenciaFiltrados(): string[] {
-    const nomes = this.pessoasAtivas()
-      .map((p: any) => String(p?.nome || '').trim())
-      .filter(Boolean);
-    const base = Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const base = Array.from(new Set((this.usuariosSistema || [])
+      .map((u: any) => String(u || '').trim())
+      .filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const q = this.transferInput.trim().toLowerCase();
     if (!q) return base;
     return base.filter(n => n.toLowerCase().includes(q));

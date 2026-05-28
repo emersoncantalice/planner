@@ -230,7 +230,7 @@ export class PlannerApiService {
     return this.http.get<any[]>(`${this.api}/risks`, { headers: this.headers(token) });
   }
 
-  createRisk(token: string, payload: { titulo: string; descricao: string; planoAcao: string; status: string; dataFim: string | null }) {
+  createRisk(token: string, payload: { titulo: string; descricao: string; planoAcao: string; status: string; dataFim: string | null; criadoPor?: string; dono?: string }) {
     return this.http.post<any>(`${this.api}/risks`, payload, { headers: this.headers(token) });
   }
   importRisksCsv(token: string, csv: string) {

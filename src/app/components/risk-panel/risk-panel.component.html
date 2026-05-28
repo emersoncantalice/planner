@@ -1,4 +1,4 @@
-<planner-card><article class="rsk-wrap">
+﻿<planner-card><article class="rsk-wrap">
 
   
   <div class="rsk-header">
@@ -99,6 +99,7 @@
         <tr>
           <th (click)="toggleSort('titulo')">Título{{ sortIndicator('titulo') }}</th>
           <th (click)="toggleSort('status')">Status{{ sortIndicator('status') }}</th>
+          <th>Dono</th>
           <th>Responsável</th>
           <th (click)="toggleSort('descricao')">Descrição{{ sortIndicator('descricao') }}</th>
           <th (click)="toggleSort('planoAcao')">Plano de ação{{ sortIndicator('planoAcao') }}</th>
@@ -110,8 +111,14 @@
         @for (r of sortedRiscos(); track r.id) {
           
           <tr [class]="vencimentoClass(r)">
-            <td>{{ r.titulo }}</td>
+            <td>
+              <div class="rsk-title-cell">
+                <span>{{ r.titulo }}</span>
+                <small class="rsk-owner-inline">Dono: {{ r.criadoPor || r.dono || '-' }}</small>
+              </div>
+            </td>
             <td><span class="rsk-badge" [class]="'rsk-badge ' + statusClass(r.status)">{{ r.status }}</span></td>
+            <td class="rsk-owner-col">{{ r.criadoPor || r.dono || '-' }}</td>
             <td>{{ r.responsavel || '-' }}</td>
             <td>{{ r.descricao || '-' }}</td>
             <td>{{ r.planoAcao || '-' }}</td>
@@ -145,7 +152,7 @@
 
           @if (transferId === r.id) {
             <tr class="rsk-sub-row">
-              <td colspan="7">
+              <td colspan="8">
                 <div class="transfer-inline">
                   <span>Transferir para:</span>
                   <input [(ngModel)]="transferInput" list="rsk-transfer-users" placeholder="Username do novo dono" (keydown.enter)="confirmarTransferencia()" />
@@ -164,7 +171,7 @@
 
           @if (adiarRiskId === r.id) {
             <tr class="rsk-sub-row">
-              <td colspan="7">
+              <td colspan="8">
                 <div class="rsk-postpone-form">
                   <div class="rsk-field">
                     <label>Nova data fim</label>
@@ -188,7 +195,7 @@
           
           @if (historySorted(r).length) {
             <tr class="rsk-hist-row">
-              <td colspan="7">
+              <td colspan="8">
                 <div class="rsk-hist-wrap">
                   <button class="rsk-hist-toggle" type="button" (click)="toggleHistorico(r.id)">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
@@ -230,3 +237,4 @@
   </div>
 
 </article></planner-card>
+

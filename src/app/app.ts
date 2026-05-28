@@ -1042,6 +1042,8 @@ export class App {
   criarRiscoGlobal(risco: { titulo: string; descricao: string; planoAcao: string; status: string; dataFim: string | null }) {
     this.api.createRisk(this.token(), {
       ...risco,
+      criadoPor: this.usuario(),
+      dono: this.usuario(),
       dataFim: this.toOffsetDateTime(risco.dataFim)
     }).subscribe({
       next: () => {

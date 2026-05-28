@@ -15,6 +15,7 @@ export class TechnicalDebtPanelComponent {
 
   @Input() debitos: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() usuariosSistema: string[] = [];
   @Output() create     = new EventEmitter<any>();
   @Output() update     = new EventEmitter<any>();
   @Output() remove     = new EventEmitter<string>();
@@ -40,10 +41,9 @@ export class TechnicalDebtPanelComponent {
   }
 
   usuariosTransferenciaFiltrados(): string[] {
-    const nomes = this.pessoasAtivas()
-      .map((p: any) => String(p?.nome || '').trim())
-      .filter(Boolean);
-    const base = Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const base = Array.from(new Set((this.usuariosSistema || [])
+      .map((u: any) => String(u || '').trim())
+      .filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const q = this.transferInput.trim().toLowerCase();
     if (!q) return base;
     return base.filter(n => n.toLowerCase().includes(q));

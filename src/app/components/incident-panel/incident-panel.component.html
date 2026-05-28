@@ -1,4 +1,4 @@
-<div class="inc-wrap">
+﻿<div class="inc-wrap">
   <div class="inc-header">
     <div class="inc-header-info">
       <svg class="inc-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -108,7 +108,7 @@
   @if (incidentes.length) {
     <div class="inc-search-row">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <input class="inc-search" [(ngModel)]="searchTerm" placeholder="Buscar por título, tipo, severidade…" />
+      <input class="inc-search" [(ngModel)]="searchTerm" placeholder="Buscar por título, tipo, severidade..." />
     </div>
   }
 
@@ -127,6 +127,7 @@
             <th (click)="toggleSort('tipo')" class="sortable">Tipo{{ sortIndicator('tipo') }}</th>
             <th (click)="toggleSort('severidade')" class="sortable">Severidade{{ sortIndicator('severidade') }}</th>
             <th (click)="toggleSort('status')" class="sortable">Status{{ sortIndicator('status') }}</th>
+            <th>Dono</th>
             <th (click)="toggleSort('responsavel')" class="sortable">Responsável{{ sortIndicator('responsavel') }}</th>
             <th (click)="toggleSort('dataOcorrencia')" class="sortable">Ocorrência{{ sortIndicator('dataOcorrencia') }}</th>
             <th>Ações</th>
@@ -144,6 +145,7 @@
               <td><span class="inc-tipo">{{ tipoLabel(inc.tipo) }}</span></td>
               <td><span class="inc-badge" [class]="severidadeBadge(inc.severidade)">{{ severidadeLabel(inc.severidade) }}</span></td>
               <td><span class="inc-badge" [class]="statusBadge(inc.status)">{{ statusLabel(inc.status) }}</span></td>
+              <td>{{ inc.criadoPor || inc.dono || '—' }}</td>
               <td>{{ inc.responsavel || '—' }}</td>
               <td>{{ formatDate(inc.dataOcorrencia) }}</td>
               <td class="inc-td-actions">
@@ -162,7 +164,7 @@
             </tr>
             @if (transferId === inc.id) {
               <tr>
-                <td colspan="7">
+                <td colspan="8">
                   <div class="transfer-inline">
                     <span>Transferir para:</span>
                     <input [(ngModel)]="transferInput" list="inc-transfer-users" placeholder="Username do novo dono" (keydown.enter)="confirmarTransferencia()" />
@@ -179,7 +181,7 @@
             }
             @if (detalheId === inc.id) {
               <tr class="inc-detalhe-row">
-                <td colspan="7">
+                <td colspan="8">
                   <div class="inc-detalhe">
                     @if (inc.descricao) {
                       <div class="inc-detalhe-bloco">
@@ -249,3 +251,4 @@
     </div>
   }
 </div>
+

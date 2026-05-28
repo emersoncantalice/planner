@@ -184,7 +184,7 @@
 }
 
 .rsk-table-wrap {
-  overflow-x: hidden;
+  overflow-x: auto;
   border-radius: .6rem;
   border: 1px solid #d8e6ff;
 }
@@ -193,15 +193,15 @@
   width: 100%;
   border-collapse: collapse;
   font-size: .83rem;
-  table-layout: fixed;
+  table-layout: auto;
 
   th, td {
     padding: .6rem .85rem;
     text-align: left;
     border-bottom: 1px solid #e8eef8;
     white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   th {
@@ -220,6 +220,23 @@
 
   tr:last-child td { border-bottom: none; }
   tbody tr:hover > td { background: #f0f6ff; }
+}
+
+.rsk-owner-col {
+  min-width: 120px;
+  color: #1d4fa4;
+  font-weight: 700;
+}
+
+.rsk-title-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.rsk-owner-inline {
+  font-size: .72rem;
+  color: #5f7399;
+  font-weight: 600;
 }
 
 .rsk-td-actions {
