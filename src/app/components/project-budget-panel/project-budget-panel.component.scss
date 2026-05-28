@@ -88,17 +88,61 @@
   &.active { border-color: #4a7de8; background: #eef4ff; box-shadow: 0 2px 8px rgba(74, 125, 232, .15); }
 }
 
-.pb-card-name { font-size: .88rem; font-weight: 700; color: #1a2d58; }
+.pb-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pb-card-name { font-size: .88rem; font-weight: 700; color: #1a2d58; flex: 1; min-width: 0; }
 .pb-card-desc { font-size: .74rem; color: #6b7fa8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pb-card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: .74rem; color: #6b7fa8; }
+
+.pb-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: .74rem;
+  color: #6b7fa8;
+}
+
+.pb-card-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  svg { width: 11px; height: 11px; fill: currentColor; }
+}
+
 .pb-card-cost { font-weight: 700; color: #1a4fa0; }
+
+.pb-card-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: .7rem;
+  color: #5f7399;
+  background: #f0f5ff;
+  border-radius: 5px;
+  padding: 3px 7px;
+  svg { width: 10px; height: 10px; fill: currentColor; flex-shrink: 0; }
+}
+
+.pb-card-days {
+  margin-left: auto;
+  background: #dce8ff;
+  color: #1a4fa0;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+  font-size: .68rem;
+}
 
 .pb-card-actions {
   display: flex;
   gap: 4px;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid #e8f0ff;
+  flex-shrink: 0;
 }
 
 .pb-card-btn {
@@ -341,6 +385,18 @@
   flex-shrink: 0;
 }
 
+.pb-dur-badge {
+  display: inline-block;
+  background: #e8f1ff;
+  color: #2d5bbf;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pb-no-date { color: #b0c0d8; }
+
 .pb-atv-actions {
   display: flex;
   gap: 4px;
@@ -484,6 +540,53 @@
   padding: 0 4px;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.pb-gantt-header-label {
+  background: transparent !important;
+  color: rgba(255,255,255,.8) !important;
+  font-size: .72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .02em;
+}
+
+.pb-gantt-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(239, 68, 68, .75);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pb-gantt-today::before {
+  content: 'Hoje';
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 5.5px;
+  font-weight: 700;
+  color: #ef4444;
+  white-space: nowrap;
+  letter-spacing: .03em;
+}
+
+.pb-gantt-today-header {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 99, 99, .9);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pb-gantt-dur {
+  font-size: .65rem;
+  color: #8fa5c8;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .pb-gantt-legend {

@@ -116,7 +116,39 @@ export class ProjectBudgetPanelComponent {
       s + Number(a.horas || 0) * this.perfilValorHora(a.perfilId), 0);
   }
 
+  // ── sidebar helpers ───────────────────────────────────────────────────────
+
+  orcDateRange(orc: any): string {
+    const ativs = ((orc?.atividades ?? []) as any[]).filter((a: any) => a.dataInicio && a.dataFim);
+    if (!ativs.length) return '';
+    const min = [...ativs].sort((a: any, b: any) => a.dataInicio.localeCompare(b.dataInicio))[0].dataInicio;
+    const max = [...ativs].sort((a: any, b: any) => b.dataFim.localeCompare(a.dataFim))[0].dataFim;
+    return `${this.formatDate(min)} → ${this.formatDate(max)}`;
+  }
+
+  orcTotalDays(orc: any): number {
+    const ativs = ((orc?.atividades ?? []) as any[]).filter((a: any) => a.dataInicio && a.dataFim);
+    if (!ativs.length) return 0;
+    const min = [...ativs].sort((a: any, b: any) => a.dataInicio.localeCompare(b.dataInicio))[0].dataInicio;
+    const max = [...ativs].sort((a: any, b: any) => b.dataFim.localeCompare(a.dataFim))[0].dataFim;
+    return this.dayDiff(min, max) + 1;
+  }
+
   // ── gantt ─────────────────────────────────────────────────────────────────
+
+  todayPct(): number | null {
+    const range = this.ganttRange();
+    if (!range) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    if (today < range.minDate || today > range.maxDate) return null;
+    return (this.dayDiff(range.minDate, today) / range.totalDays) * 100;
+  }
+
+  atividadeDuration(a: any): string {
+    if (!a.dataInicio || !a.dataFim) return '';
+    const d = this.dayDiff(a.dataInicio, a.dataFim) + 1;
+    return `${d}d`;
+  }
 
   dayDiff(a: string, b: string): number {
     return Math.round((new Date(b + 'T00:00:00').getTime() - new Date(a + 'T00:00:00').getTime()) / 86400000);
