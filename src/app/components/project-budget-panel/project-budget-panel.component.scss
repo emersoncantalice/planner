@@ -1,4 +1,13 @@
-:host { display: block; width: 100%; min-width: 0; }
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #c8d9fb;
+  box-shadow: 0 10px 30px rgba(15, 76, 184, .08);
+  overflow: hidden;
+}
 
 // ── layout ────────────────────────────────────────────────────────────────
 
@@ -9,6 +18,7 @@
   min-height: 0;
   padding: 1.25rem;
   gap: 1rem;
+  background: #fff;
 }
 
 .pb-header {
@@ -43,6 +53,40 @@
   overflow: hidden;
 }
 
+// ── zero state (no budgets at all) ───────────────────────────────────────
+
+.pb-zero-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.pb-zero-icon {
+  width: 4rem;
+  height: 4rem;
+  fill: #b3cef8;
+}
+
+.pb-zero-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a3a7a;
+  margin: 0;
+}
+
+.pb-zero-sub {
+  font-size: .85rem;
+  color: #5f7399;
+  max-width: 380px;
+  margin: 0;
+  line-height: 1.55;
+}
+
 // ── sidebar ───────────────────────────────────────────────────────────────
 
 .pb-sidebar {
@@ -69,11 +113,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem 1rem;
+  padding: 1.5rem .75rem;
   color: #8fa5c8;
   gap: .5rem;
-  svg { width: 2rem; height: 2rem; fill: currentColor; opacity: .5; }
-  p { font-size: .82rem; margin: 0; }
+  text-align: center;
+  svg { width: 1.6rem; height: 1.6rem; fill: currentColor; opacity: .5; }
+  p { font-size: .78rem; margin: 0; line-height: 1.5; em { font-style: normal; color: #4a6a9a; font-weight: 600; } }
 }
 
 .pb-card {
@@ -317,6 +362,12 @@
     outline: none;
     &:focus { border-color: #4a7de8; }
   }
+}
+
+.pb-horas-hint {
+  font-weight: 400;
+  font-size: .7rem;
+  color: #8fa5c8;
 }
 
 .pb-atv-cost-preview {

@@ -263,3 +263,92 @@
   color: #7a8aaa;
   font-size: .9rem;
 }
+
+// ── conflict banner ─────────────────────────────────────────────────────────
+
+.abs-conflicts-banner {
+  margin: 0 0 14px;
+  border-radius: 10px;
+  border: 1.5px solid #f59e0b;
+  background: #fffbeb;
+  overflow: hidden;
+}
+.abs-conflicts-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: .83rem;
+  font-weight: 600;
+  color: #92400e;
+  user-select: none;
+  &:hover { background: #fef3c7; }
+  strong { flex: 1; }
+}
+.abs-conflicts-icon { font-size: 1rem; }
+.abs-conflicts-toggle { font-size: .8rem; color: #a16207; }
+.abs-conflicts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px;
+  border-top: 1px solid #fde68a;
+}
+.abs-conflict-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: .76rem;
+  border-bottom: 1px solid #fef3c7;
+  &:last-child { border-bottom: none; }
+}
+.abs-conflict-person {
+  font-weight: 700;
+  color: #7c3a00;
+  min-width: 80px;
+}
+.abs-conflict-period {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: #7c2d12;
+  font-size: .72rem;
+}
+.abs-conflict-vs {
+  font-weight: 700;
+  color: #dc2626;
+  font-size: .72rem;
+}
+.abs-conflict-overlap {
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: .7rem;
+  font-weight: 600;
+}
+.abs-conflict-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  button { padding: 2px 8px !important; font-size: .72rem; }
+}
+
+// ── per-row conflict indicators ─────────────────────────────────────────────
+
+.abs-conflict-badge {
+  color: #d97706;
+  font-size: .82rem;
+  line-height: 1;
+  cursor: default;
+}
+.abs-detail-conflict {
+  background: #fffbeb !important;
+  td { box-shadow: inset 3px 0 0 #f59e0b; }
+}

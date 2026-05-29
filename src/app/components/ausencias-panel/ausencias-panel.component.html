@@ -92,6 +92,40 @@
       <p>Nenhuma pessoa cadastrada. Cadastre pessoas primeiro.</p>
     </div>
   } @else {
+
+
+    @if (conflitos().length > 0) {
+      <div class="abs-conflicts-banner">
+        <div class="abs-conflicts-header" (click)="conflitosOpen = !conflitosOpen">
+          <span class="abs-conflicts-icon">⚠</span>
+          <strong>{{ conflitos().length }} conflito{{ conflitos().length > 1 ? 's' : '' }} de período detectado{{ conflitos().length > 1 ? 's' : '' }}</strong>
+          <span class="abs-conflicts-toggle">{{ conflitosOpen ? '▾' : '▸' }}</span>
+        </div>
+        @if (conflitosOpen) {
+          <ul class="abs-conflicts-list">
+            @for (c of conflitos(); track c.a1.id + c.a2.id) {
+              <li class="abs-conflict-item">
+                <span class="abs-conflict-period">
+                  <span class="abs-tipo-dot" [style.background]="CORES[c.a1.tipo]"></span>
+                  <strong>{{ c.pessoa1Nome }}</strong>&nbsp;{{ TIPOS[c.a1.tipo] }} {{ fmtDate(c.a1.inicio) }}–{{ fmtDate(c.a1.fim) }}
+                </span>
+                <span class="abs-conflict-vs">×</span>
+                <span class="abs-conflict-period">
+                  <span class="abs-tipo-dot" [style.background]="CORES[c.a2.tipo]"></span>
+                  <strong>{{ c.pessoa2Nome }}</strong>&nbsp;{{ TIPOS[c.a2.tipo] }} {{ fmtDate(c.a2.inicio) }}–{{ fmtDate(c.a2.fim) }}
+                </span>
+                <span class="abs-conflict-overlap">sobreposição {{ fmtDate(c.overlapInicio) }}–{{ fmtDate(c.overlapFim) }} · {{ c.overlapDias }}d</span>
+                <span class="abs-conflict-actions">
+                  <button type="button" class="sec" (click)="startEdit(c.a1)">Editar {{ c.pessoa1Nome }}</button>
+                  <button type="button" class="sec" (click)="startEdit(c.a2)">Editar {{ c.pessoa2Nome }}</button>
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
     <div class="abs-calendar-wrap">
       <table class="abs-cal-table">
         <thead>
@@ -113,6 +147,9 @@
                   {{ isExpanded(p.id) ? '▾' : '▸' }}
                 </button>
                 <span class="abs-pessoa-nome" [title]="p.nome">{{ p.nome }}</span>
+                @if (temConflito(p.id)) {
+                  <span class="abs-conflict-badge" title="Possui conflitos de período">⚠</span>
+                }
               </td>
               @for (mes of MESES; track $index) {
                 <td class="abs-cell-mes">
@@ -143,7 +180,7 @@
             
             @if (isExpanded(p.id)) {
               @for (a of ausenciasDaPessoa(p.id); track a.id) {
-                <tr class="abs-detail-row">
+                <tr class="abs-detail-row" [class.abs-detail-conflict]="isConflitante(a.id)">
                   <td class="abs-detail-cell" colspan="1">
                     <span class="abs-detail-indent"></span>
                     <span class="abs-tipo-dot" [style.background]="CORES[a.tipo]"></span>

@@ -243,6 +243,12 @@ export class ProjectBudgetPanelComponent {
     this.atividadeFormOpen = true;
   }
 
+  recalcHoras() {
+    const { dataInicio, dataFim } = this.atividadeForm;
+    if (!dataInicio || !dataFim || dataFim < dataInicio) return;
+    this.atividadeForm.horas = (this.dayDiff(dataInicio, dataFim) + 1) * 8;
+  }
+
   cancelAtividadeForm() {
     this.atividadeFormOpen = false;
     this.editingAtividadeId = '';

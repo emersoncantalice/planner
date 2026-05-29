@@ -14,6 +14,18 @@ interface AbsRow {
   criadoEm?: string;
 }
 
+interface Conflito {
+  pessoa1Id: string;
+  pessoa1Nome: string;
+  pessoa2Id: string;
+  pessoa2Nome: string;
+  a1: AbsRow;
+  a2: AbsRow;
+  overlapInicio: string;
+  overlapFim: string;
+  overlapDias: number;
+}
+
 @Component({
   selector: 'app-ausencias-panel',
   standalone: true,
@@ -211,6 +223,59 @@ export class AusenciasPanelComponent implements OnChanges {
   ausenciasDaPessoa(pessoaId: string): AbsRow[] {
     return this.ausenciasDoAno().filter(a => a.pessoaId === pessoaId);
   }
+
+  // ── conflict detection ────────────────────────────────────────────────────
+
+  private resolveAbsDate(dateStr: string, recorrente: boolean): Date {
+    const raw = recorrente ? `${this.ano}-${dateStr.slice(5)}` : dateStr;
+    return new Date(raw + 'T00:00:00');
+  }
+
+  conflitos(): Conflito[] {
+    const result: Conflito[] = [];
+    const abs = this.ausenciasDoAno();
+    for (let i = 0; i < abs.length; i++) {
+      for (let j = i + 1; j < abs.length; j++) {
+        const a1 = abs[i];
+        const a2 = abs[j];
+        if (a1.pessoaId === a2.pessoaId) continue;
+        const s1 = this.resolveAbsDate(a1.inicio, a1.recorrente);
+        const e1 = this.resolveAbsDate(a1.fim,    a1.recorrente);
+        const s2 = this.resolveAbsDate(a2.inicio, a2.recorrente);
+        const e2 = this.resolveAbsDate(a2.fim,    a2.recorrente);
+        const oS = s1 > s2 ? s1 : s2;
+        const oE = e1 < e2 ? e1 : e2;
+        if (oS <= oE) {
+          const dias = Math.round((oE.getTime() - oS.getTime()) / 86_400_000) + 1;
+          result.push({
+            pessoa1Id:   a1.pessoaId,
+            pessoa1Nome: a1.pessoaNome || this.pessoas.find(p => p.id === a1.pessoaId)?.nome || a1.pessoaId,
+            pessoa2Id:   a2.pessoaId,
+            pessoa2Nome: a2.pessoaNome || this.pessoas.find(p => p.id === a2.pessoaId)?.nome || a2.pessoaId,
+            a1, a2,
+            overlapInicio: oS.toISOString().slice(0, 10),
+            overlapFim:    oE.toISOString().slice(0, 10),
+            overlapDias:   dias,
+          });
+        }
+      }
+    }
+    return result;
+  }
+
+  temConflito(pessoaId: string): boolean {
+    return this.conflitos().some(c => c.pessoa1Id === pessoaId || c.pessoa2Id === pessoaId);
+  }
+
+  conflitosParaPessoa(pessoaId: string): Conflito[] {
+    return this.conflitos().filter(c => c.pessoa1Id === pessoaId || c.pessoa2Id === pessoaId);
+  }
+
+  isConflitante(ausenciaId: string): boolean {
+    return this.conflitos().some(c => c.a1.id === ausenciaId || c.a2.id === ausenciaId);
+  }
+
+  conflitosOpen = true;
 
   
   expandedRows = new Set<string>();
