@@ -92,10 +92,15 @@ export class OverviewListComponent {
     return this.linhasOrcamentariasDoAno().reduce((acc, lo) => acc + this.number(lo.valorTotal), 0);
   }
 
+  isPessoaPlaneada(a: any): boolean {
+    return typeof a?.nomePessoa === 'string' && a.nomePessoa.startsWith('Pessoa Planejada ');
+  }
+
   totalComprometidoLo(): number {
     const ids = this.idsLoAno();
     return this.alocacoesLo
       .filter((a: any) => ids.has(a.linhaOrcamentariaId))
+      .filter((a: any) => !this.isPessoaPlaneada(a) && !a?.draft)
       .reduce((acc, a) => acc + this.custoAnualAlocacao(a), 0);
   }
 

@@ -118,6 +118,13 @@
       </div>
 
     </div>
+
+    @if (countPlanejaDasContando() > 0) {
+      <div class="cockpit-planejada-notice">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <span>Vagas planejadas não são consideradas nesta visão geral.</span>
+      </div>
+    }
   </section>
 
   <div class="lo-export-row">
@@ -155,12 +162,15 @@
         type="button"
         class="tab-btn"
         [class.active]="lo.id === loSelecionadaId"
+        [class.tab-btn--draft]="lo.situacao === 'DRAFT'"
         (click)="selectLoTab(lo.id)">
         <span class="tab-codigo">{{ lo.codigo }}</span>
         @if (lo.nome) {
           <span class="tab-nome">{{ lo.nome }}</span>
         }
-        @if (lo.tipo) {
+        @if (lo.situacao === 'DRAFT') {
+          <span class="tab-draft-chip">RASCUNHO</span>
+        } @else if (lo.tipo) {
           <span class="tab-tipo">{{ lo.tipo }}</span>
         }
       </button>
@@ -179,7 +189,13 @@
             }
           </div>
           <div class="lo-summary-meta">
-            @if (loSelecionada()?.tipo) {
+            @if (loSelecionada()?.situacao === 'DRAFT') {
+              <span class="lo-meta-pill lo-meta-pill-draft">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                Rascunho — só entram nos totalizadores quando a opção abaixo estiver ativa
+              </span>
+            }
+            @if (loSelecionada()?.tipo && loSelecionada()?.situacao !== 'DRAFT') {
               <span class="lo-meta-pill lo-meta-pill-blue">Tipo: {{ loSelecionada()?.tipo }}</span>
             }
             @if (loSelecionada()?.centroCusto) {
@@ -240,11 +256,26 @@
         </div>
       </div>
 
+      @if (countPlanejaDasContando() > 0) {
+        <div class="planejada-notice">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          <span>
+            <strong>{{ countPlanejaDasContando() }} vaga{{ countPlanejaDasContando() > 1 ? 's' : '' }} planejada{{ countPlanejaDasContando() > 1 ? 's' : '' }}</strong>
+            está sendo incluída{{ countPlanejaDasContando() > 1 ? 's' : '' }} nos totalizadores desta LO.
+            Os valores acima refletem alocações ainda não confirmadas.
+          </span>
+        </div>
+      }
+
       <div class="lo-summary-progress-wrap">
         <div class="lo-summary-progress-labels">
           <span>Utilização do orçamento</span>
           <span><strong>{{ percentualUtilizadoLo() | number:'1.1-1' }}%</strong></span>
         </div>
+        <label class="lo-draft-totals-toggle">
+          <input type="checkbox" [(ngModel)]="incluirRascunhoNosTotalizadores" (ngModelChange)="onToggleIncluirRascunhoNosTotalizadores()" />
+          <span>Incluir alocações de rascunho nos totalizadores</span>
+        </label>
         <div class="lo-summary-progress-bar-track">
           <div class="lo-summary-progress-bar-fill" [style.width.%]="clampPct(percentualUtilizadoLo())" [class.over]="percentualUtilizadoLo() > 100"></div>
         </div>
@@ -265,9 +296,68 @@
     </button>
   </div>
 
+  @if (novaLinhaAberta) {
+    <div class="draft-config-bar" [class.draft-config-bar--active]="draftMode">
+      <div class="draft-config-header">
+        <div class="draft-config-header-left">
+          <svg class="draft-config-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          <span class="draft-config-title">Opções da alocação</span>
+        </div>
+        <button type="button" class="draft-config-close" (click)="fecharNovaLinha()" title="Cancelar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <div class="draft-config-body">
+        <div class="draft-config-section">
+          @if (loSelecionadaEhDraft()) {
+            <div class="draft-forced-notice">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              Esta LO é um <strong>rascunho</strong> — novas alocações são criadas como rascunho e entram nos totalizadores apenas quando essa opção estiver ativa.
+            </div>
+          } @else {
+            <label class="draft-toggle-label">
+              <span class="draft-toggle-switch">
+                <input type="checkbox" [(ngModel)]="draftMode" />
+                <span class="draft-toggle-track"></span>
+              </span>
+              <span class="draft-toggle-content">
+                <span class="draft-toggle-text">Modo rascunho</span>
+                <span class="draft-toggle-hint">não conta como alocação real — use para planejar times</span>
+              </span>
+            </label>
+          }
+        </div>
+
+        <div class="draft-config-divider"></div>
+
+        <div class="draft-config-section">
+          <span class="draft-config-label">Mês de início</span>
+          <div class="draft-mes-options">
+            @for (m of meses; track $index) {
+              <button type="button"
+                class="draft-mes-btn"
+                [class.active]="novoMesInicio === $index"
+                (click)="novoMesInicio = $index"
+                [title]="$index === 0 ? 'Todos os meses ativos' : 'Cancela JAN–' + meses[$index - 1] + ' automaticamente'">
+                {{ m }}
+              </button>
+            }
+          </div>
+          @if (novoMesInicio > 0) {
+            <span class="draft-mes-aviso">
+              Meses JAN–{{ meses[novoMesInicio - 1] }} serão cancelados automaticamente
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
   <section class="alloc-table-wrap" #tableWrap (dragover)="onTableDragOver($event)">
     <div class="table-toolbar">
       <p class="table-hint">Cálculo mensal: Valor/hora x Horas do cadastro do mes x Alocação (%).</p>
+
 
       @if (temOrdemCustom()) {
         <div class="ordem-custom-bar">
@@ -309,7 +399,7 @@
     <table class="modern-table alloc-table">
       <thead>
         <tr>
-          <th class="sortable" (click)="ordenarPor('nome')">Pessoa <span class="sort-icon">{{ getSortIcon('nome') }}</span></th>
+          <th class="sortable" (click)="ordenarPor('nome')">{{ novaLinhaAberta && !editingId ? 'Perfil' : 'Pessoa' }} <span class="sort-icon">{{ getSortIcon('nome') }}</span></th>
           @if (col('vaga'))      { <th>Vaga</th> }
           @if (col('perfil'))    { <th>Perfil</th> }
           @if (col('categoria')) { <th class="sortable" (click)="ordenarPor('categoria')">Categoria <span class="sort-icon">{{ getSortIcon('categoria') }}</span></th> }
@@ -331,22 +421,31 @@
         @if (novaLinhaAberta && !editingId) {
           <tr class="new-row">
             <td>
-              <input
-                list="pessoas-nova-list"
-                class="pessoa-combo"
-                [ngModel]="pessoaNovaNome"
-                (ngModelChange)="onPessoaNovaNomeChange($event)"
-                placeholder="Buscar pessoa..."
-                autocomplete="off" />
-              <datalist id="pessoas-nova-list">
-                @for (p of pessoas; track p.id) {
-                  <option [value]="p.nome"></option>
+              @if (draftMode || loSelecionadaEhDraft()) {
+                <select class="pessoa-combo" [(ngModel)]="form.perfilId" style="font-size:.84rem">
+                  <option value="">— Perfil (obrigatório) —</option>
+                  @for (p of perfis; track p.id) {
+                    <option [value]="p.id">{{ perfilSemDepartamento(p.nomePerfil) }}</option>
+                  }
+                </select>
+              } @else {
+                <input
+                  list="pessoas-nova-list"
+                  class="pessoa-combo"
+                  [ngModel]="pessoaNovaNome"
+                  (ngModelChange)="onPessoaNovaNomeChange($event)"
+                  placeholder="Buscar pessoa..."
+                  autocomplete="off" />
+                <datalist id="pessoas-nova-list">
+                  @for (p of pessoas; track p.id) {
+                    <option [value]="p.nome"></option>
+                  }
+                </datalist>
+                @if (novaPessoaSelecionadaId) {
+                  <span class="pessoa-badge" [class.badge-folha]="!isTerceiroNovaPessoa()" [class.badge-terceiro]="isTerceiroNovaPessoa()">
+                    {{ isTerceiroNovaPessoa() ? 'Prestador' : 'Folha' }}
+                  </span>
                 }
-              </datalist>
-              @if (novaPessoaSelecionadaId) {
-                <span class="pessoa-badge" [class.badge-folha]="!isTerceiroNovaPessoa()" [class.badge-terceiro]="isTerceiroNovaPessoa()">
-                  {{ isTerceiroNovaPessoa() ? 'Prestador' : 'Folha' }}
-                </span>
               }
             </td>
             @if (col('vaga')) {
@@ -424,6 +523,8 @@
         @for (a of alocacoesFiltradas(); track a.id; let idx = $index) {
           <tr
             [class.no-charge-row]="pessoaSemCustoLo(a)"
+            [class.draft-row]="isDraft(a)"
+            [class.planned-person-row]="isPessoaPlaneada(a)"
             [class.drag-over]="dragOverIndex === idx && dragSourceIndex !== idx"
             [class.dragging]="dragSourceIndex === idx"
             (dragover)="onDragOver($event, idx)"
@@ -460,9 +561,16 @@
                   }
                   <div class="pessoa-cell-info">
                     <strong>{{ a.nomePessoa }}</strong>
-                    <span class="pessoa-badge" [class.badge-folha]="getCategoriaDaPessoa(a) === 'FOLHA'" [class.badge-terceiro]="getCategoriaDaPessoa(a) === 'TERCEIRO'">
-                      {{ getCategoriaDaPessoa(a) === 'FOLHA' ? 'Folha' : 'Prestador' }}
-                    </span>
+                    @if (isDraft(a)) {
+                      <span class="draft-badge" [title]="'Rascunho: ' + (a.loFicticiaNome || 'Cenário')">RASCUNHO</span>
+                    }
+                    @if (isPessoaPlaneada(a)) {
+                      <span class="pessoa-badge badge-planejada">Planejada</span>
+                    } @else {
+                      <span class="pessoa-badge" [class.badge-folha]="getCategoriaDaPessoa(a) === 'FOLHA'" [class.badge-terceiro]="getCategoriaDaPessoa(a) === 'TERCEIRO'">
+                        {{ getCategoriaDaPessoa(a) === 'FOLHA' ? 'Folha' : 'Prestador' }}
+                      </span>
+                    }
                   </div>
                 </div>
               }
@@ -489,6 +597,8 @@
               <td>
                 @if (editingId === a.id) {
                   <span class="readonly-cell">{{ categoriaPessoaSelecionadaEdicao() }}</span>
+                } @else if (isPessoaPlaneada(a)) {
+                  <span class="pessoa-badge badge-planejada" style="font-size:.72rem">Planejada</span>
                 } @else {
                   @if (getCategoriaDaPessoa(a) === 'TERCEIRO') { Prestador de serviço } @else { Folha }
                 }
@@ -568,8 +678,8 @@
                         <small class="month-max-hint">máx {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
                       }
                     }
-                    @if (!pessoaSemCustoLo(a)) {
-                      
+                    @if (!pessoaSemCustoLo(a) && !isPessoaPlaneada(a)) {
+
                       <label class="paid-check">
                         <input
                           type="checkbox"
@@ -608,11 +718,10 @@
             } 
             @if (col('total')) {
               <td>
-                <strong>
-                  @if (editingId === a.id) {
-                    {{ currency(custoAnualEdicaoPessoa(a.id)) }}
-                  } @else {
-                    {{ currency(
+                @if (isPessoaPlaneada(a) && editingId !== a.id) {
+                  <label class="planejada-total-check" [class.ativa]="isPlanejadaAtivaNosTotal(a.id)" [title]="isPlanejadaAtivaNosTotal(a.id) ? 'Remover dos totalizadores' : 'Incluir nos totalizadores'">
+                    <input type="checkbox" [checked]="isPlanejadaAtivaNosTotal(a.id)" (change)="togglePlanejadaNosTotal(a.id)" />
+                    <strong>{{ currency(
                       custoMensal(a.id, getValorHoraDaAlocacao(a), 0) +
                       custoMensal(a.id, getValorHoraDaAlocacao(a), 1) +
                       custoMensal(a.id, getValorHoraDaAlocacao(a), 2) +
@@ -625,9 +734,30 @@
                       custoMensal(a.id, getValorHoraDaAlocacao(a), 9) +
                       custoMensal(a.id, getValorHoraDaAlocacao(a), 10) +
                       custoMensal(a.id, getValorHoraDaAlocacao(a), 11)
-                    ) }}
-                  }
-                </strong>
+                    ) }}</strong>
+                  </label>
+                } @else {
+                  <strong>
+                    @if (editingId === a.id) {
+                      {{ currency(custoAnualEdicaoPessoa(a.id)) }}
+                    } @else {
+                      {{ currency(
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 0) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 1) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 2) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 3) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 4) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 5) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 6) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 7) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 8) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 9) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 10) +
+                        custoMensal(a.id, getValorHoraDaAlocacao(a), 11)
+                      ) }}
+                    }
+                  </strong>
+                }
               </td>
             }
             <td class="actions">

@@ -3270,6 +3270,8 @@ app-project-detail {
 .sidebar.collapsed .sb-nav {
   justify-items: center;
   overflow: visible;
+  align-content: start;
+  gap: 4px;
 }
 .sidebar.collapsed .sb-nav a {
   justify-content: center;

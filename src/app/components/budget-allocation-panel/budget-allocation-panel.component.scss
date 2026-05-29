@@ -69,3 +69,419 @@ th.current-month {
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+// ── draft config bar ────────────────────────────────────────────────────────
+
+.draft-config-bar {
+  margin: 4px 0 10px;
+  border-radius: 12px;
+  border: 1.5px solid #e2d9f3;
+  background: #faf8ff;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, .06);
+  transition: border-color .15s;
+
+  &--active {
+    border-color: #a78bfa;
+    background: #f5f0ff;
+  }
+}
+
+.draft-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px 9px 12px;
+  background: #f0eaff;
+  border-bottom: 1px solid #e2d9f3;
+}
+.draft-config-header-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.draft-config-icon {
+  width: 15px;
+  height: 15px;
+  fill: #7c3aed;
+  flex-shrink: 0;
+}
+.draft-config-title {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #4c1d95;
+  letter-spacing: .01em;
+}
+.draft-config-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  color: #7c3aed;
+  opacity: .6;
+  transition: opacity .12s, background .12s;
+  svg { width: 16px; height: 16px; fill: currentColor; }
+  &:hover { opacity: 1; background: #ede9fe; }
+}
+
+.draft-config-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0;
+  padding: 12px 16px;
+}
+
+.draft-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 220px;
+}
+
+.draft-config-divider {
+  width: 1px;
+  background: #e2d9f3;
+  margin: 0 20px;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.draft-config-label {
+  font-size: .76rem;
+  font-weight: 700;
+  color: #4a5e7e;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+// toggle switch
+.draft-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.draft-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+
+  input[type="checkbox"] {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+}
+.draft-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 20px;
+  transition: background .2s;
+  cursor: pointer;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+}
+.draft-toggle-switch input:checked ~ .draft-toggle-track {
+  background: #7c3aed;
+  &::after { transform: translateX(16px); }
+}
+.draft-toggle-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.draft-toggle-text { font-size: .83rem; font-weight: 700; color: #4c1d95; }
+.draft-toggle-hint { font-size: .72rem; color: #7c3aed; font-style: italic; }
+
+.draft-lo-fields {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.draft-lo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  label { font-size: .73rem; font-weight: 600; color: #5b21b6; }
+  input { min-width: 150px; border-color: #c4b5fd; font-size: .82rem; }
+}
+
+// mes de inicio pill buttons
+.draft-mes-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.draft-mes-btn {
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1.5px solid #dde6f8;
+  background: #f8faff;
+  font-size: .73rem;
+  font-weight: 600;
+  color: #4a5e7e;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+  &:hover { background: #ede9fe; border-color: #a78bfa; color: #4c1d95; }
+  &.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+}
+.draft-mes-aviso {
+  font-size: .73rem;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+// ── draft forced notice ─────────────────────────────────────────────────────
+
+.draft-forced-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #ede9fe;
+  color: #4c1d95;
+  font-size: .79rem;
+  line-height: 1.4;
+  border: 1px solid #c4b5fd;
+
+  svg { width: 16px; height: 16px; fill: #7c3aed; flex-shrink: 0; margin-top: 1px; }
+  strong { font-weight: 700; }
+}
+
+// ── LO tab draft style ───────────────────────────────────────────────────────
+
+.tab-btn--draft {
+  border-color: #c4b5fd !important;
+  color: #5b21b6 !important;
+  background: #faf5ff !important;
+  &.active { background: #7c3aed !important; border-color: #7c3aed !important; color: #fff !important; }
+}
+
+.tab-draft-chip {
+  display: inline-block;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-left: 2px;
+  vertical-align: middle;
+  border: 1px solid #c4b5fd;
+}
+.tab-btn--draft.active .tab-draft-chip {
+  background: rgba(255,255,255,.25);
+  color: #fff;
+  border-color: rgba(255,255,255,.4);
+}
+
+// ── LO summary draft pill ────────────────────────────────────────────────────
+
+.lo-meta-pill-draft {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// ── draft row ───────────────────────────────────────────────────────────────
+
+.draft-row {
+  background: #f4ebff !important;
+  td {
+    border-top: 1px solid #ddccff;
+    border-bottom: 1px solid #ddccff;
+  }
+  &:hover { background: #ecd9ff !important; }
+}
+
+.draft-badge {
+  display: inline-block;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  border: 1px solid #c4b5fd;
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  margin-left: 4px;
+  cursor: default;
+}
+
+.planejada-total-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+
+  input[type='checkbox'] {
+    width: 13px;
+    height: 13px;
+    accent-color: #7c3aed;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  strong {
+    color: #6b21a8;
+    opacity: .55;
+    font-size: .82rem;
+    white-space: nowrap;
+  }
+
+  &.ativa strong {
+    opacity: 1;
+    color: inherit;
+  }
+}
+
+.planned-person-row {
+  td {
+    background: #ede9fe !important;
+    border-top: 2px solid #7c3aed !important;
+    border-bottom: 2px solid #7c3aed !important;
+  }
+  td:first-child { border-left: 3px solid #7c3aed !important; }
+  td:last-child  { border-right: 2px solid #7c3aed !important; }
+
+  // meses cancelados ficam roxo-claro em vez de vermelho
+  td.month-col.cancelado { background: #ddd6fe !important; }
+  // meses pagos ficam roxo-médio em vez de verde
+  td.month-col.pago      { background: #c4b5fd !important; }
+  // meses bloqueados mantêm tom roxo
+  td.month-col.bloqueado { background: #e9d8ff !important; border-color: #a78bfa !important; }
+
+  &:hover td { background: #e9d8ff !important; }
+  &:hover td.month-col.cancelado { background: #c4b5fd !important; }
+  &:hover td.month-col.pago      { background: #a78bfa !important; }
+
+  // nome da pessoa em roxo
+  .pessoa-cell-info strong {
+    color: #5b21b6;
+    font-weight: 700;
+  }
+}
+
+.badge-planejada {
+  background: #7c3aed !important;
+  color: #fff !important;
+  border: 1px solid #6d28d9 !important;
+  font-weight: 700 !important;
+}
+
+.lo-summary-progress-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.lo-summary-progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lo-draft-totals-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #c4b5fd;
+  background: #f5f0ff;
+  color: #4c1d95;
+  font-size: 0.81rem;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition: background .12s, border-color .12s;
+
+  &:hover { background: #ede9fe; border-color: #a78bfa; }
+
+  input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #7c3aed;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  span { font-weight: 600; }
+}
+
+// ── cockpit: planned-persons excluded notice ────────────────────────────────
+
+.cockpit-planejada-notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  margin-top: 10px;
+  border-radius: 8px;
+  background: #f5f0ff;
+  border: 1px solid #c4b5fd;
+  color: #5b21b6;
+  font-size: .78rem;
+  font-weight: 500;
+
+  svg {
+    width: 15px;
+    height: 15px;
+    fill: #7c3aed;
+    flex-shrink: 0;
+  }
+}
+
+// ── planejada-in-totals notice ──────────────────────────────────────────────
+
+.planejada-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1.5px solid #fbbf24;
+  color: #78350f;
+  font-size: .8rem;
+  line-height: 1.45;
+  margin-bottom: 4px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  strong { font-weight: 700; color: #92400e; }
+}

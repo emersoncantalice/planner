@@ -231,10 +231,18 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     return this.losDoAno().reduce((acc, lo) => acc + this.orcamentoLo(lo), 0);
   }
 
+  private isPessoaPlaneada(a: any): boolean {
+    return typeof a?.nomePessoa === 'string' && a.nomePessoa.startsWith('Pessoa Planejada ');
+  }
+
+  private contaNoCockpit(a: any): boolean {
+    return !this.isPessoaPlaneada(a) && !a?.draft;
+  }
+
   comprometidoTotal(): number {
     const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
     return this.alocacoes
-      .filter((a: any) => ids.has(a.linhaOrcamentariaId))
+      .filter((a: any) => ids.has(a.linhaOrcamentariaId) && this.contaNoCockpit(a))
       .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
   }
 
@@ -242,7 +250,7 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   realizadoTotal(): number {
     const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
     return this.alocacoes
-      .filter((a: any) => ids.has(a.linhaOrcamentariaId))
+      .filter((a: any) => ids.has(a.linhaOrcamentariaId) && this.contaNoCockpit(a))
       .reduce((acc: number, a: any) => {
         let total = 0;
         for (let mi = 0; mi < 12; mi++) {
@@ -262,11 +270,11 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     return this.losDoAno().map(lo => {
       const orcamento = this.orcamentoLo(lo);
       const comprometido = this.alocacoes
-        .filter((a: any) => a.linhaOrcamentariaId === lo.id)
+        .filter((a: any) => a.linhaOrcamentariaId === lo.id && this.contaNoCockpit(a))
         .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
       const saldo = orcamento - comprometido;
       const pct = orcamento > 0 ? Math.min(100, (comprometido / orcamento) * 100) : 0;
-      const qtd = this.alocacoes.filter((a: any) => a.linhaOrcamentariaId === lo.id).length;
+      const qtd = this.alocacoes.filter((a: any) => a.linhaOrcamentariaId === lo.id && this.contaNoCockpit(a)).length;
       return { lo, orcamento, comprometido, saldo, pct, qtd };
     }).sort((a, b) => b.pct - a.pct);
   }
@@ -277,6 +285,7 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     return this.alocacoes
       .filter((a: any) => {
         if (!ids.has(a.linhaOrcamentariaId)) return false;
+        if (!this.contaNoCockpit(a)) return false;
         const p = this.pessoas.find((x: any) =>
           (x?.nome || '').trim().toLowerCase() === (a.nomePessoa || '').trim().toLowerCase()
         );
@@ -375,7 +384,9 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   pessoasAlocadas(): number {
     const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
     return new Set(
-      this.alocacoes.filter((a: any) => ids.has(a.linhaOrcamentariaId)).map((a: any) => a.nomePessoa)
+      this.alocacoes
+        .filter((a: any) => ids.has(a.linhaOrcamentariaId) && this.contaNoCockpit(a))
+        .map((a: any) => a.nomePessoa)
     ).size;
   }
 
