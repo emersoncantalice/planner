@@ -1,0 +1,24 @@
+{
+  "name": "Planner",
+  "short_name": "Planner",
+  "description": "Gerenciamento de projetos e orçamentos",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1d63da",
+  "background_color": "#0f172a",
+  "icons": [
+    {
+      "src": "assets/branding/icon-square.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/branding/icon-square.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

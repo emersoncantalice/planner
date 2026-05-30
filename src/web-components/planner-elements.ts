@@ -20,9 +20,11 @@ class PlannerKpiElement extends HTMLElement {
   }
 }
 
-if (!customElements.get('planner-card')) {
-  customElements.define('planner-card', PlannerCardElement);
+const ce = (globalThis as { customElements?: CustomElementRegistry }).customElements;
+
+if (ce && !ce.get('planner-card')) {
+  ce.define('planner-card', PlannerCardElement);
 }
-if (!customElements.get('planner-kpi')) {
-  customElements.define('planner-kpi', PlannerKpiElement);
+if (ce && !ce.get('planner-kpi')) {
+  ce.define('planner-kpi', PlannerKpiElement);
 }
