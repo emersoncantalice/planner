@@ -399,7 +399,7 @@
     <table class="modern-table alloc-table">
       <thead>
         <tr>
-          <th class="sortable" (click)="ordenarPor('nome')">{{ novaLinhaAberta && !editingId ? 'Perfil' : 'Pessoa' }} <span class="sort-icon">{{ getSortIcon('nome') }}</span></th>
+          <th class="sortable" (click)="ordenarPor('nome')">{{ primeiraColunaEhPerfil() ? 'Perfil' : 'Pessoa' }} <span class="sort-icon">{{ getSortIcon('nome') }}</span></th>
           @if (col('vaga'))      { <th>Vaga</th> }
           @if (col('perfil'))    { <th>Perfil</th> }
           @if (col('categoria')) { <th class="sortable" (click)="ordenarPor('categoria')">Categoria <span class="sort-icon">{{ getSortIcon('categoria') }}</span></th> }
@@ -441,11 +441,6 @@
                     <option [value]="p.nome"></option>
                   }
                 </datalist>
-                @if (novaPessoaSelecionadaId) {
-                  <span class="pessoa-badge" [class.badge-folha]="!isTerceiroNovaPessoa()" [class.badge-terceiro]="isTerceiroNovaPessoa()">
-                    {{ isTerceiroNovaPessoa() ? 'Prestador' : 'Folha' }}
-                  </span>
-                }
               }
             </td>
             @if (col('vaga')) {
@@ -566,10 +561,6 @@
                     }
                     @if (isPessoaPlaneada(a)) {
                       <span class="pessoa-badge badge-planejada">Planejada</span>
-                    } @else {
-                      <span class="pessoa-badge" [class.badge-folha]="getCategoriaDaPessoa(a) === 'FOLHA'" [class.badge-terceiro]="getCategoriaDaPessoa(a) === 'TERCEIRO'">
-                        {{ getCategoriaDaPessoa(a) === 'FOLHA' ? 'Folha' : 'Prestador' }}
-                      </span>
                     }
                   </div>
                 </div>
@@ -647,6 +638,13 @@
                   <div class="month-editor">
                     @if (percentualLivreMesAlocacao(a.id, monthIndex) > 0) {
                       <small class="month-percent-info">+{{ percentualLivreMesAlocacao(a.id, monthIndex) | number:'1.0-2' }}% livre</small>
+                    }
+                    @if (temReducaoPorAusencia(a.id, monthIndex)) {
+                      <small
+                        class="month-absence-chip"
+                        [title]="'Custo reduzido por férias/ausência: -' + horasDescontadasPorAusencia(a.id, monthIndex) + 'h no mês'">
+                        Aus -{{ horasDescontadasPorAusencia(a.id, monthIndex) }}h
+                      </small>
                     }
                     
                     <input

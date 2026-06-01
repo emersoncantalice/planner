@@ -389,6 +389,19 @@ th.current-month {
   }
 }
 
+.month-absence-chip {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid #f59e0b;
+  background: #fff7ed;
+  color: #b45309;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .badge-planejada {
   background: #7c3aed !important;
   color: #fff !important;

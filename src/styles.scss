@@ -3715,6 +3715,13 @@ button.danger {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+
+  .pessoa-badge {
+    align-self: flex-start;
+    font-size: .55rem;
+    padding: 0 4px;
+    line-height: 1.6;
+  }
 }
 
 // ── Drag handle ───────────────────────────────────────────────────────────────
