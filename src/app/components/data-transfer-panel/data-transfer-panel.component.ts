@@ -1,5 +1,6 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
+﻿import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
 import { ToastService } from '../../core/toast.service';
 import { lastValueFrom } from 'rxjs';
@@ -27,7 +28,7 @@ interface BackupData {
 @Component({
   selector: 'app-data-transfer-panel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './data-transfer-panel.component.html',
   styleUrl: './data-transfer-panel.component.scss',
@@ -45,7 +46,7 @@ export class DataTransferPanelComponent {
   @Input() horasMes: any[] = [];
   @Input() businessEpics: any[] = [];
 
-  /** Emitido quando a importação termina — o pai deve recarregar todos os dados */
+  /** Emitido quando a importa??o termina ? o pai deve recarregar todos os dados */
   @Output() imported = new EventEmitter<void>();
 
   private api   = inject(PlannerApiService);
@@ -55,8 +56,13 @@ export class DataTransferPanelComponent {
   zerando       = false;
   importProgress = '';
   importErros: string[] = [];
+  ignoredPeople: any[] = [];
+  ignoredAllocations: any[] = [];
+  private lastPerfilIdMap: Record<string, string> = {};
+  private lastLoIdMap: Record<string, string> = {};
+  private clearConfirmUntil = 0;
 
-  // ── Exportar ───────────────────────────────────────────────────────────────
+  // Exportar
 
   exportando = false;
 
@@ -83,11 +89,13 @@ export class DataTransferPanelComponent {
         lastValueFrom(this.api.listLoRealizado(this.token)),
       ]);
 
-      // Coleta chaves planner_lo_* do localStorage (configs locais de alocação)
+      // Coleta chaves planner_lo_* do localStorage (configs locais de aloca??o)
       const localStorageConfig: Record<string, string> = {};
+      const allocationIds = new Set((alocacoes || []).map((a: any) => String(a?.id ?? '')).filter(Boolean));
+      const loIds = new Set((linhasOrcamentarias || []).map((lo: any) => String(lo?.id ?? '')).filter(Boolean));
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)!;
-        if (key.startsWith('planner_lo_')) {
+        if (this.shouldExportPlannerLoKey(key, allocationIds, loIds)) {
           localStorageConfig[key] = localStorage.getItem(key)!;
         }
       }
@@ -120,7 +128,32 @@ export class DataTransferPanelComponent {
     }
   }
 
-  // ── Importar ───────────────────────────────────────────────────────────────
+  // Importar
+
+  private shouldExportPlannerLoKey(
+    key: string,
+    allocationIds: Set<string>,
+    loIds: Set<string>
+  ): boolean {
+    if (!key.startsWith('planner_lo_')) return false;
+
+    if (key === 'planner_lo_cols_global' || key.startsWith('planner_lo_cols_')) return true;
+
+    const allocMatch = key.match(/^planner_lo_(alloc|pago|cancelado|valor_manual|alloc_monthly)_([^_]+)(?:_|$)/);
+    if (allocMatch) return allocationIds.has(allocMatch[2]);
+
+    const loMatch = key.match(/^planner_lo_(realizado|custom_order)_([^_]+)(?:_|$)/);
+    if (loMatch) return loIds.has(loMatch[2]);
+
+    const pendingPctMatch = key.match(/^planner_lo_pending_pct_.+_([^_]+)$/);
+    if (pendingPctMatch) return loIds.has(pendingPctMatch[1]);
+
+    return false;
+  }
+
+  private async flushUi() {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
 
   abrirImport() {
     const input    = document.createElement('input');
@@ -136,7 +169,10 @@ export class DataTransferPanelComponent {
   private async processarImport(file: File) {
     this.importando = true;
     this.importErros = [];
-    this.importProgress = 'Lendo arquivo…';
+    this.ignoredPeople = [];
+    this.ignoredAllocations = [];
+    this.importProgress = 'Lendo arquivo...';
+    await this.flushUi();
 
     try {
       const text = await file.text();
@@ -154,7 +190,7 @@ export class DataTransferPanelComponent {
       );
       this.imported.emit();
     } catch (err: any) {
-      this.toast.show(`Erro na importação: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 8000);
+      this.toast.show(`Erro na importaÃƒÂ§ÃƒÂ£o: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 8000);
     } finally {
       this.importando    = false;
       this.importProgress = '';
@@ -171,12 +207,40 @@ export class DataTransferPanelComponent {
     const perfilIdMap: Record<string, string> = {};
     const loIdMap:     Record<string, string> = {};
     const allocIdMap:  Record<string, string> = {};
+    this.lastPerfilIdMap = perfilIdMap;
+    this.lastLoIdMap = loIdMap;
+
+    // Snapshot atual do backend para evitar criar duplicados idênticos
+    const [
+      existingProfiles,
+      existingConsultancies,
+      existingFocalPoints,
+      existingPeople,
+      existingBudgetLines,
+      existingAllocations,
+    ] = await Promise.all([
+      lastValueFrom(this.api.listProfiles(this.token)),
+      lastValueFrom(this.api.listConsultancies(this.token)),
+      lastValueFrom(this.api.listFocalPoints(this.token)),
+      lastValueFrom(this.api.listPeople(this.token)),
+      lastValueFrom(this.api.listBudgetLines(this.token)),
+      lastValueFrom(this.api.listBudgetAllocations(this.token)),
+    ]);
 
     // 1. Perfis
-    this.importProgress = `Importando perfis (0 / ${perfis.length})…`;
+    this.importProgress = `Importando perfis (0 / ${perfis.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < perfis.length; i++) {
       const p = perfis[i];
-      this.importProgress = `Importando perfis (${i + 1} / ${perfis.length})…`;
+      this.importProgress = `Importando perfis (${i + 1} / ${perfis.length})Ã¢Â¬Â¦`;
+      const existing = (existingProfiles || []).find((x: any) =>
+        this.norm(x?.nomePerfil) === this.norm(p?.nomePerfil ?? p?.nome) &&
+        Number(x?.valorHora ?? 0) === Number(p?.valorHora ?? 0) &&
+        Boolean(x?.debitaLo ?? true) === Boolean(p?.debitaLo ?? true)
+      );
+      if (existing?.id) {
+        if (p.id) perfilIdMap[p.id] = existing.id;
+        continue;
+      }
       try {
         const created = await lastValueFrom(
           this.api.createProfile(this.token, {
@@ -190,10 +254,17 @@ export class DataTransferPanelComponent {
     }
 
     // 2. Consultorias
-    this.importProgress = `Importando consultorias (0 / ${consultorias.length})…`;
+    this.importProgress = `Importando consultorias (0 / ${consultorias.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < consultorias.length; i++) {
       const c = consultorias[i];
-      this.importProgress = `Importando consultorias (${i + 1} / ${consultorias.length})…`;
+      this.importProgress = `Importando consultorias (${i + 1} / ${consultorias.length})Ã¢Â¬Â¦`;
+      const exists = (existingConsultancies || []).some((x: any) =>
+        this.norm(x?.nome) === this.norm(c?.nome) &&
+        this.norm(x?.descricao) === this.norm(c?.descricao) &&
+        this.norm(x?.email) === this.norm(c?.email) &&
+        this.norm(x?.telefone) === this.norm(c?.telefone)
+      );
+      if (exists) continue;
       try {
         await lastValueFrom(
           this.api.createConsultancy(this.token, {
@@ -207,10 +278,17 @@ export class DataTransferPanelComponent {
     }
 
     // 3. Pontos Focais
-    this.importProgress = `Importando pontos focais (0 / ${pontosFocais.length})…`;
+    this.importProgress = `Importando pontos focais (0 / ${pontosFocais.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < pontosFocais.length; i++) {
       const fp = pontosFocais[i];
-      this.importProgress = `Importando pontos focais (${i + 1} / ${pontosFocais.length})…`;
+      this.importProgress = `Importando pontos focais (${i + 1} / ${pontosFocais.length})Ã¢Â¬Â¦`;
+      const exists = (existingFocalPoints || []).some((x: any) =>
+        this.norm(x?.area) === this.norm(fp?.area) &&
+        this.norm(x?.responsavelPor) === this.norm(fp?.responsavelPor) &&
+        this.norm(x?.email) === this.norm(fp?.email) &&
+        this.norm(x?.telefone) === this.norm(fp?.telefone)
+      );
+      if (exists) continue;
       try {
         await lastValueFrom(
           this.api.createFocalPoint(this.token, {
@@ -224,32 +302,73 @@ export class DataTransferPanelComponent {
     }
 
     // 4. Pessoas
-    this.importProgress = `Importando pessoas (0 / ${pessoas.length})…`;
+    this.importProgress = `Importando pessoas (0 / ${pessoas.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < pessoas.length; i++) {
       const p = pessoas[i];
-      this.importProgress = `Importando pessoas (${i + 1} / ${pessoas.length})…`;
+      const newPerfilId = p.perfilId ? (perfilIdMap[p.perfilId] ?? p.perfilId) : '';
+      const tipoVinculo = this.normalizarTipoVinculo(p.tipoVinculo);
+      this.importProgress = `Importando pessoas (${i + 1} / ${pessoas.length})Ã¢Â¬Â¦`;
+      const exists = (existingPeople || []).some((x: any) =>
+        this.norm(x?.nome) === this.norm(p?.nome) &&
+        this.norm(x?.perfilId) === this.norm(newPerfilId) &&
+        this.normalizarTipoVinculo(x?.tipoVinculo) === tipoVinculo &&
+        this.norm(x?.consultoria) === this.norm(p?.consultoria)
+      );
+      if (exists) continue;
       try {
-        const newPerfilId = p.perfilId ? (perfilIdMap[p.perfilId] ?? p.perfilId) : '';
         await lastValueFrom(
           this.api.createPerson(this.token, {
-            nome:           p.nome ?? '',
-            perfilId:       newPerfilId,
-            tipoVinculo:    p.tipoVinculo ?? 'FOLHA',
-            consultoria:    p.consultoria ?? '',
-            valorHora:      p.valorHora ?? null,
-            valorMensal:    p.valorMensal ?? null,
-            dataNascimento: p.dataNascimento ?? null,
-            contato:        p.contato ?? null,
+            nome:            p.nome ?? '',
+            perfilId:        newPerfilId,
+            tipoVinculo,
+            consultoria:     p.consultoria ?? '',
+            valorHora:       p.valorHora ?? null,
+            valorMensal:     p.valorMensal ?? null,
+            vagaUrl:         p.vagaUrl ?? null,
+            vagaAlias:       p.vagaAlias ?? null,
+            dataNascimento:  p.dataNascimento ?? null,
+            contato:         p.contato ?? null,
+            ativo:           p.ativo ?? true,
+            vagasAnteriores: Array.isArray(p.vagasAnteriores) ? p.vagasAnteriores : [],
           })
         );
-      } catch { this.importErros.push(`Pessoa "${p.nome}": ignorada`); }
+      } catch (err: any) {
+        const msg = err?.error?.error ?? err?.message ?? 'erro desconhecido';
+        this.importErros.push(`Pessoa "${p.nome}": ignorada (${msg})`);
+        this.ignoredPeople.push({
+          nome: p.nome ?? '',
+          perfilId: newPerfilId,
+          tipoVinculo,
+          consultoria: p.consultoria ?? '',
+          valorHora: p.valorHora ?? null,
+          valorMensal: p.valorMensal ?? null,
+          vagaUrl: p.vagaUrl ?? null,
+          vagaAlias: p.vagaAlias ?? null,
+          dataNascimento: p.dataNascimento ?? null,
+          contato: p.contato ?? null,
+          ativo: p.ativo ?? true,
+          vagasAnteriores: Array.isArray(p.vagasAnteriores) ? p.vagasAnteriores : [],
+          erro: msg,
+        });
+      }
     }
 
-    // 5. Linhas Orçamentárias
-    this.importProgress = `Importando LOs (0 / ${linhasOrcamentarias.length})…`;
+    // 5. Linhas Or?ament?rias
+    this.importProgress = `Importando LOs (0 / ${linhasOrcamentarias.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < linhasOrcamentarias.length; i++) {
       const lo = linhasOrcamentarias[i];
-      this.importProgress = `Importando LOs (${i + 1} / ${linhasOrcamentarias.length})…`;
+      this.importProgress = `Importando LOs (${i + 1} / ${linhasOrcamentarias.length})Ã¢Â¬Â¦`;
+      const existing = (existingBudgetLines || []).find((x: any) =>
+        this.norm(x?.codigo) === this.norm(lo?.codigo) &&
+        this.norm(x?.nome) === this.norm(lo?.nome) &&
+        Number(x?.ano ?? 0) === Number(lo?.ano ?? 0) &&
+        this.norm(x?.tipo) === this.norm(lo?.tipo) &&
+        this.norm(x?.centroCusto) === this.norm(lo?.centroCusto)
+      );
+      if (existing?.id) {
+        if (lo.id) loIdMap[lo.id] = existing.id;
+        continue;
+      }
       try {
         const created = await lastValueFrom(
           this.api.createBudgetLine(this.token, {
@@ -265,45 +384,71 @@ export class DataTransferPanelComponent {
       } catch { this.importErros.push(`LO "${lo.codigo}": ignorada`); }
     }
 
-    // 6. Alocações
-    this.importProgress = `Importando alocações (0 / ${alocacoes.length})…`;
+    // 6. Aloca??es
+    this.importProgress = `Importando alocaÃƒÂ§ÃƒÂµes (0 / ${alocacoes.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < alocacoes.length; i++) {
       const a = alocacoes[i];
-      this.importProgress = `Importando alocações (${i + 1} / ${alocacoes.length})…`;
+      const newLoId    = a.linhaOrcamentariaId ? (loIdMap[a.linhaOrcamentariaId] ?? a.linhaOrcamentariaId) : '';
+      const newPerfilId = a.perfilId            ? (perfilIdMap[a.perfilId]          ?? a.perfilId)          : '';
+      this.importProgress = `Importando alocaÃƒÂ§ÃƒÂµes (${i + 1} / ${alocacoes.length})Ã¢Â¬Â¦`;
+      const existing = (existingAllocations || []).find((x: any) =>
+        this.norm(x?.linhaOrcamentariaId) === this.norm(newLoId) &&
+        this.norm(x?.nomePessoa) === this.norm(a?.nomePessoa) &&
+        this.norm(x?.perfilId) === this.norm(newPerfilId) &&
+        Number(x?.horasPlanejadas ?? 0) === Number(a?.horasPlanejadas ?? 160) &&
+        Boolean(x?.draft) === Boolean(a?.draft) &&
+        Number(x?.mesInicio ?? -1) === Number(a?.mesInicio ?? -1)
+      );
+      if (existing?.id) {
+        if (a.id) allocIdMap[a.id] = existing.id;
+        continue;
+      }
       try {
-        const newLoId    = a.linhaOrcamentariaId ? (loIdMap[a.linhaOrcamentariaId] ?? a.linhaOrcamentariaId) : '';
-        const newPerfilId = a.perfilId            ? (perfilIdMap[a.perfilId]          ?? a.perfilId)          : '';
         const created = await lastValueFrom(
           this.api.createBudgetAllocation(this.token, {
             linhaOrcamentariaId: newLoId,
             nomePessoa:          a.nomePessoa ?? '',
             perfilId:            newPerfilId,
             horasPlanejadas:     Number(a.horasPlanejadas ?? 160),
+            draft:               !!a.draft,
+            mesInicio:           a.mesInicio != null ? Number(a.mesInicio) : undefined,
           })
         );
         if (a.id && created?.id) allocIdMap[a.id] = created.id;
-      } catch { this.importErros.push(`Alocação "${a.nomePessoa}": ignorada`); }
+      } catch (err: any) {
+        const msg = err?.error?.error ?? err?.message ?? 'erro desconhecido';
+        this.importErros.push(`AlocaÃƒÂ§ÃƒÂ£o "${a.nomePessoa || '(sem nome)'}": ignorada (${msg})`);
+        this.ignoredAllocations.push({
+          linhaOrcamentariaId: newLoId,
+          nomePessoa: a.nomePessoa ?? '',
+          perfilId: newPerfilId,
+          horasPlanejadas: Number(a.horasPlanejadas ?? 160),
+          draft: !!a.draft,
+          mesInicio: a.mesInicio != null ? Number(a.mesInicio) : null,
+          erro: msg,
+        });
+      }
     }
 
-    // 7. Pagamentos de alocação
-    this.importProgress = `Importando pagamentos (0 / ${pagamentos.length})…`;
+    // 7. Pagamentos de aloca??o
+    this.importProgress = `Importando pagamentos (0 / ${pagamentos.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < pagamentos.length; i++) {
       const p = pagamentos[i];
-      this.importProgress = `Importando pagamentos (${i + 1} / ${pagamentos.length})…`;
+      this.importProgress = `Importando pagamentos (${i + 1} / ${pagamentos.length})Ã¢Â¬Â¦`;
       const newAllocId = p.allocationId ? (allocIdMap[p.allocationId] ?? p.allocationId) : null;
       if (!newAllocId) continue;
       try {
         await lastValueFrom(
           this.api.upsertAllocationPayment(this.token, newAllocId, Number(p.month ?? 0), Boolean(p.paid))
         );
-      } catch { /* ignorar pagamentos órfãos */ }
+      } catch { /* ignorar pagamentos ?rf?os */ }
     }
 
-    // 8. Estados mensais de alocação (cancelamentos, overrides)
-    this.importProgress = `Importando estados mensais (0 / ${estadosMensais.length})…`;
+    // 8. Estados mensais de aloca??o (cancelamentos, overrides)
+    this.importProgress = `Importando estados mensais (0 / ${estadosMensais.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < estadosMensais.length; i++) {
       const e = estadosMensais[i];
-      this.importProgress = `Importando estados mensais (${i + 1} / ${estadosMensais.length})…`;
+      this.importProgress = `Importando estados mensais (${i + 1} / ${estadosMensais.length})Ã¢Â¬Â¦`;
       const newAllocId = e.allocationId ? (allocIdMap[e.allocationId] ?? e.allocationId) : null;
       if (!newAllocId) continue;
       try {
@@ -314,11 +459,11 @@ export class DataTransferPanelComponent {
             manualPercent: e.manualPercent ?? null,
           })
         );
-      } catch { /* ignorar estados órfãos */ }
+      } catch { /* ignorar estados ?rf?os */ }
     }
 
     // 9. Horas mensais
-    this.importProgress = 'Importando horas mensais…';
+    this.importProgress = 'Importando horas mensaisÃ¢Â¬Â¦';
     for (const h of horasMes) {
       try {
         await lastValueFrom(this.api.upsertMonthlyHours(this.token, Number(h.mes), Number(h.horas)));
@@ -326,7 +471,7 @@ export class DataTransferPanelComponent {
     }
 
     // 10. Restaurar configs do localStorage com IDs remapeados (allocId e loId)
-    this.importProgress = 'Restaurando configurações de alocação…';
+    this.importProgress = 'Restaurando configuraÃƒÂ§ÃƒÂµes de alocaÃƒÂ§ÃƒÂ£oÃ¢Â¬Â¦';
     for (const [oldKey, value] of Object.entries(config)) {
       let newKey = oldKey;
       // remap allocation IDs (planner_lo_alloc_*, planner_lo_valor_manual_*, etc.)
@@ -340,36 +485,89 @@ export class DataTransferPanelComponent {
       localStorage.setItem(newKey, value);
     }
 
-    // 11. Percentuais de alocação (allocationPercent) — remapear allocationId
-    this.importProgress = `Importando percentuais de alocação (0 / ${allocationPercent.length})…`;
+    // 11. Percentuais de aloca??o (allocationPercent) ? remapear allocationId
+    this.importProgress = `Importando percentuais de alocaÃƒÂ§ÃƒÂ£o (0 / ${allocationPercent.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < allocationPercent.length; i++) {
       const ap = allocationPercent[i];
-      this.importProgress = `Importando percentuais de alocação (${i + 1} / ${allocationPercent.length})…`;
+      this.importProgress = `Importando percentuais de alocaÃƒÂ§ÃƒÂ£o (${i + 1} / ${allocationPercent.length})Ã¢Â¬Â¦`;
       const newAllocId = ap.allocationId ? (allocIdMap[ap.allocationId] ?? ap.allocationId) : null;
       if (!newAllocId) continue;
       try {
         await lastValueFrom(
           this.api.upsertAllocationPercent(this.token, newAllocId, Number(ap.percentual ?? 100))
         );
-      } catch { /* ignorar entradas órfãs */ }
+      } catch { /* ignorar entradas ?rf?s */ }
     }
 
-    // 12. Valores realizados mensais (loRealizado) — remapear loId
-    this.importProgress = `Importando valores realizados (0 / ${loRealizado.length})…`;
+    // 12. Valores realizados mensais (loRealizado) ? remapear loId
+    this.importProgress = `Importando valores realizados (0 / ${loRealizado.length})Ã¢Â¬Â¦`;
     for (let i = 0; i < loRealizado.length; i++) {
       const lr = loRealizado[i];
-      this.importProgress = `Importando valores realizados (${i + 1} / ${loRealizado.length})…`;
+      this.importProgress = `Importando valores realizados (${i + 1} / ${loRealizado.length})Ã¢Â¬Â¦`;
       const newLoId = lr.loId ? (loIdMap[lr.loId] ?? lr.loId) : null;
       if (!newLoId) continue;
       try {
         await lastValueFrom(
           this.api.upsertLoRealizado(this.token, newLoId, Number(lr.month ?? 0), Number(lr.valor ?? 0))
         );
-      } catch { /* ignorar entradas órfãs */ }
+      } catch { /* ignorar entradas ?rf?s */ }
     }
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  private normalizarTipoVinculo(raw: any): 'BV' | 'TERCEIRO' {
+    const tipo = String(raw ?? '').trim().toUpperCase();
+    if (tipo === 'TERCEIRO') return 'TERCEIRO';
+    if (tipo === 'BV' || tipo === 'FOLHA') return 'BV';
+    return 'BV';
+  }
+
+  private norm(v: any): string {
+    return String(v ?? '').trim().toLowerCase();
+  }
+
+  async retryIgnoredPerson(item: any) {
+    try {
+      await lastValueFrom(this.api.createPerson(this.token, {
+        nome: item.nome ?? '',
+        perfilId: item.perfilId ?? '',
+        tipoVinculo: this.normalizarTipoVinculo(item.tipoVinculo),
+        consultoria: item.consultoria ?? '',
+        valorHora: item.valorHora ?? null,
+        valorMensal: item.valorMensal ?? null,
+        vagaUrl: item.vagaUrl ?? null,
+        vagaAlias: item.vagaAlias ?? null,
+        dataNascimento: item.dataNascimento ?? null,
+        contato: item.contato ?? null,
+        ativo: item.ativo ?? true,
+        vagasAnteriores: Array.isArray(item.vagasAnteriores) ? item.vagasAnteriores : [],
+      }));
+      this.ignoredPeople = this.ignoredPeople.filter((x) => x !== item);
+      this.toast.show(`Pessoa "${item.nome}" importada com sucesso.`, 'success');
+    } catch (err: any) {
+      item.erro = err?.error?.error ?? err?.message ?? 'erro desconhecido';
+      this.toast.show(`Falha ao importar pessoa "${item.nome}".`, 'error');
+    }
+  }
+
+  async retryIgnoredAllocation(item: any) {
+    try {
+      await lastValueFrom(this.api.createBudgetAllocation(this.token, {
+        linhaOrcamentariaId: item.linhaOrcamentariaId ?? '',
+        nomePessoa: item.nomePessoa ?? '',
+        perfilId: item.perfilId ?? '',
+        horasPlanejadas: Number(item.horasPlanejadas ?? 160),
+        draft: !!item.draft,
+        mesInicio: item.mesInicio != null ? Number(item.mesInicio) : undefined,
+      }));
+      this.ignoredAllocations = this.ignoredAllocations.filter((x) => x !== item);
+      this.toast.show(`AlocaÃ¯Â¿Â½Ã¯Â¿Â½o de "${item.nomePessoa || 'Pessoa planejada'}" importada com sucesso.`, 'success');
+    } catch (err: any) {
+      item.erro = err?.error?.error ?? err?.message ?? 'erro desconhecido';
+      this.toast.show('Falha ao importar alocaÃ¯Â¿Â½Ã¯Â¿Â½o.', 'error');
+    }
+  }
+
+  // Helpers
 
   get totalCadastros(): number {
     return this.perfis.length + this.pessoas.length + this.consultorias.length +
@@ -379,13 +577,17 @@ export class DataTransferPanelComponent {
 
   async zerarDadosNegocio() {
     if (!this.token || this.zerando) return;
-
-    const ok = confirm(
-      'Confirma zerar os dados de negócio?\n\n' +
-      'Isso vai remover projetos, alocações, LOs, riscos, incidentes, débitos, indicadores e cadastros relacionados.\n' +
-      'Usuários e sessão atual serão preservados.'
-    );
-    if (!ok) return;
+    const now = Date.now();
+    if (now > this.clearConfirmUntil) {
+      this.clearConfirmUntil = now + 7000;
+      this.toast.show(
+        'Clique novamente em "Zerar dados de negócio" em até 7 segundos para confirmar. Usuários e sessão serão preservados.',
+        'info',
+        7000
+      );
+      return;
+    }
+    this.clearConfirmUntil = 0;
 
     this.zerando = true;
     this.importProgress = 'Zerando dados...';
@@ -409,7 +611,7 @@ export class DataTransferPanelComponent {
 
       this.clearNonEssentialLocalStorage();
 
-      this.toast.show('Dados de negócio zerados com sucesso. Usuários e sessão preservados.', 'success', 7000);
+      this.toast.show('Dados de negócio zerados com sucesso. Usuários e sessão serão preservados.', 'success', 7000);
       this.imported.emit();
     } catch (err: any) {
       this.toast.show(`Erro ao zerar dados: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 8000);
@@ -424,7 +626,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listProjects(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteProject(this.token, r.id)); }
-      catch { this.importErros.push(`Projeto "${r?.nome || r?.id}" não removido`); }
+      catch { this.importErros.push(`Projeto "${r?.nome || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
@@ -433,16 +635,16 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listIndicators(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteIndicator(this.token, r.id)); }
-      catch { this.importErros.push(`Indicador "${r?.nome || r?.titulo || r?.id}" não removido`); }
+      catch { this.importErros.push(`Indicador "${r?.nome || r?.titulo || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
   private async deleteTechnicalDebts() {
-    this.importProgress = 'Removendo débitos técnicos...';
+    this.importProgress = 'Removendo dÃƒÂ©bitos tÃƒÂ©cnicos...';
     const rows = await lastValueFrom(this.api.listTechnicalDebts(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteTechnicalDebt(this.token, r.id)); }
-      catch { this.importErros.push(`Débito técnico "${r?.titulo || r?.id}" não removido`); }
+      catch { this.importErros.push(`DÃƒÂ©bito tÃƒÂ©cnico "${r?.titulo || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
@@ -451,7 +653,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listIncidents(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteIncident(this.token, r.id)); }
-      catch { this.importErros.push(`Incidente "${r?.titulo || r?.id}" não removido`); }
+      catch { this.importErros.push(`Incidente "${r?.titulo || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
@@ -460,16 +662,16 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listRisks(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteRisk(this.token, r.id)); }
-      catch { this.importErros.push(`Risco "${r?.titulo || r?.id}" não removido`); }
+      catch { this.importErros.push(`Risco "${r?.titulo || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
   private async deleteAllocations() {
-    this.importProgress = 'Removendo alocações...';
+    this.importProgress = 'Removendo alocaÃƒÂ§ÃƒÂµes...';
     const rows = await lastValueFrom(this.api.listBudgetAllocations(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteBudgetAllocation(this.token, r.id)); }
-      catch { this.importErros.push(`Alocação "${r?.nomePessoa || r?.id}" não removida`); }
+      catch { this.importErros.push(`AlocaÃƒÂ§ÃƒÂ£o "${r?.nomePessoa || r?.id}" nÃƒÂ£o removida`); }
     }
   }
 
@@ -478,16 +680,16 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listBudgetLineAdjustments(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteBudgetLineAdjustment(this.token, r.id)); }
-      catch { this.importErros.push(`Ajuste de LO "${r?.descricao || r?.id}" não removido`); }
+      catch { this.importErros.push(`Ajuste de LO "${r?.descricao || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
   private async deleteBudgetLines() {
-    this.importProgress = 'Removendo linhas orçamentárias...';
+    this.importProgress = 'Removendo linhas orÃƒÂ§amentÃƒÂ¡rias...';
     const rows = await lastValueFrom(this.api.listBudgetLines(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteBudgetLine(this.token, r.id)); }
-      catch { this.importErros.push(`LO "${r?.codigo || r?.id}" não removida`); }
+      catch { this.importErros.push(`LO "${r?.codigo || r?.id}" nÃƒÂ£o removida`); }
     }
   }
 
@@ -496,7 +698,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listBusinessEpics(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteBusinessEpic(this.token, r.id)); }
-      catch { this.importErros.push(`Business Epic "${r?.nome || r?.id}" não removido`); }
+      catch { this.importErros.push(`Business Epic "${r?.nome || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
@@ -505,7 +707,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listFocalPoints(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteFocalPoint(this.token, r.id)); }
-      catch { this.importErros.push(`Ponto focal "${r?.area || r?.id}" não removido`); }
+      catch { this.importErros.push(`Ponto focal "${r?.area || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
@@ -514,7 +716,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listPeople(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deletePerson(this.token, r.id)); }
-      catch { this.importErros.push(`Pessoa "${r?.nome || r?.id}" não removida`); }
+      catch { this.importErros.push(`Pessoa "${r?.nome || r?.id}" nÃƒÂ£o removida`); }
     }
   }
 
@@ -523,7 +725,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listConsultancies(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteConsultancy(this.token, r.id)); }
-      catch { this.importErros.push(`Consultoria "${r?.nome || r?.id}" não removida`); }
+      catch { this.importErros.push(`Consultoria "${r?.nome || r?.id}" nÃƒÂ£o removida`); }
     }
   }
 
@@ -532,7 +734,7 @@ export class DataTransferPanelComponent {
     const rows = await lastValueFrom(this.api.listProfiles(this.token));
     for (const r of rows || []) {
       try { await lastValueFrom(this.api.deleteProfile(this.token, r.id)); }
-      catch { this.importErros.push(`Perfil "${r?.nomePerfil || r?.id}" não removido`); }
+      catch { this.importErros.push(`Perfil "${r?.nomePerfil || r?.id}" nÃƒÂ£o removido`); }
     }
   }
 
@@ -543,7 +745,7 @@ export class DataTransferPanelComponent {
       const mes = Number(r?.mes);
       if (!Number.isFinite(mes)) continue;
       try { await lastValueFrom(this.api.upsertMonthlyHours(this.token, mes, 160)); }
-      catch { this.importErros.push(`Horas do mês ${mes} não reiniciadas`); }
+      catch { this.importErros.push(`Horas do mÃƒÂªs ${mes} nÃƒÂ£o reiniciadas`); }
     }
   }
 
@@ -564,3 +766,6 @@ export class DataTransferPanelComponent {
     for (const k of toDelete) localStorage.removeItem(k);
   }
 }
+
+
+

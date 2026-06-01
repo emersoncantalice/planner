@@ -1,14 +1,38 @@
 .dt-card {
   max-width: 900px;
+  position: relative;
 
   h2 { margin-bottom: 4px; }
 }
 
-.dt-subtitle {
-  font-size: .82rem;
-  color: #5a7ab2;
-  margin-bottom: 20px;
+.dt-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(248, 251, 255, 0.82);
+  backdrop-filter: blur(1px);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
 }
+
+.dt-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #d9e7ff;
+  border-radius: 10px;
+  padding: 14px 16px;
+
+  strong { font-size: .86rem; color: #1a3a7a; }
+  small { font-size: .74rem; color: #5a7ab2; max-width: 280px; line-height: 1.35; }
+}
+
+.dt-subtitle { font-size: .82rem; color: #5a7ab2; margin-bottom: 20px; }
 
 .dt-grid {
   display: grid;
@@ -16,9 +40,7 @@
   gap: 16px;
   margin-bottom: 20px;
 
-  @media (max-width: 680px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 680px) { grid-template-columns: 1fr; }
 }
 
 .dt-block {
@@ -36,17 +58,8 @@
   align-items: flex-start;
   gap: 12px;
 
-  strong {
-    display: block;
-    font-size: .95rem;
-    color: #1a3a7a;
-    margin-bottom: 2px;
-  }
-  small {
-    font-size: .74rem;
-    color: #6080a8;
-    line-height: 1.4;
-  }
+  strong { display: block; font-size: .95rem; color: #1a3a7a; margin-bottom: 2px; }
+  small { font-size: .74rem; color: #6080a8; line-height: 1.4; }
 }
 
 .dt-icon {
@@ -59,7 +72,6 @@
   justify-content: center;
 
   svg { width: 20px; height: 20px; fill: #fff; }
-
   &.dt-icon-export { background: #1d63da; }
   &.dt-icon-import { background: #2e7d32; }
 }
@@ -78,14 +90,10 @@
   li { display: flex; align-items: center; gap: 8px; }
 }
 
-.dt-list-info {
-  li {
-    &::before {
-      content: 'â†’';
-      color: #7aa0d8;
-      font-size: .72rem;
-    }
-  }
+.dt-list-info li::before {
+  content: '->';
+  color: #7aa0d8;
+  font-size: .72rem;
 }
 
 .dt-count {
@@ -117,36 +125,14 @@
   align-self: flex-start;
 
   svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
-
   &:disabled { opacity: .5; cursor: not-allowed; }
 }
 
-.dt-btn-primary {
-  background: #1d63da;
-  color: #fff;
-  &:hover:not(:disabled) { background: #1550b8; }
-}
+.dt-btn-primary { background: #1d63da; color: #fff; &:hover:not(:disabled) { background: #1550b8; } }
+.dt-btn-secondary { background: #2e7d32; color: #fff; &:hover:not(:disabled) { background: #1b5e20; } }
+.dt-btn-danger { background: #c62828; color: #fff; &:hover:not(:disabled) { background: #a91f1f; } }
 
-.dt-btn-secondary {
-  background: #2e7d32;
-  color: #fff;
-  &:hover:not(:disabled) { background: #1b5e20; }
-}
-
-.dt-btn-danger {
-  background: #c62828;
-  color: #fff;
-  &:hover:not(:disabled) { background: #a91f1f; }
-}
-
-.dt-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: .78rem;
-  color: #2e7d32;
-  font-weight: 600;
-}
+.dt-progress { display: flex; align-items: center; gap: 10px; font-size: .78rem; color: #2e7d32; font-weight: 600; }
 
 .dt-spinner {
   width: 18px;
@@ -158,9 +144,7 @@
   flex-shrink: 0;
 }
 
-@keyframes dt-spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes dt-spin { to { transform: rotate(360deg); } }
 
 .dt-erros {
   font-size: .74rem;
@@ -170,20 +154,8 @@
   border-radius: 6px;
   padding: 8px 12px;
 
-  summary {
-    cursor: pointer;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  ul {
-    margin: 6px 0 0 12px;
-    padding: 0;
-    list-style: disc;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
+  summary { cursor: pointer; font-weight: 700; margin-bottom: 4px; }
+  ul { margin: 6px 0 0 12px; padding: 0; list-style: disc; display: flex; flex-direction: column; gap: 2px; }
 }
 
 .dt-warning {
@@ -194,4 +166,33 @@
   border-radius: 8px;
   padding: 10px 14px;
   line-height: 1.5;
+}
+
+.dt-fixups {
+  font-size: .74rem;
+  color: #334155;
+  background: #eef6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 8px 12px;
+
+  summary { cursor: pointer; font-weight: 700; margin-bottom: 8px; }
+}
+
+.dt-fix-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+
+  input, select {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: .74rem;
+  }
+
+  small { grid-column: 1 / -1; color: #92400e; }
 }

@@ -1,4 +1,14 @@
 <planner-card><article class="dt-card">
+  @if (importando || zerando) {
+    <div class="dt-overlay" aria-live="polite" aria-busy="true">
+      <div class="dt-overlay-content">
+        <div class="dt-spinner" aria-hidden="true"></div>
+        <strong>{{ zerando ? 'Zerando dados...' : 'Importando dados...' }}</strong>
+        <small>{{ importProgress || 'Processando, aguarde.' }}</small>
+      </div>
+    </div>
+  }
+
   <h2>Exportar / Importar Cadastros</h2>
   <p class="dt-subtitle">
     Faça backup de todos os dados ou restaure a partir de um arquivo exportado anteriormente.
@@ -69,6 +79,60 @@
               <li>{{ e }}</li>
             }
           </ul>
+        </details>
+      }
+
+      @if (ignoredPeople.length > 0) {
+        <details class="dt-fixups" open>
+          <summary>Correções manuais: Pessoas ({{ ignoredPeople.length }})</summary>
+          @for (p of ignoredPeople; track p) {
+            <div class="dt-fix-row">
+              <input [(ngModel)]="p.nome" placeholder="Nome" />
+              <select [(ngModel)]="p.perfilId">
+                <option [ngValue]="''">Selecione o perfil</option>
+                @for (perfil of perfis; track perfil.id) {
+                  <option [ngValue]="perfil.id">{{ perfil.nomePerfil || perfil.nome || perfil.id }}</option>
+                }
+                <option [ngValue]="p.perfilId">Atual ({{ p.perfilId }})</option>
+              </select>
+              <select [(ngModel)]="p.tipoVinculo">
+                <option value="BV">BV</option>
+                <option value="TERCEIRO">TERCEIRO</option>
+              </select>
+              <input [(ngModel)]="p.consultoria" placeholder="Consultoria" />
+              <button class="dt-btn dt-btn-secondary" type="button" (click)="retryIgnoredPerson(p)">Reenviar</button>
+              <small>{{ p.erro }}</small>
+            </div>
+          }
+        </details>
+      }
+
+      @if (ignoredAllocations.length > 0) {
+        <details class="dt-fixups" open>
+          <summary>Correções manuais: Alocações ({{ ignoredAllocations.length }})</summary>
+          @for (a of ignoredAllocations; track a) {
+            <div class="dt-fix-row">
+              <input [(ngModel)]="a.nomePessoa" placeholder="Nome pessoa" />
+              <select [(ngModel)]="a.linhaOrcamentariaId">
+                <option [ngValue]="''">Selecione a LO</option>
+                @for (lo of linhasOrcamentarias; track lo.id) {
+                  <option [ngValue]="lo.id">{{ lo.codigo }} - {{ lo.nome }}</option>
+                }
+                <option [ngValue]="a.linhaOrcamentariaId">Atual ({{ a.linhaOrcamentariaId }})</option>
+              </select>
+              <select [(ngModel)]="a.perfilId">
+                <option [ngValue]="''">Selecione o perfil</option>
+                @for (perfil of perfis; track perfil.id) {
+                  <option [ngValue]="perfil.id">{{ perfil.nomePerfil || perfil.nome || perfil.id }}</option>
+                }
+                <option [ngValue]="a.perfilId">Atual ({{ a.perfilId }})</option>
+              </select>
+              <input type="number" [(ngModel)]="a.horasPlanejadas" placeholder="Horas" />
+              <label><input type="checkbox" [(ngModel)]="a.draft" /> Draft</label>
+              <button class="dt-btn dt-btn-secondary" type="button" (click)="retryIgnoredAllocation(a)">Reenviar</button>
+              <small>{{ a.erro }}</small>
+            </div>
+          }
         </details>
       }
 
