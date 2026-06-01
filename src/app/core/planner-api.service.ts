@@ -202,6 +202,10 @@ export class PlannerApiService {
     return this.http.put<any>(`${this.api}/monthly-hours/${month}`, { horas: hours }, { headers: this.headers(token) });
   }
 
+  saveAllMonthlyHours(token: string, items: Array<{ mes: number; horas: number }>) {
+    return this.http.put<any[]>(`${this.api}/monthly-hours`, items, { headers: this.headers(token) });
+  }
+
   listAllocationPayments(token: string) {
     return this.http.get<any[]>(`${this.api}/allocation-payments`, { headers: this.headers(token) });
   }

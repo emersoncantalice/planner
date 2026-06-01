@@ -24,7 +24,7 @@
       [ngModel]="valorHoraMasked"
       (ngModelChange)="onValorHoraChange($event)"
       inputmode="numeric"
-      placeholder="R$ 0,00" />
+      placeholder="R$ 0,000" />
     @if (!editingId) {
       <button (click)="submit()">Cadastrar perfil</button>
     } @else {
@@ -50,7 +50,7 @@
           <tr>
             <td>{{ p.nomePerfil }}</td>
             <td>{{ p.debitaLo ? 'Sim' : 'Não' }}</td>
-            <td>R$ {{ p.valorHora }}</td>
+            <td>{{ (p.valorHora || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}</td>
             <td class="actions">
               <button class="sec" type="button" (click)="startEdit(p)">Editar</button>
               <button type="button" (click)="remove.emit(p.id)">Excluir</button>

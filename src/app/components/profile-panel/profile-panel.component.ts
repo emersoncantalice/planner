@@ -32,8 +32,8 @@ export class ProfilePanelComponent {
 
   onValorHoraChange(value: string) {
     const digits = (value ?? '').replace(/\D/g, '');
-    const cents = digits ? Number.parseInt(digits, 10) : 0;
-    this.perfil.valorHora = cents / 100;
+    const millesimos = digits ? Number.parseInt(digits, 10) : 0;
+    this.perfil.valorHora = millesimos / 1000;
     this.valorHoraMasked = this.formatCurrency(this.perfil.valorHora);
   }
 
@@ -145,6 +145,6 @@ export class ProfilePanelComponent {
   }
 
   private formatCurrency(value: number): string {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 3, maximumFractionDigits: 3 });
   }
 }

@@ -59,7 +59,7 @@ export class PersonPanelComponent {
       contato: this.formatContato(p.contato || ''),
       ativo: p.ativo !== false   
     };
-    this.valorHoraMasked = this.formatCurrency(this.pessoa.valorHora ?? 0);
+    this.valorHoraMasked = this.formatValorHora(this.pessoa.valorHora ?? 0);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal ?? 0);
   }
 
@@ -146,10 +146,10 @@ export class PersonPanelComponent {
 
   onValorHoraChange(value: string) {
     const digits = (value ?? '').replace(/\D/g, '');
-    const cents = digits ? Number.parseInt(digits, 10) : 0;
-    this.pessoa.valorHora = cents / 100;
+    const millesimos = digits ? Number.parseInt(digits, 10) : 0;
+    this.pessoa.valorHora = millesimos / 1000;
     this.pessoa.valorMensal = this.calcularValorMensalMedio(this.pessoa.valorHora);
-    this.valorHoraMasked = this.formatCurrency(this.pessoa.valorHora);
+    this.valorHoraMasked = this.formatValorHora(this.pessoa.valorHora);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal);
   }
 
@@ -159,7 +159,7 @@ export class PersonPanelComponent {
     const mensal = cents / 100;
     this.pessoa.valorMensal = mensal;
     this.pessoa.valorHora = mensal / 160;
-    this.valorHoraMasked = this.formatCurrency(this.pessoa.valorHora);
+    this.valorHoraMasked = this.formatValorHora(this.pessoa.valorHora);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal);
   }
 
@@ -222,7 +222,7 @@ export class PersonPanelComponent {
   valorMensalMedioAtual(): string {
     if (!this.perfilSelecionadoDebitaLo()) return '-';
     if (this.valorMensalMasked) return this.valorMensalMasked;
-    return this.formatCurrency(this.calcularValorMensalMedio(this.pessoa.valorHora));
+    return this.formatCurrency(this.calcularValorMensalMedio(this.pessoa.valorHora ?? 0));
   }
 
   valorMensalMedioDaPessoa(p: any): number {
@@ -261,6 +261,10 @@ export class PersonPanelComponent {
     if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
     if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
+  private formatValorHora(value: number): string {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 3, maximumFractionDigits: 3 });
   }
 
   private formatCurrency(value: number): string {

@@ -33,7 +33,7 @@
         (ngModelChange)="onValorHoraChange($event)"
         (keydown)="onValorKeydown($event)"
         inputmode="numeric"
-        placeholder="Valor/hora (R$ 0,00)" />
+        placeholder="Valor/hora (R$ 0,000)" />
     }
     @if (pessoa.tipoVinculo === 'TERCEIRO') {
       <label>Prestador de servico</label>
@@ -187,7 +187,7 @@
             <td>{{ p.perfilNome }}</td>
             <td>{{ labelTipoVinculo(p.tipoVinculo) }}</td>
             <td>{{ p.consultoria || '-' }}</td>
-            <td>{{ pessoaDebitaLo(p) ? (p.valorHora || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-' }}</td>
+            <td>{{ pessoaDebitaLo(p) ? (p.valorHora || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-' }}</td>
             <td>{{ pessoaDebitaLo(p) ? valorMensalMedioDaPessoa(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-' }}</td>
             <td>{{ fmtNascimento(p.dataNascimento) }}</td>
             <td>{{ formatContato(p.contato) || '-' }}</td>

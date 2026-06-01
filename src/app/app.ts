@@ -4,7 +4,7 @@ import { PlannerApiService } from './core/planner-api.service';
 import { LoggerService } from './core/logger.service';
 import { ToastService } from './core/toast.service';
 import { NotificationService } from './core/notification.service';
-import { concatMap, finalize, forkJoin, timeout } from 'rxjs';
+import { concatMap, finalize, timeout } from 'rxjs';
 import { dateToYmd } from './core/business-days';
 import { AuthPanelComponent } from './components/auth-panel/auth-panel.component';
 import { ProfilePanelComponent } from './components/profile-panel/profile-panel.component';
@@ -947,7 +947,7 @@ export class App {
 
   salvarHorasMesLote(payload: Array<{ mes: number; horas: number }>) {
     if (!payload?.length) return;
-    forkJoin(payload.map((p) => this.api.upsertMonthlyHours(this.token(), p.mes, Number(p.horas)))).subscribe({
+    this.api.saveAllMonthlyHours(this.token(), payload).subscribe({
       next: () => {
         this.mensagem.set('Horas por mes salvas.');
         this.carregarHorasMes();

@@ -1,4 +1,4 @@
-<planner-card><article class="card">
+﻿<planner-card><article class="card">
   <div class="lo-live-cursors">
     @for (c of cursoresOutros; track c.username) {
             <div class="lo-live-cursor" [style.left]="cursorLeft(c)" [style.top]="cursorTop(c)">
@@ -11,7 +11,7 @@
     <div class="lo-overview-header">
       <h3 class="lo-overview-title">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
-        Visão Geral das LOs — {{ anoSelecionado }}
+        VisÃ£o Geral das LOs â€” {{ anoSelecionado }}
       </h3>
     </div>
     <div class="lo-overview-grid">
@@ -21,7 +21,7 @@
           <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Total Orçamento</span>
+          <span class="lo-card-label">Total OrÃ§amento</span>
           <strong class="lo-card-value">{{ currency(totalOrcamentoGeralLos()) }}</strong>
           <span class="lo-card-sub">{{ numLosAno() }} LO{{ numLosAno() !== 1 ? 's' : '' }} em {{ anoSelecionado }}</span>
         </div>
@@ -34,7 +34,7 @@
         <div class="lo-card-body">
           <span class="lo-card-label">Total Comprometido</span>
           <strong class="lo-card-value">{{ currency(totalComprometidoGeralLos()) }}</strong>
-          <span class="lo-card-sub">{{ numAlocacoesAno() }} alocaç{{ numAlocacoesAno() !== 1 ? 'ões' : 'ão' }} no período</span>
+          <span class="lo-card-sub">{{ numAlocacoesAno() }} alocaÃ§{{ numAlocacoesAno() !== 1 ? 'Ãµes' : 'Ã£o' }} no perÃ­odo</span>
         </div>
       </div>
 
@@ -43,9 +43,9 @@
           <svg viewBox="0 0 24 24"><path d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.34 8-7 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-2h2v2zm0-4h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2h-2c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Saldo Disponível</span>
+          <span class="lo-card-label">Saldo DisponÃ­vel</span>
           <strong class="lo-card-value">{{ currency(saldoGeralLos()) }}</strong>
-          <span class="lo-card-sub">{{ saldoGeralLos() >= 0 ? 'Dentro do orçamento' : 'Orçamento extrapolado' }}</span>
+          <span class="lo-card-sub">{{ saldoGeralLos() >= 0 ? 'Dentro do orÃ§amento' : 'OrÃ§amento extrapolado' }}</span>
         </div>
       </div>
 
@@ -54,7 +54,7 @@
           <svg viewBox="0 0 24 24"><path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Orçamento Utilizado</span>
+          <span class="lo-card-label">OrÃ§amento Utilizado</span>
           <strong class="lo-card-value">{{ percentualUtilizadoGeral() | number:'1.1-1' }}%</strong>
           <div class="lo-progress">
             <div class="lo-progress-bar" [style.width.%]="clampPct(percentualUtilizadoGeral())"></div>
@@ -67,7 +67,7 @@
           <svg viewBox="0 0 24 24"><path d="M3 5v14h19V5H3zm7 12H5v-5h5v5zm0-7H5V7h5v3zm7 7h-5v-5h5v5zm0-7h-5V7h5v3z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Linhas Orçamentárias</span>
+          <span class="lo-card-label">Linhas OrÃ§amentÃ¡rias</span>
           <strong class="lo-card-value lo-card-value-count">{{ numLosAno() }}</strong>
           <span class="lo-card-sub">LOs ativas em {{ anoSelecionado }}</span>
         </div>
@@ -89,9 +89,9 @@
           <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
         </div>
         <div class="lo-card-body">
-          <span class="lo-card-label">Média Comprometida/LO</span>
+          <span class="lo-card-label">MÃ©dia Comprometida/LO</span>
           <strong class="lo-card-value">{{ currency(mediaComprometidoPorLo()) }}</strong>
-          <span class="lo-card-sub">Comprometimento médio por LO</span>
+          <span class="lo-card-sub">Comprometimento mÃ©dio por LO</span>
         </div>
       </div>
 
@@ -113,7 +113,7 @@
         <div class="lo-card-body">
           <span class="lo-card-label">Saldo Atual Geral</span>
           <strong class="lo-card-value">{{ currency(saldoAtualGeralLos()) }}</strong>
-          <span class="lo-card-sub">Orçamento ajustado - pagos</span>
+          <span class="lo-card-sub">OrÃ§amento ajustado - pagos</span>
         </div>
       </div>
 
@@ -122,14 +122,14 @@
     @if (countPlanejaDasContando() > 0) {
       <div class="cockpit-planejada-notice">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-        <span>Vagas planejadas não são consideradas nesta visão geral.</span>
+        <span>Vagas planejadas nÃ£o sÃ£o consideradas nesta visÃ£o geral.</span>
       </div>
     }
   </section>
 
   <div class="lo-export-row">
-    <h2 style="margin:0">Painel de alocações por LO</h2>
-    <button type="button" class="lo-export-btn" (click)="exportarExcel()" title="Exportar alocações em Excel (Por Pessoa, Por LO, Por Atividade)">
+    <h2 style="margin:0">Painel de alocaÃ§Ãµes por LO</h2>
+    <button type="button" class="lo-export-btn" (click)="exportarExcel()" title="Exportar alocaÃ§Ãµes em Excel (Por Pessoa, Por LO, Por Atividade)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
       Exportar Excel
     </button>
@@ -146,12 +146,12 @@
       <input
         class="lo-search-input"
         type="text"
-        placeholder="Buscar LO…"
+        placeholder="Buscar LOâ€¦"
         [(ngModel)]="searchLoTerm"
-        aria-label="Buscar linha orçamentária"
+        aria-label="Buscar linha orÃ§amentÃ¡ria"
       />
       @if (searchLoTerm) {
-        <button class="lo-search-clear" type="button" (click)="searchLoTerm = ''" aria-label="Limpar busca">×</button>
+        <button class="lo-search-clear" type="button" (click)="searchLoTerm = ''" aria-label="Limpar busca">Ã—</button>
       }
     </div>
   </div>
@@ -186,13 +186,14 @@
             <span class="lo-summary-codigo">{{ loSelecionada()?.codigo }}</span>
             @if (loSelecionada()?.nome) {
               <span class="lo-summary-nome">{{ loSelecionada()?.nome }}</span>
+              <button class="copy-btn" type="button" (click)="copyText(loSelecionada()?.nome || '')" title="Copiar nome da LO">Copiar</button>
             }
           </div>
           <div class="lo-summary-meta">
             @if (loSelecionada()?.situacao === 'DRAFT') {
               <span class="lo-meta-pill lo-meta-pill-draft">
                 <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                Rascunho — só entram nos totalizadores quando a opção abaixo estiver ativa
+                Rascunho â€” sÃ³ entram nos totalizadores quando a opÃ§Ã£o abaixo estiver ativa
               </span>
             }
             @if (loSelecionada()?.tipo && loSelecionada()?.situacao !== 'DRAFT') {
@@ -202,7 +203,7 @@
               <span class="lo-meta-pill lo-meta-pill-gray">CC: {{ loSelecionada()?.centroCusto }}</span>
             }
             <span class="lo-meta-pill lo-meta-pill-gray">Ano: {{ anoSelecionado }}</span>
-            <span class="lo-meta-pill lo-meta-pill-gray">Dono: {{ loSelecionada()?.dono || '—' }}</span>
+            <span class="lo-meta-pill lo-meta-pill-gray">Dono: {{ loSelecionada()?.dono || 'â€”' }}</span>
             @if (isDonoDaLoAtual()) {
               <button type="button" class="lo-transfer-btn" (click)="abrirDonoModal()" title="Transferir dono da LO">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
@@ -213,22 +214,22 @@
         </div>
         <div class="lo-summary-right">
           @if (usuariosLoAberta.length) {
-            <div class="lo-presence-wrap" title="Usuários com esta LO aberta">
+            <div class="lo-presence-wrap" title="UsuÃ¡rios com esta LO aberta">
               @for (u of usuariosLoAberta; track u.username) {
                 <div class="lo-presence-user" [class.me]="isUsuarioAtual(u.username)">
                   <span class="lo-presence-avatar">{{ userInitials(u.username) }}</span>
-                  <span class="lo-presence-name">{{ isUsuarioAtual(u.username) ? 'Você' : u.username }}</span>
+                  <span class="lo-presence-name">{{ isUsuarioAtual(u.username) ? 'VocÃª' : u.username }}</span>
                 </div>
               }
             </div>
           }
-          <span class="lo-summary-badge">{{ numAlocacoesNaLoSelecionada() }} alocações</span>
+          <span class="lo-summary-badge">{{ numAlocacoesNaLoSelecionada() }} alocaÃ§Ãµes</span>
         </div>
       </div>
 
       <div class="lo-summary-kpis">
         <div class="lo-summary-kpi lo-summary-kpi-blue">
-          <span class="lo-summary-kpi-label">Orçamento</span>
+          <span class="lo-summary-kpi-label">OrÃ§amento</span>
           <strong class="lo-summary-kpi-value">{{ currency(orcamentoLoSelecionada()) }}</strong>
         </div>
         <div class="lo-summary-kpi lo-summary-kpi-amber">
@@ -242,7 +243,7 @@
         <div class="lo-summary-kpi" [class]="saldoLo() >= 0 ? 'lo-summary-kpi-green' : 'lo-summary-kpi-red'">
           <span class="lo-summary-kpi-label">Saldo</span>
           <strong class="lo-summary-kpi-value">{{ currency(saldoLo()) }}</strong>
-          <span class="lo-summary-kpi-sub">{{ saldoLo() >= 0 ? 'Dentro do orçamento' : 'Orçamento extrapolado' }}</span>
+          <span class="lo-summary-kpi-sub">{{ saldoLo() >= 0 ? 'Dentro do orÃ§amento' : 'OrÃ§amento extrapolado' }}</span>
         </div>
         <div class="lo-summary-kpi lo-summary-kpi-teal">
           <span class="lo-summary-kpi-label">Pago (Realizado)</span>
@@ -252,7 +253,7 @@
         <div class="lo-summary-kpi" [class]="saldoAtualLoSelecionada() >= 0 ? 'lo-summary-kpi-blue' : 'lo-summary-kpi-red'">
           <span class="lo-summary-kpi-label">Saldo Atual LO</span>
           <strong class="lo-summary-kpi-value">{{ currency(saldoAtualLoSelecionada()) }}</strong>
-          <span class="lo-summary-kpi-sub">Orçamento ajustado - pagos</span>
+          <span class="lo-summary-kpi-sub">OrÃ§amento ajustado - pagos</span>
         </div>
       </div>
 
@@ -261,20 +262,20 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
           <span>
             <strong>{{ countPlanejaDasContando() }} vaga{{ countPlanejaDasContando() > 1 ? 's' : '' }} planejada{{ countPlanejaDasContando() > 1 ? 's' : '' }}</strong>
-            está sendo incluída{{ countPlanejaDasContando() > 1 ? 's' : '' }} nos totalizadores desta LO.
-            Os valores acima refletem alocações ainda não confirmadas.
+            estÃ¡ sendo incluÃ­da{{ countPlanejaDasContando() > 1 ? 's' : '' }} nos totalizadores desta LO.
+            Os valores acima refletem alocaÃ§Ãµes ainda nÃ£o confirmadas.
           </span>
         </div>
       }
 
       <div class="lo-summary-progress-wrap">
         <div class="lo-summary-progress-labels">
-          <span>Utilização do orçamento</span>
+          <span>UtilizaÃ§Ã£o do orÃ§amento</span>
           <span><strong>{{ percentualUtilizadoLo() | number:'1.1-1' }}%</strong></span>
         </div>
         <label class="lo-draft-totals-toggle">
           <input type="checkbox" [(ngModel)]="incluirRascunhoNosTotalizadores" (ngModelChange)="onToggleIncluirRascunhoNosTotalizadores()" />
-          <span>Incluir alocações de rascunho nos totalizadores</span>
+          <span>Incluir alocaÃ§Ãµes de rascunho nos totalizadores</span>
         </label>
         <div class="lo-summary-progress-bar-track">
           <div class="lo-summary-progress-bar-fill" [style.width.%]="clampPct(percentualUtilizadoLo())" [class.over]="percentualUtilizadoLo() > 100"></div>
@@ -288,11 +289,11 @@
   }
 
   <div class="toolbar-row">
-    <input [(ngModel)]="searchTerm" placeholder="Pesquisar alocações por pessoa ou perfil..." />
+    <input [(ngModel)]="searchTerm" placeholder="Pesquisar alocaÃ§Ãµes por pessoa ou perfil..." />
     <button class="sec" type="button" (click)="abrirPessoaModal()">Nova pessoa</button>
     <button type="button" class="add-aloc-btn" (click)="abrirNovaLinha()" [class.active]="novaLinhaAberta">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-      Adicionar alocação
+      Adicionar alocaÃ§Ã£o
     </button>
   </div>
 
@@ -301,7 +302,7 @@
       <div class="draft-config-header">
         <div class="draft-config-header-left">
           <svg class="draft-config-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          <span class="draft-config-title">Opções da alocação</span>
+          <span class="draft-config-title">OpÃ§Ãµes da alocaÃ§Ã£o</span>
         </div>
         <button type="button" class="draft-config-close" (click)="fecharNovaLinha()" title="Cancelar">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -313,7 +314,7 @@
           @if (loSelecionadaEhDraft()) {
             <div class="draft-forced-notice">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-              Esta LO é um <strong>rascunho</strong> — novas alocações são criadas como rascunho e entram nos totalizadores apenas quando essa opção estiver ativa.
+              Esta LO Ã© um <strong>rascunho</strong> â€” novas alocaÃ§Ãµes sÃ£o criadas como rascunho e entram nos totalizadores apenas quando essa opÃ§Ã£o estiver ativa.
             </div>
           } @else {
             <label class="draft-toggle-label">
@@ -323,7 +324,7 @@
               </span>
               <span class="draft-toggle-content">
                 <span class="draft-toggle-text">Modo rascunho</span>
-                <span class="draft-toggle-hint">não conta como alocação real — use para planejar times</span>
+                <span class="draft-toggle-hint">nÃ£o conta como alocaÃ§Ã£o real â€” use para planejar times</span>
               </span>
             </label>
           }
@@ -332,21 +333,21 @@
         <div class="draft-config-divider"></div>
 
         <div class="draft-config-section">
-          <span class="draft-config-label">Mês de início</span>
+          <span class="draft-config-label">MÃªs de inÃ­cio</span>
           <div class="draft-mes-options">
             @for (m of meses; track $index) {
               <button type="button"
                 class="draft-mes-btn"
                 [class.active]="novoMesInicio === $index"
                 (click)="novoMesInicio = $index"
-                [title]="$index === 0 ? 'Todos os meses ativos' : 'Cancela JAN–' + meses[$index - 1] + ' automaticamente'">
+                [title]="$index === 0 ? 'Todos os meses ativos' : 'Cancela JANâ€“' + meses[$index - 1] + ' automaticamente'">
                 {{ m }}
               </button>
             }
           </div>
           @if (novoMesInicio > 0) {
             <span class="draft-mes-aviso">
-              Meses JAN–{{ meses[novoMesInicio - 1] }} serão cancelados automaticamente
+              Meses JANâ€“{{ meses[novoMesInicio - 1] }} serÃ£o cancelados automaticamente
             </span>
           }
         </div>
@@ -356,16 +357,16 @@
 
   <section class="alloc-table-wrap" #tableWrap (dragover)="onTableDragOver($event)">
     <div class="table-toolbar">
-      <p class="table-hint">Cálculo mensal: Valor/hora x Horas do cadastro do mes x Alocação (%).</p>
+      <p class="table-hint">CÃ¡lculo mensal: Valor/hora x Horas do cadastro do mes x AlocaÃ§Ã£o (%).</p>
 
 
       @if (temOrdemCustom()) {
         <div class="ordem-custom-bar">
           <span class="ordem-custom-info">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M3 15h18v-2H3zm0 4h18v-2H3zm0-8h18V9H3zm0-6v2h18V5z"/></svg>
-            Ordenação personalizada ativa
+            OrdenaÃ§Ã£o personalizada ativa
           </span>
-          <button type="button" class="sec ordem-reset-btn" (click)="resetarOrdemCustom()" title="Voltar para a ordenação padrão">↺ Resetar ordem</button>
+          <button type="button" class="sec ordem-reset-btn" (click)="resetarOrdemCustom()" title="Voltar para a ordenaÃ§Ã£o padrÃ£o">â†º Resetar ordem</button>
         </div>
       }
 
@@ -403,7 +404,7 @@
           @if (col('vaga'))      { <th>Vaga</th> }
           @if (col('perfil'))    { <th>Perfil</th> }
           @if (col('categoria')) { <th class="sortable" (click)="ordenarPor('categoria')">Categoria <span class="sort-icon">{{ getSortIcon('categoria') }}</span></th> }
-          @if (col('pct'))       { <th class="sortable" (click)="ordenarPor('pct')">Alocação (%) <span class="sort-icon">{{ getSortIcon('pct') }}</span></th> }
+          @if (col('pct'))       { <th class="sortable" (click)="ordenarPor('pct')">AlocaÃ§Ã£o (%) <span class="sort-icon">{{ getSortIcon('pct') }}</span></th> }
           @if (col('valorH'))    { <th class="sortable" (click)="ordenarPor('valorH')">Valor/h <span class="sort-icon">{{ getSortIcon('valorH') }}</span></th> }
           @for (m of meses; track m; let monthIndex = $index) {
             @if (col(mesKey(monthIndex))) {
@@ -414,7 +415,7 @@
             }
           }
           @if (col('total'))     { <th class="sortable" (click)="ordenarPor('total')">Total anual <span class="sort-icon">{{ getSortIcon('total') }}</span></th> }
-          <th>Ações</th>
+          <th>AÃ§Ãµes</th>
         </tr>
       </thead>
       <tbody>
@@ -423,7 +424,7 @@
             <td>
               @if (draftMode || loSelecionadaEhDraft()) {
                 <select class="pessoa-combo" [(ngModel)]="form.perfilId" style="font-size:.84rem">
-                  <option value="">— Perfil (obrigatório) —</option>
+                  <option value="">â€” Perfil (obrigatÃ³rio) â€”</option>
                   @for (p of perfis; track p.id) {
                     <option [value]="p.id">{{ perfilSemDepartamento(p.nomePerfil) }}</option>
                   }
@@ -468,7 +469,7 @@
             @if (col('valorH')) {
               <td>
                 @if (novaPessoaSemCustoLo()) {
-                  <span class="sem-custo-lo">Não cobra da LO</span>
+                  <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                 } @else {
                   {{ currency(valorHoraPessoaSelecionadaNova()) }}
                 }
@@ -480,7 +481,7 @@
                     [class.bloqueado]="mesIndisponivelNovaPessoa($index)"
                     [class.parcial]="mesParcialmenteDisponivelNovaPessoa($index)">
                   @if (mesIndisponivelNovaPessoa($index)) {
-                    <span class="month-unavailable">Indisponível ({{ meses[$index] }})</span>
+                    <span class="month-unavailable">IndisponÃ­vel ({{ meses[$index] }})</span>
                     <button
                       type="button"
                       class="month-unavailable-reason"
@@ -492,13 +493,13 @@
                   } @else if (mesParcialmenteDisponivelNovaPessoa($index)) {
                     <span class="month-partial-pct">{{ percentualDisponivelNovaPessoa($index) | number:'1.0-1' }}% disp.</span>
                     @if (novaPessoaSemCustoLo()) {
-                      <span class="sem-custo-lo">Não cobra da LO</span>
+                      <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                     } @else {
                       <s class="month-partial-full">{{ currency(custoMensalNovaPessoa($index)) }}</s>
                       <strong class="month-partial-efetivo">{{ currency(custoMensalNovaPessoaDisponivel($index)) }}</strong>
                     }
                   } @else if (novaPessoaSemCustoLo()) {
-                    <span class="sem-custo-lo">Não cobra da LO</span>
+                    <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                   } @else {
                     <strong>{{ currency(custoMensalNovaPessoa($index)) }}</strong>
                   }
@@ -557,7 +558,7 @@
                   <div class="pessoa-cell-info">
                     <strong>{{ a.nomePessoa }}</strong>
                     @if (isDraft(a)) {
-                      <span class="draft-badge" [title]="'Rascunho: ' + (a.loFicticiaNome || 'Cenário')">RASCUNHO</span>
+                      <span class="draft-badge" [title]="'Rascunho: ' + (a.loFicticiaNome || 'CenÃ¡rio')">RASCUNHO</span>
                     }
                     @if (isPessoaPlaneada(a)) {
                       <span class="pessoa-badge badge-planejada">Planejada</span>
@@ -570,6 +571,7 @@
               <td class="vaga-cell">
                 @if (getCategoriaDaPessoa(a) === 'TERCEIRO' && vagaUrlDaPessoa(a.nomePessoa)) {
                   <a class="readonly-cell vaga-link-cell" [href]="vagaUrlDaPessoa(a.nomePessoa)!" target="_blank" rel="noopener noreferrer" [title]="vagaUrlDaPessoa(a.nomePessoa)!">{{ vagaAliasDaPessoa(a.nomePessoa) }}</a>
+                  <button class="copy-btn" type="button" (click)="copyText(vagaAliasDaPessoa(a.nomePessoa))" title="Copiar número da vaga">Copiar</button>
                 } @else {
                   <span class="readonly-cell">-</span>
                 }
@@ -591,7 +593,18 @@
                 } @else if (isPessoaPlaneada(a)) {
                   <span class="pessoa-badge badge-planejada" style="font-size:.72rem">Planejada</span>
                 } @else {
-                  @if (getCategoriaDaPessoa(a) === 'TERCEIRO') { Prestador de serviço } @else { Folha }
+                  @if (getCategoriaDaPessoa(a) === 'TERCEIRO') { Prestador de serviÃ§o } @else { Folha }
+                  @if (getCategoriaDaPessoa(a) === 'TERCEIRO' && teamsUrlPrestador(a.nomePessoa)) {
+                    <a
+                      class="teams-link"
+                      [href]="teamsUrlPrestador(a.nomePessoa)!"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Conversar no Teams com o ponto focal do prestador">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4h-8a2 2 0 0 0-2 2v1H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h6v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM8.2 11h2v6h-2v-6zm4.2-3h2v9h-2V8z"/></svg>
+                      Ponto focal
+                    </a>
+                  }
                 }
               </td>
             }
@@ -609,7 +622,7 @@
             @if (col('valorH')) {
               <td>
                 @if (pessoaSemCustoLo(a)) {
-                  <span class="sem-custo-lo">Não cobra da LO</span>
+                  <span class="sem-custo-lo">NÃ£o cobra da LO</span>
                 } @else if (editingId === a.id) {
                   {{ currency(valorHoraPessoaSelecionadaEdicao()) }}
                 } @else {
@@ -642,7 +655,7 @@
                     @if (temReducaoPorAusencia(a.id, monthIndex)) {
                       <small
                         class="month-absence-chip"
-                        [title]="'Custo reduzido por férias/ausência: -' + horasDescontadasPorAusencia(a.id, monthIndex) + 'h no mês'">
+                        [title]="'Custo reduzido por fÃ©rias/ausÃªncia: -' + horasDescontadasPorAusencia(a.id, monthIndex) + 'h no mÃªs'">
                         Aus -{{ horasDescontadasPorAusencia(a.id, monthIndex) }}h
                       </small>
                     }
@@ -655,13 +668,13 @@
                       [disabled]="isCancelado(a.id, monthIndex) || isPago(a.id, monthIndex)"
                       [ngModel]="getPctMensalMasked(a.id, monthIndex)"
                       (ngModelChange)="onPctMensalMaskedChange($event, a.id, monthIndex)"
-                      title="Alocação (%) do mês" />
+                      title="AlocaÃ§Ã£o (%) do mÃªs" />
                     @if (isPercentualMesSobrescrito(a.id, monthIndex)) {
-                      <small class="month-percent-override">Mês {{ getPercentualMensalDigitavel(a.id, monthIndex) | number:'1.0-2' }}%</small>
+                      <small class="month-percent-override">MÃªs {{ getPercentualMensalDigitavel(a.id, monthIndex) | number:'1.0-2' }}%</small>
                     }
                     
                     @if (pessoaSemCustoLo(a)) {
-                      <span class="sem-custo-lo sem-custo-lo-mes">Não cobra da LO</span>
+                      <span class="sem-custo-lo sem-custo-lo-mes">NÃ£o cobra da LO</span>
                     } @else {
                       <input
                         type="text"
@@ -673,7 +686,7 @@
                         (ngModelChange)="onValorMensalMaskedChange($event, a.id, monthIndex)"
                         (blur)="syncValorMensalMasked(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))" />
                       @if (!isCancelado(a.id, monthIndex) && valorMaximoMes(a, monthIndex) > 0) {
-                        <small class="month-max-hint">máx {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
+                        <small class="month-max-hint">mÃ¡x {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
                       }
                     }
                     @if (!pessoaSemCustoLo(a) && !isPessoaPlaneada(a)) {
@@ -772,6 +785,20 @@
           </tr>
         }
       </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td [attr.colspan]="colunasFixasAteMes()"><strong>Total mês</strong></td>
+          @for (m of meses; track m; let monthIndex = $index) {
+            @if (col(mesKey(monthIndex))) {
+              <td class="month-total-cell"><strong>{{ currency(totalComprometidoMesLo(monthIndex)) }}</strong></td>
+            }
+          }
+          @if (col('total')) {
+            <td class="month-total-cell"><strong>{{ currency(totalComprometidoClm()) }}</strong></td>
+          }
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
   </section>
 </article></planner-card>
@@ -794,14 +821,14 @@
       <button class="sec" type="button" (click)="fecharDonoModal()">Fechar</button>
     </div>
     <p style="margin:0 0 8px;font-size:0.85rem;color:var(--text-muted,#666)">
-      Dono atual: <strong>{{ loSelecionada()?.dono || '—' }}</strong>
+      Dono atual: <strong>{{ loSelecionada()?.dono || 'â€”' }}</strong>
     </p>
     <input
       [(ngModel)]="donoNovoInput"
       placeholder="Username do novo dono"
       (keydown.enter)="salvarTransferenciaDono()" />
     <button type="button" (click)="salvarTransferenciaDono()" [disabled]="!donoNovoInput.trim()">
-      Confirmar transferência
+      Confirmar transferÃªncia
     </button>
   </div>
 }
@@ -810,7 +837,7 @@
   <div class="modal-backdrop" (click)="fecharPessoaModal()"></div>
   <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <div class="panel-head">
-      <h3>Cadastro rápido de pessoa</h3>
+      <h3>Cadastro rÃ¡pido de pessoa</h3>
       <button class="sec" type="button" (click)="fecharPessoaModal()">Fechar</button>
     </div>
     <input [(ngModel)]="pessoaRapida.nome" placeholder="Nome da pessoa" />
@@ -822,11 +849,11 @@
     </select>
     <select [(ngModel)]="pessoaRapida.tipoVinculo">
       <option value="BV">Folha</option>
-      <option value="TERCEIRO">Prestador de serviço</option>
+      <option value="TERCEIRO">Prestador de serviÃ§o</option>
     </select>
     @if (pessoaRapida.tipoVinculo === 'TERCEIRO') {
       <select [(ngModel)]="pessoaRapida.consultoria">
-        <option value="">Selecione o prestador de serviço</option>
+        <option value="">Selecione o prestador de serviÃ§o</option>
         @for (c of consultorias; track c.id) {
           <option [value]="c.nome">{{ c.nome }}</option>
         }
