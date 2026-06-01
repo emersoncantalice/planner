@@ -1,4 +1,4 @@
-﻿import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
@@ -181,7 +181,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   sortColuna: string | null = null;
   sortDirecao: 'asc' | 'desc' = 'asc';
 
-  // transferÃªncia de dono da LO
+  // transferência de dono da LO
   donoModalAberto = false;
   donoNovoInput = '';
 
@@ -206,7 +206,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     { key: 'vaga',      label: 'Vaga'         },
     { key: 'perfil',    label: 'Perfil'       },
     { key: 'categoria', label: 'Categoria'    },
-    { key: 'pct',       label: 'AlocaÃ§Ã£o %'   },
+    { key: 'pct',       label: 'Alocação %'   },
     { key: 'valorH',    label: 'Valor/h'      },
     { key: 'jan',       label: 'Jan'  },
     { key: 'fev',       label: 'Fev'  },
@@ -725,7 +725,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   custoMensal(allocationId: string, valorHora: number, month?: number): number {
     if (month != null && this.isCancelado(allocationId, month)) return 0;
-    // Meses bloqueados por outra alocaÃ§Ã£o (mesma LO ou outra LO) nÃ£o geram custo
+    // Meses bloqueados por outra alocação (mesma LO ou outra LO) não geram custo
     if (month != null && this.mesIndisponivelParaAlocacao(allocationId, month)) return 0;
     if (month != null) {
       const manual = this.getValorMensalManual(allocationId, month);
@@ -913,7 +913,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (checked) {
       const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
       if (this.outraLinhaComControleNoMes(nomePessoa, month, allocationId)) {
-        this.percentualAviso = `${nomePessoa} jÃ¡ possui lanÃ§amento ou pagamento em outra linha em ${this.meses[month]}. Cancele o lanÃ§amento anterior para lanÃ§ar nesta linha.`;
+        this.percentualAviso = `${nomePessoa} já possui lançamento ou pagamento em outra linha em ${this.meses[month]}. Cancele o lançamento anterior para lançar nesta linha.`;
         return;
       }
     }
@@ -1347,7 +1347,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (!lo || !this.donoNovoInput.trim() || !this.token) return;
     this.api.transferBudgetLineDono(this.token, lo.id, this.donoNovoInput.trim()).subscribe({
       next: (updated: any) => {
-        // atualiza a LO localmente sem recarregar a pÃ¡gina
+        // atualiza a LO localmente sem recarregar a página
         const idx = this.linhasOrcamentarias.findIndex((l: any) => l.id === updated.id);
         if (idx >= 0) this.linhasOrcamentarias[idx] = updated;
         this.fecharDonoModal();
@@ -1377,13 +1377,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
     if (!this.draftMode) {
       if (this.normalized(nomePessoa) && this.profissionalSemDisponibilidadeNoAno(nomePessoa)) {
-        this.percentualAviso = `${nomePessoa} jÃ¡ estÃ¡ com 100% de alocaÃ§Ã£o em todos os meses e nÃ£o pode receber nova linha de alocaÃ§Ã£o.`;
+        this.percentualAviso = `${nomePessoa} já está com 100% de alocação em todos os meses e não pode receber nova linha de alocação.`;
         return;
       }
       if (this.normalized(nomePessoa)) {
         const maxDisponivel = this.percentualMaximoNovaAlocacao(nomePessoa);
         if (maxDisponivel <= 0) {
-          this.percentualAviso = `${nomePessoa} nÃ£o possui percentual disponÃ­vel para nova alocaÃ§Ã£o neste ano.`;
+          this.percentualAviso = `${nomePessoa} não possui percentual disponível para nova alocação neste ano.`;
           return;
         }
         if (this.novaAlocacaoPercentual > maxDisponivel) {
@@ -1417,7 +1417,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   abrirNovaLinha() {
     this.novaLinhaAberta = true;
     this.editingId = '';
-    // default sempre desativado; o usuÃ¡rio decide ativar manualmente
+    // default sempre desativado; o usuário decide ativar manualmente
     this.draftMode = false;
   }
 
@@ -1465,7 +1465,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   getMesInicioLabel(mesInicio: number | undefined | null): string {
     if (!mesInicio || mesInicio <= 0) return '';
-    return `InÃ­cio: ${this.meses[mesInicio]}`;
+    return `Início: ${this.meses[mesInicio]}`;
   }
 
   perfilNomePessoaSelecionadaNova(): string {
@@ -1514,7 +1514,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   vagaAliasDaPessoa(nomePessoa: string): string {
     const p = this.pessoas.find((x: any) => this.normalized(x?.nome || '') === this.normalized(nomePessoa || ''));
-    return p?.vagaAlias || 'Abrir vaga Ã¢â€ â€”';
+    return p?.vagaAlias || 'Abrir vaga →';
   }
 
   vagaUrlDaPessoaId(pessoaId: string): string | null {
@@ -1524,7 +1524,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   vagaAliasDaPessoaId(pessoaId: string): string {
     const p = this.pessoas.find((x: any) => x.id === pessoaId);
-    return p?.vagaAlias || 'Abrir vaga Ã¢â€ â€”';
+    return p?.vagaAlias || 'Abrir vaga →';
   }
 
   copyText(value: string) {
@@ -1593,7 +1593,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const nomePessoa = this.form.nomePessoa || '';
     if (!this.normalized(nomePessoa)) return '';
     const loId = this.loIdBloqueanteMesNovaPessoa(month);
-    if (loId && loId === this.loSelecionadaId) return 'JÃ¡ alocado nessa LO';
+    if (loId && loId === this.loSelecionadaId) return 'Já alocado nessa LO';
     return this.disponibilidadeMes(nomePessoa, month).motivo;
   }
 
@@ -1752,7 +1752,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const calculado = this.round2(this.custoMensalCalculado(allocationId, valorHora, month));
     const manual = this.getValorMensalManual(allocationId, month);
     if (manual != null) {
-      // Quando houver abatimento por ausÃªncia/fÃ©rias (TERCEIRO), nunca permitir exibir valor acima do calculado.
+      // Quando houver abatimento por ausência/férias (TERCEIRO), nunca permitir exibir valor acima do calculado.
       if (this.temReducaoPorAusencia(allocationId, month)) return Math.min(manual, calculado);
       return manual;
     }
@@ -1773,7 +1773,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       const valorMaximoPermitido = this.round2((Number(valorHoraEfetivo || 0) * horas) * (percentualRestante / 100));
       if (valorMaximoPermitido > 0 && valor > valorMaximoPermitido) {
         valor = valorMaximoPermitido;
-        this.percentualAviso = `Valor ajustado ao limite disponÃ­vel de ${percentualRestante.toFixed(2)}% em ${this.meses[month]}.`;
+        this.percentualAviso = `Valor ajustado ao limite disponível de ${percentualRestante.toFixed(2)}% em ${this.meses[month]}.`;
       }
     }
     const key = this.valorMensalManualKey(allocationId, month);
@@ -1852,7 +1852,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       }
     }
     if (valor > maxPermitido) {
-      this.percentualAviso = `Percentual ajustado para ${maxPermitido.toFixed(2)}% (limite disponÃ­vel no mÃªs ${this.meses[month]}).`;
+      this.percentualAviso = `Percentual ajustado para ${maxPermitido.toFixed(2)}% (limite disponível no mês ${this.meses[month]}).`;
     } else {
       this.percentualAviso = '';
     }
@@ -1897,8 +1897,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   motivoMesIndisponivelAlocacao(allocationId: string, month: number): string {
     const loId = this.loIdBloqueanteMes(allocationId, month);
-    if (loId && loId === this.loSelecionadaId) return 'JÃ¡ alocado nessa LO';
-    return this.disponibilidadeMesParaLinha(allocationId, month).motivo || 'IndisponÃ­vel';
+    if (loId && loId === this.loSelecionadaId) return 'Já alocado nessa LO';
+    return this.disponibilidadeMesParaLinha(allocationId, month).motivo || 'Indisponível';
   }
 
   
@@ -1989,7 +1989,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     );
     if (comControle) {
       const lo = this.loResumoDaAlocacao(comControle);
-      return { indisponivel: true, motivo: `Pago/LanÃ§ado na LO ${lo}` };
+      return { indisponivel: true, motivo: `Pago/Lançado na LO ${lo}` };
     }
 
     
@@ -2045,7 +2045,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (explicita) {
       const lo = this.loResumoDaAlocacao(explicita);
       if (this.isPago(explicita.id, month)) return { indisponivel: true, motivo: `Pago na LO ${lo}` };
-      return { indisponivel: true, motivo: `LanÃ§ado na LO ${lo}` };
+      return { indisponivel: true, motivo: `Lançado na LO ${lo}` };
     }
 
     const ativas = candidatas.filter((a: any) => this.mesAtivoParaAlocacao(a.id, month));
@@ -2126,7 +2126,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
       
       const pessoaRows: any[] = [];
-      pessoaRows.push(['Pessoa', 'LO', 'Perfil', 'Categoria', 'AlocaÃ§Ã£o %',
+      pessoaRows.push(['Pessoa', 'LO', 'Perfil', 'Categoria', 'Alocação %',
         ...mesesHeader, 'Total Anual']);
 
       const alocAno = this.alocacoes.filter((a: any) =>
@@ -2158,8 +2158,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
       
       const loRows: any[] = [];
-      loRows.push(['LO', 'CÃ³digo', 'Pessoa', 'Perfil', 'Categoria',
-        ...mesesHeader, 'Comprometido', 'OrÃ§amento', 'Saldo']);
+      loRows.push(['LO', 'Código', 'Pessoa', 'Perfil', 'Categoria',
+        ...mesesHeader, 'Comprometido', 'Orçamento', 'Saldo']);
 
       const losSorted = [...this.linhasDoAnoSelecionado()].sort((a: any, b: any) =>
         String(a.codigo || '').localeCompare(String(b.codigo || ''), 'pt-BR', { sensitivity: 'base' })
@@ -2187,7 +2187,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
           ]);
         }
         if (!alocacoesDaLo.length) {
-          loRows.push([lo.nome || '-', lo.codigo || '-', '(sem alocaÃ§Ãµes)', '', '', ...mesesHeader.map(() => 0), 0, brl(orcamento), brl(orcamento)]);
+          loRows.push([lo.nome || '-', lo.codigo || '-', '(sem alocações)', '', '', ...mesesHeader.map(() => 0), 0, brl(orcamento), brl(orcamento)]);
         }
       }
       const wsLo = XLSX.utils.aoa_to_sheet(loRows);
@@ -2196,7 +2196,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
       
       const atividadeRows: any[] = [];
-      atividadeRows.push(['Projeto', 'Atividade', 'Status', 'ResponsÃ¡vel', 'InÃ­cio Planejado', 'Fim Planejado']);
+      atividadeRows.push(['Projeto', 'Atividade', 'Status', 'Responsável', 'Início Planejado', 'Fim Planejado']);
 
       const atividadesSorted = [...this.atividades].sort((a: any, b: any) =>
         String(a.projetoNome || '').localeCompare(String(b.projetoNome || ''), 'pt-BR', { sensitivity: 'base' })
@@ -2206,7 +2206,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
           a.projetoNome || '-',
           a.titulo || '-',
           a.status || '-',
-          a.responsavel || '(sem responsÃ¡vel)',
+          a.responsavel || '(sem responsável)',
           a.inicioPlanejado ? new Date(a.inicioPlanejado).toLocaleDateString('pt-BR') : '-',
           a.fimPlanejado ? new Date(a.fimPlanejado).toLocaleDateString('pt-BR') : '-'
         ]);
@@ -2232,7 +2232,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     }
   }
 
-  // â”€â”€ OrdenaÃ§Ã£o personalizada (drag-and-drop) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Ordenação personalizada (drag-and-drop) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   temOrdemCustom(): boolean {
     return !!(this.ordemPorLo[this.loSelecionadaId]?.length);
@@ -2261,7 +2261,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   ordenarPor(coluna: string) {
     if (this.temOrdemCustom()) {
-      this.showConfirmToast('Ordenar pela coluna vai perder sua ordenaÃ§Ã£o personalizada. Continuar?', () => {
+      this.showConfirmToast('Ordenar pela coluna vai perder sua ordenação personalizada. Continuar?', () => {
         this.resetarOrdemCustom();
         this._aplicarOrdenacao(coluna);
       });
