@@ -1,8 +1,9 @@
-{
+﻿{
   "name": "Planner",
   "short_name": "Planner",
   "description": "Gerenciamento de projetos e orçamentos",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#1d63da",

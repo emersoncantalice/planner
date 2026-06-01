@@ -787,7 +787,12 @@
       </tbody>
       <tfoot>
         <tr class="totals-row">
-          <td [attr.colspan]="colunasFixasAteMes()"><strong>Total mês</strong></td>
+          <td><strong>Total mês</strong></td>
+          @if (col('vaga'))      { <td></td> }
+          @if (col('perfil'))    { <td></td> }
+          @if (col('categoria')) { <td></td> }
+          @if (col('pct'))       { <td></td> }
+          @if (col('valorH'))    { <td></td> }
           @for (m of meses; track m; let monthIndex = $index) {
             @if (col(mesKey(monthIndex))) {
               <td class="month-total-cell"><strong>{{ currency(totalComprometidoMesLo(monthIndex)) }}</strong></td>

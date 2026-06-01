@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+﻿import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
@@ -239,15 +239,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   col(key: string): boolean { return !!this.colsVisiveis[key]; }
-  colunasFixasAteMes(): number {
-    let n = 1; // Pessoa
-    if (this.col('vaga')) n++;
-    if (this.col('perfil')) n++;
-    if (this.col('categoria')) n++;
-    if (this.col('pct')) n++;
-    if (this.col('valorH')) n++;
-    return n;
-  }
+
   primeiraColunaEhPerfil(): boolean {
     return !!(this.novaLinhaAberta && !this.editingId && (this.draftMode || this.loSelecionadaEhDraft()));
   }
@@ -2232,7 +2224,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     }
   }
 
-  // â”€â”€ Ordenação personalizada (drag-and-drop) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Ordenação personalizada (drag-and-drop) ────────────────────────────────
 
   temOrdemCustom(): boolean {
     return !!(this.ordemPorLo[this.loSelecionadaId]?.length);
@@ -2280,8 +2272,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   getSortIcon(coluna: string): string {
-    if (this.sortColuna !== coluna) return 'â†•';
-    return this.sortDirecao === 'asc' ? 'â†‘' : 'â†“';
+    if (this.sortColuna !== coluna) return '\u2195';
+    return this.sortDirecao === 'asc' ? '\u2191' : '\u2193';
   }
 
   private compararPorColuna(a: any, b: any): number {
