@@ -1,4 +1,4 @@
-<planner-card><article class="dt-card">
+﻿<planner-card><article class="dt-card">
   @if (importando || zerando) {
     <div class="dt-overlay" aria-live="polite" aria-busy="true">
       <div class="dt-overlay-content">
@@ -16,7 +16,6 @@
 
   <div class="dt-grid">
 
-    <!-- ── Exportar ──────────────────────────────────────────────────────── -->
     <section class="dt-block">
       <div class="dt-block-header">
         <span class="dt-icon dt-icon-export" aria-hidden="true">
@@ -32,10 +31,12 @@
         <li><span class="dt-count">{{ perfis.length }}</span> Perfis</li>
         <li><span class="dt-count">{{ pessoas.length }}</span> Pessoas</li>
         <li><span class="dt-count">{{ consultorias.length }}</span> Consultorias</li>
-        <li><span class="dt-count">{{ pontosFocais.length }}</span> Pontos Focais</li>
-        <li><span class="dt-count">{{ linhasOrcamentarias.length }}</span> Linhas Orçamentárias</li>
+        <li><span class="dt-count">{{ pontosFocais.length }}</span> Pontos focais</li>
+        <li><span class="dt-count">{{ linhasOrcamentarias.length }}</span> Linhas orçamentárias</li>
         <li><span class="dt-count">{{ alocacoes.length }}</span> Alocações (+ configs)</li>
         <li><span class="dt-count">{{ horasMes.length }}</span> Horas mensais</li>
+        <li><span class="dt-count">{{ exportAusenciasCount }}</span> Férias e ausências</li>
+        <li><span class="dt-count">{{ exportFeriadosCount }}</span> Feriados</li>
         <li><span class="dt-count">{{ businessEpics.length }}</span> Business Epics</li>
       </ul>
 
@@ -45,7 +46,6 @@
       </button>
     </section>
 
-    <!-- ── Importar ──────────────────────────────────────────────────────── -->
     <section class="dt-block">
       <div class="dt-block-header">
         <span class="dt-icon dt-icon-import" aria-hidden="true">
@@ -58,11 +58,31 @@
       </div>
 
       <ul class="dt-list dt-list-info">
-        <li>Perfis → Pessoas → Consultorias → Pontos Focais</li>
-        <li>Linhas Orçamentárias → Alocações</li>
-        <li>Horas mensais + Configs de alocação (% / pago / cancelado)</li>
+        <li>Perfis → Pessoas → Consultorias → Pontos focais</li>
+        <li>Linhas orçamentárias → Alocações</li>
+        <li>Horas mês + Férias/Ausências + Feriados + Configs de alocação (% / pago / cancelado)</li>
         <li>IDs são remapeados automaticamente para os novos registros</li>
       </ul>
+
+      <div class="dt-fixups">
+        <summary>Selecionar itens para importar</summary>
+        <div class="dt-import-grid">
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.perfis" /><span>Perfis</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.consultorias" /><span>Consultorias</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.pontosFocais" /><span>Pontos focais</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.pessoas" /><span>Pessoas</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.linhasOrcamentarias" /><span>Linhas orçamentárias</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.alocacoes" /><span>Alocações</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.pagamentos" /><span>Pagamentos</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.estadosMensais" /><span>Estados mensais</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.horasMes" /><span>Horas mensais</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.ausencias" /><span>Férias e ausências</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.feriados" /><span>Feriados</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.allocationPercent" /><span>Percentuais de alocação</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.loRealizado" /><span>Valores realizados</span></label>
+          <label class="dt-check-item"><input type="checkbox" [(ngModel)]="importSelection.localStorageConfig" /><span>Configs locais (planner_lo_*)</span></label>
+        </div>
+      </div>
 
       @if (importando) {
         <div class="dt-progress">
@@ -150,7 +170,7 @@
   </div>
 
   <p class="dt-warning">
-    ⚠️ A importação <strong>não sobrescreve</strong> registros existentes — novos registros são adicionados.
+    A importação <strong>não sobrescreve</strong> registros existentes. Novos registros são adicionados.
     Para uma restauração completa, use em uma instância limpa.
   </p>
 </article></planner-card>
