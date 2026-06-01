@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "release": "npm run build && powershell -NoProfile -Command \"& { if (Test-Path 'release') { Remove-Item -Recurse -Force 'release/*' }; New-Item -ItemType Directory -Force -Path 'release' | Out-Null; Copy-Item -Recurse -Force 'dist/planner-frontend/*' 'release/' }\"",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
