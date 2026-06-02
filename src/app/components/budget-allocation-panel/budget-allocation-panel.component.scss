@@ -389,6 +389,20 @@ th.current-month {
   }
 }
 
+// ── folha row (azul claro) ────────────────────────────────────────────────────
+
+.row-folha {
+  background: #e8f4fd;
+  &:hover { background: #d4ebfa; }
+}
+
+// ── prestador row (laranja claro) ─────────────────────────────────────────────
+
+.row-terceiro {
+  background: #fff3e8;
+  &:hover { background: #ffe8cc; }
+}
+
 .month-absence-chip {
   display: inline-block;
   align-self: flex-start;

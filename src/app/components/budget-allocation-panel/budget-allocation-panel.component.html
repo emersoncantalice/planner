@@ -521,6 +521,8 @@
             [class.no-charge-row]="pessoaSemCustoLo(a)"
             [class.draft-row]="isDraft(a)"
             [class.planned-person-row]="isPessoaPlaneada(a)"
+            [class.row-folha]="!isDraft(a) && !isPessoaPlaneada(a) && getCategoriaDaPessoa(a) === 'FOLHA'"
+            [class.row-terceiro]="!isDraft(a) && !isPessoaPlaneada(a) && getCategoriaDaPessoa(a) === 'TERCEIRO'"
             [class.drag-over]="dragOverIndex === idx && dragSourceIndex !== idx"
             [class.dragging]="dragSourceIndex === idx"
             (dragover)="onDragOver($event, idx)"

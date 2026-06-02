@@ -489,7 +489,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const vh = this.getValorHoraDaAlocacao(a);
     if (!vh) return 0;
     const pct = this.percentualDisponivelParaLinha(a.id, monthIndex);
-    const horas = this.horasEfetivas(monthIndex, this.getCategoriaDaPessoa(a));
+    const horas = this.horasEfetivas(monthIndex, this.getCategoriaDaPessoa(a), undefined, !!a.draft);
     return this.round2(vh * horas * pct / 100);
   }
 
@@ -725,7 +725,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     }
     const mi = month ?? new Date().getMonth();
     const percentual = this.getPercentualEfetivoMes(allocationId, mi);
-    const horas = this.horasEfetivas(mi, this.categoriaDaAlocacaoId(allocationId));
+    const isDraftAloc = !!(this.alocacoes.find((a: any) => a.id === allocationId)?.draft);
+    const horas = this.horasEfetivas(mi, this.categoriaDaAlocacaoId(allocationId), undefined, isDraftAloc);
     return (valorHora || 0) * horas * (percentual / 100);
   }
 
@@ -814,9 +815,10 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   
-  private horasEfetivas(monthIndex: number, categoria?: 'FOLHA' | 'TERCEIRO', nomePessoa?: string): number {
+  private horasEfetivas(monthIndex: number, categoria?: 'FOLHA' | 'TERCEIRO', nomePessoa?: string, isDraft = false): number {
+    if (categoria !== 'TERCEIRO') return isDraft ? this.horasDoCadastro(monthIndex) : 168;
     const base = this.horasDoCadastro(monthIndex);
-    if (categoria !== 'TERCEIRO' || !nomePessoa) return base;
+    if (!nomePessoa) return base;
     const diasFora = this.diasAusenciaNoMes(nomePessoa, monthIndex, this.anoSelecionado);
     return Math.max(0, base - (diasFora * 8));
   }
@@ -1567,7 +1569,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (this.mesIndisponivelNovaPessoa(monthIndex)) return 0;
     const valorHora = this.valorHoraPessoaSelecionadaNova();
     const percentual = Number(this.novaAlocacaoPercentual || 0) / 100;
-    const horas = this.horasEfetivas(monthIndex, this.categoriaNovaAlocacao(), this.form.nomePessoa || '');
+    const horas = this.horasEfetivas(monthIndex, this.categoriaNovaAlocacao(), this.form.nomePessoa || '', this.draftMode);
     return valorHora * horas * percentual;
   }
 
@@ -1609,7 +1611,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const disponivel = this.percentualDisponivelNovaPessoa(month);
     const pctEfetivo = Math.min(Number(this.novaAlocacaoPercentual || 0), disponivel);
     const valorHora = this.valorHoraPessoaSelecionadaNova();
-    const horas = this.horasEfetivas(month, this.categoriaNovaAlocacao(), this.form.nomePessoa || '');
+    const horas = this.horasEfetivas(month, this.categoriaNovaAlocacao(), this.form.nomePessoa || '', this.draftMode);
     return this.round2(valorHora * horas * pctEfetivo / 100);
   }
 
@@ -1618,7 +1620,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (this.mesIndisponivelParaAlocacao(allocationId, monthIndex)) return 0;
     const valorHora = this.valorHoraPessoaSelecionadaEdicao();
     const percentual = Number(this.getConfig(allocationId).percentual || 0) / 100;
-    const horas = this.horasEfetivas(monthIndex, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId));
+    const isDraftAloc = !!(this.alocacoes.find((a: any) => a.id === allocationId)?.draft);
+    const horas = this.horasEfetivas(monthIndex, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), isDraftAloc);
     return valorHora * horas * percentual;
   }
 
@@ -1759,8 +1762,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
       const percentualOutras = this.percentualAtivoOutrasAlocacoesNoMes(nomePessoa, month, allocationId);
       const percentualRestante = Math.max(0, 100 - percentualOutras);
-      const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId));
       const aloc = this.alocacoes.find((a: any) => a.id === allocationId);
+      const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), !!aloc?.draft);
       const valorHoraEfetivo = aloc ? this.getValorHoraDaAlocacao(aloc) : 0;
       const valorMaximoPermitido = this.round2((Number(valorHoraEfetivo || 0) * horas) * (percentualRestante / 100));
       if (valorMaximoPermitido > 0 && valor > valorMaximoPermitido) {
@@ -1804,7 +1807,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private custoMensalCalculado(allocationId: string, valorHora: number, month: number): number {
     if (this.isCancelado(allocationId, month)) return 0;
     const percentual = this.getPercentualEfetivoMes(allocationId, month);
-    const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId));
+    const isDraftAloc = !!(this.alocacoes.find((a: any) => a.id === allocationId)?.draft);
+    const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), isDraftAloc);
     return (valorHora || 0) * horas * (percentual / 100);
   }
 
