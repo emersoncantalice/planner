@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
 
@@ -24,6 +24,7 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
   readonly meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
   private api = inject(PlannerApiService);
+  private cdr = inject(ChangeDetectorRef);
   private syncTimer: ReturnType<typeof setInterval> | null = null;
 
   private allocationPercents: Record<string, number> = {};
@@ -63,6 +64,7 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
           next[id] = Math.max(0, Math.min(100, Number(r?.percentual ?? 100)));
         }
         this.allocationPercents = next;
+        this.cdr.markForCheck();
       }
     });
     this.api.listAllocationPayments(this.token).subscribe({
@@ -75,6 +77,7 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
           if (r?.paid) next[`${id}_${month}`] = true;
         }
         this.pagoMensal = next;
+        this.cdr.markForCheck();
       }
     });
     this.api.listAllocationMonthlyState(this.token).subscribe({
@@ -99,6 +102,7 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
         this.canceladoMensal = nextCancel;
         this.valorMensalManualMap = nextValor;
         this.percentualMensalManualMap = nextPct;
+        this.cdr.markForCheck();
       }
     });
   }

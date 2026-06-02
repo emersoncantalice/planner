@@ -158,7 +158,7 @@ export class PersonPanelComponent {
     const cents = digits ? Number.parseInt(digits, 10) : 0;
     const mensal = cents / 100;
     this.pessoa.valorMensal = mensal;
-    this.pessoa.valorHora = mensal / 160;
+    this.pessoa.valorHora = mensal / 168;
     this.valorHoraMasked = this.formatValorHora(this.pessoa.valorHora);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal);
   }
@@ -247,7 +247,7 @@ export class PersonPanelComponent {
   }
 
   private calcularValorMensalMedio(valorHora: number | null | undefined): number {
-    return (Number(valorHora) || 0) * 160;
+    return (Number(valorHora) || 0) * 168;
   }
 
   formatContato(value: string | null | undefined): string {
