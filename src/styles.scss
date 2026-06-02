@@ -2450,17 +2450,21 @@ app-project-detail {
   margin: 0;
 }
 
-.month-col.pago {
-  background: #cfeede;
-}
-
-.month-col.cancelado {
-  background: #f4cdcd;
-}
-
 .month-col.bloqueado {
   background: #f7d6d9;
   border: 1px solid #e7a9b0;
+}
+
+.month-col.pago .month-editor {
+  background: #d4f5e2;
+  border-radius: 6px;
+  outline: 2px solid #52c47a;
+}
+
+.month-col.cancelado .month-editor {
+  background: #fde0e0;
+  border-radius: 6px;
+  outline: 2px solid #f07070;
 }
 
 .month-col.parcial {

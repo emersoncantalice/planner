@@ -216,7 +216,7 @@ export class DataTransferPanelComponent {
       );
       this.imported.emit();
     } catch (err: any) {
-      this.toast.show(`Erro na importaÃƒÂ§ÃƒÂ£o: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 8000);
+      this.toast.show(`Erro na importação: ${err?.message ?? 'Falha desconhecida.'}`, 'error', 8000);
     } finally {
       this.importando    = false;
       this.importProgress = '';

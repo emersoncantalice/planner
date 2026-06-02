@@ -389,18 +389,32 @@ th.current-month {
   }
 }
 
-// ── folha row (azul claro) ────────────────────────────────────────────────────
+// ── folha row (azul claro, tons intercalados) ────────────────────────────────
 
-.row-folha {
+.row-folha:nth-child(odd) {
   td { background: #e8f4fd; }
-  &:hover td { background: #d4ebfa; }
+  td.month-col.bloqueado { background: #d0e8f5; border-color: #9dc6e8; }
+  &:hover td { background: #d2ecfb; }
 }
 
-// ── prestador row (laranja claro) ─────────────────────────────────────────────
+.row-folha:nth-child(even) {
+  td { background: #cde6f8; }
+  td.month-col.bloqueado { background: #bcd8f0; border-color: #8ab8e0; }
+  &:hover td { background: #b8dbf5; }
+}
 
-.row-terceiro {
+// ── prestador row (laranja claro, tons intercalados) ──────────────────────────
+
+.row-terceiro:nth-child(odd) {
   td { background: #fff3e8; }
-  &:hover td { background: #ffe8cc; }
+  td.month-col.bloqueado { background: #f5dfc8; border-color: #e8c090; }
+  &:hover td { background: #fde8d4; }
+}
+
+.row-terceiro:nth-child(even) {
+  td { background: #ffe4cc; }
+  td.month-col.bloqueado { background: #f5d0b0; border-color: #e0a870; }
+  &:hover td { background: #fad8bc; }
 }
 
 .month-absence-chip {
