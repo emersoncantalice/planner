@@ -181,6 +181,98 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   sortColuna: string | null = null;
   sortDirecao: 'asc' | 'desc' = 'asc';
 
+  // seleção por célula (Ctrl+Click) — chave: "allocationId|monthIndex"
+  selectedCells = new Set<string>();
+
+  private cellKey(allocationId: string, month: number): string {
+    return `${allocationId}|${month}`;
+  }
+
+  isCellSelected(allocationId: string, month: number): boolean {
+    return this.selectedCells.has(this.cellKey(allocationId, month));
+  }
+
+  isRowPartiallySelected(allocationId: string): boolean {
+    return this.meses.some((_, mi) => this.selectedCells.has(this.cellKey(allocationId, mi)));
+  }
+
+  isColPartiallySelected(monthIndex: number): boolean {
+    return this.alocacoesFiltradas().some((a: any) => this.selectedCells.has(this.cellKey(a.id, monthIndex)));
+  }
+
+  onCellClick(event: MouseEvent, allocationId: string, month: number) {
+    if (!event.ctrlKey && !event.metaKey) return;
+    if (Date.now() < this.suppressClickUntil) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const next = new Set(this.selectedCells);
+    const k = this.cellKey(allocationId, month);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    this.selectedCells = next;
+  }
+
+  onRowHeaderClick(event: MouseEvent, allocationId: string) {
+    if (!event.ctrlKey && !event.metaKey) return;
+    if (Date.now() < this.suppressClickUntil) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const allSel = this.meses.every((_, mi) => this.selectedCells.has(this.cellKey(allocationId, mi)));
+    const next = new Set(this.selectedCells);
+    this.meses.forEach((_, mi) => allSel ? next.delete(this.cellKey(allocationId, mi)) : next.add(this.cellKey(allocationId, mi)));
+    this.selectedCells = next;
+  }
+
+  onColHeaderClick(event: MouseEvent, monthIndex: number) {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    const alocs = this.alocacoesFiltradas();
+    const allSel = alocs.every((a: any) => this.selectedCells.has(this.cellKey(a.id, monthIndex)));
+    const next = new Set(this.selectedCells);
+    alocs.forEach((a: any) => allSel ? next.delete(this.cellKey(a.id, monthIndex)) : next.add(this.cellKey(a.id, monthIndex)));
+    this.selectedCells = next;
+  }
+
+  clearSelection() {
+    this.selectedCells = new Set();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.selectedCells.size) this.clearSelection();
+  }
+
+  getSelectedStats() {
+    if (!this.selectedCells.size) return null;
+    const values: number[] = [];
+    let totalH = 0;
+    for (const key of this.selectedCells) {
+      const pipe = key.lastIndexOf('|');
+      const allocId = key.slice(0, pipe);
+      const month   = Number(key.slice(pipe + 1));
+      const aloc = this.alocacoes.find((a: any) => a.id === allocId);
+      if (!aloc) continue;
+      const vh = this.getValorHoraDaAlocacao(aloc);
+      values.push(this.round2(this.custoMensal(allocId, vh, month)));
+      if (!this.isCancelado(allocId, month) && !this.mesIndisponivelParaAlocacao(allocId, month)) {
+        const pct = this.getPercentualEfetivoMes(allocId, month) / 100;
+        const h = !!aloc.draft ? this.horasDoCadastro(month) : 168;
+        totalH += this.round2(h * pct);
+      }
+    }
+    if (!values.length) return null;
+    const total = values.reduce((s, v) => s + v, 0);
+    const distinctAlocs = new Set([...this.selectedCells].map(k => k.slice(0, k.lastIndexOf('|')))).size;
+    return {
+      count: this.selectedCells.size,
+      distinctAlocs,
+      total:  this.round2(total),
+      media:  this.round2(total / values.length),
+      max:    Math.max(...values),
+      min:    Math.min(...values),
+      totalH: this.round2(totalH),
+    };
+  }
+
   // transferência de dono da LO
   donoModalAberto = false;
   donoNovoInput = '';

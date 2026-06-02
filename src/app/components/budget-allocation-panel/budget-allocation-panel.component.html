@@ -408,7 +408,11 @@
           @if (col('valorH'))    { <th class="sortable" (click)="ordenarPor('valorH')">Valor/h <span class="sort-icon">{{ getSortIcon('valorH') }}</span></th> }
           @for (m of meses; track m; let monthIndex = $index) {
             @if (col(mesKey(monthIndex))) {
-              <th class="month-head" [class.current-month]="anoSelecionado === currentYear && monthIndex === currentMonthIdx">
+              <th class="month-head"
+                [class.current-month]="anoSelecionado === currentYear && monthIndex === currentMonthIdx"
+                [class.col-header-sel]="isColPartiallySelected(monthIndex)"
+                (click)="onColHeaderClick($event, monthIndex)"
+                title="Ctrl+Click para selecionar coluna">
                 <span>{{ m }}</span>
                 <small>{{ horasDoCadastro(monthIndex) }}h</small>
               </th>
@@ -529,7 +533,10 @@
             (dragleave)="onDragLeave()"
             (drop)="onDrop($event, idx)"
             (dragend)="onDragEnd()">
-            <td>
+            <td
+              [class.row-header-sel]="isRowPartiallySelected(a.id)"
+              (click)="onRowHeaderClick($event, a.id)"
+              title="Ctrl+Click para selecionar linha inteira">
               @if (editingId === a.id) {
                 <input
                   list="pessoas-edicao-list"
@@ -638,7 +645,9 @@
                 class="month-col"
                 [class.pago]="isPago(a.id, monthIndex)"
                 [class.cancelado]="isCancelado(a.id, monthIndex)"
-                [class.bloqueado]="mesIndisponivelParaAlocacao(a.id, monthIndex)">
+                [class.bloqueado]="mesIndisponivelParaAlocacao(a.id, monthIndex)"
+                [class.cell-selected]="isCellSelected(a.id, monthIndex)"
+                (click)="onCellClick($event, a.id, monthIndex)">
                 @if (mesIndisponivelParaAlocacao(a.id, monthIndex)) {
                   
                   <button
@@ -879,6 +888,39 @@
         placeholder="R$ 0,00" />
     }
     <button type="button" (click)="salvarPessoaRapida()">Cadastrar pessoa</button>
+  </div>
+}
+
+@if (selectedCells.size > 0) {
+  @let stats = getSelectedStats()!;
+  <div class="sel-balloon">
+    <button class="sel-balloon-close" type="button" (click)="clearSelection()" title="Limpar seleção (Esc)">✕</button>
+    <div class="sel-balloon-header">
+      <span class="sel-balloon-count">{{ selectedCells.size }} célula{{ selectedCells.size > 1 ? 's' : '' }}</span>
+      <span class="sel-balloon-hint">{{ stats.distinctAlocs }} alocação{{ stats.distinctAlocs > 1 ? 'ões' : '' }} · Esc para limpar</span>
+    </div>
+    <div class="sel-balloon-grid">
+      <div class="sel-balloon-stat">
+        <span class="sel-balloon-label">Σ Total anual</span>
+        <strong class="sel-balloon-value">{{ currency(stats.total) }}</strong>
+      </div>
+      <div class="sel-balloon-stat">
+        <span class="sel-balloon-label">⌀ Média anual</span>
+        <strong class="sel-balloon-value">{{ currency(stats.media) }}</strong>
+      </div>
+      <div class="sel-balloon-stat sel-balloon-max">
+        <span class="sel-balloon-label">↑ Máximo</span>
+        <strong class="sel-balloon-value">{{ currency(stats.max) }}</strong>
+      </div>
+      <div class="sel-balloon-stat sel-balloon-min">
+        <span class="sel-balloon-label">↓ Mínimo</span>
+        <strong class="sel-balloon-value">{{ currency(stats.min) }}</strong>
+      </div>
+      <div class="sel-balloon-stat sel-balloon-hours">
+        <span class="sel-balloon-label">⏱ Horas/ano</span>
+        <strong class="sel-balloon-value">{{ stats.totalH | number:'1.0-0' }}h</strong>
+      </div>
+    </div>
   </div>
 }
 
