@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, Output } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PlannerApiService } from '../../core/planner-api.service';
 
 @Component({
   selector: 'app-person-allocation-panel',
@@ -10,16 +11,97 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './person-allocation-panel.component.html',
   styleUrl: './person-allocation-panel.component.scss'
 })
-export class PersonAllocationPanelComponent {
+export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
   @Input() alocacoes: any[] = [];
   @Input() linhasOrcamentarias: any[] = [];
   @Input() horasMes: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() token = '';
   @Output() openAllocation = new EventEmitter<{ loId: string; ano: number }>();
 
   searchTerm = '';
   anoSelecionado = new Date().getFullYear();
   readonly meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+  private api = inject(PlannerApiService);
+  private syncTimer: ReturnType<typeof setInterval> | null = null;
+
+  private allocationPercents: Record<string, number> = {};
+  private pagoMensal: Record<string, boolean> = {};
+  private canceladoMensal: Record<string, boolean> = {};
+  private valorMensalManualMap: Record<string, number> = {};
+  private percentualMensalManualMap: Record<string, number> = {};
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['token']) {
+      this.stopSync();
+      if (this.token) {
+        this.loadAll();
+        this.syncTimer = setInterval(() => this.loadAll(), 5000);
+      }
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.stopSync();
+  }
+
+  private stopSync() {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
+  }
+
+  private loadAll() {
+    this.api.listAllocationPercent(this.token).subscribe({
+      next: (rows: any[]) => {
+        const next: Record<string, number> = {};
+        for (const r of rows || []) {
+          const id = String(r?.allocationId || '').trim();
+          if (!id) continue;
+          next[id] = Math.max(0, Math.min(100, Number(r?.percentual ?? 100)));
+        }
+        this.allocationPercents = next;
+      }
+    });
+    this.api.listAllocationPayments(this.token).subscribe({
+      next: (rows: any[]) => {
+        const next: Record<string, boolean> = {};
+        for (const r of rows || []) {
+          const id = String(r?.allocationId || '').trim();
+          const month = Number(r?.month);
+          if (!id || month < 0 || month > 11) continue;
+          if (r?.paid) next[`${id}_${month}`] = true;
+        }
+        this.pagoMensal = next;
+      }
+    });
+    this.api.listAllocationMonthlyState(this.token).subscribe({
+      next: (rows: any[]) => {
+        const nextCancel: Record<string, boolean> = {};
+        const nextValor: Record<string, number> = {};
+        const nextPct: Record<string, number> = {};
+        for (const r of rows || []) {
+          const id = String(r?.allocationId || '').trim();
+          const month = Number(r?.month);
+          if (!id || month < 0 || month > 11) continue;
+          if (r?.canceled === true) nextCancel[`${id}_${month}`] = true;
+          if (r?.manualValue != null && r?.manualValue !== '') {
+            const n = Number(r.manualValue);
+            if (!Number.isNaN(n) && n >= 0) nextValor[`${id}_${month}`] = n;
+          }
+          if (r?.manualPercent != null && r?.manualPercent !== '') {
+            const p = Number(r.manualPercent);
+            if (!Number.isNaN(p)) nextPct[`${id}_${month}`] = Math.max(0, Math.min(100, p));
+          }
+        }
+        this.canceladoMensal = nextCancel;
+        this.valorMensalManualMap = nextValor;
+        this.percentualMensalManualMap = nextPct;
+      }
+    });
+  }
 
   anosDisponiveis(): number[] {
     const anos = Array.from(new Set(this.linhasOrcamentarias.map((lo: any) => Number(lo?.ano || 0)).filter((a: number) => a > 0)));
@@ -68,16 +150,12 @@ export class PersonAllocationPanelComponent {
       );
 
       for (let month = 0; month < 12; month++) {
-        
         const candidatas = alocsPessoaAno
           .filter((a: any) => !this.isCancelado(a.id, month))
           .filter((a: any) => this.getPercentualEfetivoMes(a.id, month) > 0);
 
         if (!candidatas.length) continue;
 
-        
-        
-        
         const pagas = candidatas.filter((a: any) => this.isPago(a.id, month));
         let linhas: Linha[];
         if (pagas.length > 0) {
@@ -115,7 +193,7 @@ export class PersonAllocationPanelComponent {
 
         row.picoPercentual = Math.max(row.picoPercentual, percentualTotal);
         row.totalHorasAno += this.getHorasMesByIndex(month);
-        
+
         row.totalValorAno += linhas.reduce((sum, l) => {
           const a = candidatas.find((c: any) => c.linhaOrcamentariaId === l.loId);
           if (!a) return sum;
@@ -149,39 +227,23 @@ export class PersonAllocationPanelComponent {
   }
 
   private getPercentual(allocationId: string): number {
-    const raw = localStorage.getItem(`planner_lo_alloc_${allocationId}`);
-    if (!raw) return 100;
-    try {
-      return Number(JSON.parse(raw)?.percentual ?? 100);
-    } catch {
-      return 100;
-    }
+    return this.allocationPercents[allocationId] ?? 100;
   }
 
   private isPago(allocationId: string, month: number): boolean {
-    return localStorage.getItem(`planner_lo_pago_${allocationId}_${month}`) === '1';
+    return !!this.pagoMensal[`${allocationId}_${month}`];
   }
 
   private isCancelado(allocationId: string, month: number): boolean {
-    return localStorage.getItem(`planner_lo_cancelado_${allocationId}_${month}`) === '1';
+    return !!this.canceladoMensal[`${allocationId}_${month}`];
   }
 
   private getValorMensalManual(allocationId: string, month: number): number {
-    const raw = localStorage.getItem(`planner_lo_valor_manual_${allocationId}_${month}`);
-    const parsed = Number(raw || 0);
-    return Number.isNaN(parsed) ? 0 : parsed;
+    return this.valorMensalManualMap[`${allocationId}_${month}`] ?? 0;
   }
 
   private getPercentualMensalManual(allocationId: string, month: number): number | null {
-    const raw = localStorage.getItem(`planner_lo_alloc_monthly_${allocationId}_${month}`);
-    if (raw == null || raw === '') return null;
-    const parsed = Number(raw);
-    if (Number.isNaN(parsed)) return null;
-    return Math.max(0, Math.min(100, parsed));
-  }
-
-  private isPercentualMesSobrescrito(allocationId: string, month: number): boolean {
-    return this.getPercentualMensalManual(allocationId, month) != null;
+    return this.percentualMensalManualMap[`${allocationId}_${month}`] ?? null;
   }
 
   private getPercentualEfetivoMes(allocationId: string, month: number): number {
@@ -195,16 +257,6 @@ export class PersonAllocationPanelComponent {
     const found = this.horasMes.find((h: any) => Number(h?.mes) === mes);
     const horas = Number(found?.horas ?? 160);
     return horas > 0 ? horas : 160;
-  }
-
-  private getValorMes(owner: any, month: number): number {
-    if (this.isCancelado(owner?.id, month)) return 0;
-    const manual = this.getValorMensalManual(owner?.id, month);
-    if (manual > 0) return Number(manual.toFixed(2));
-    const valorHora = this.getValorHoraDaAlocacao(owner);
-    const horas = this.getHorasMesByIndex(month);
-    const percentual = this.getPercentualEfetivoMes(owner.id, month);
-    return Number((valorHora * horas * (percentual / 100)).toFixed(2));
   }
 
   private getValorHoraDaAlocacao(a: any): number {
