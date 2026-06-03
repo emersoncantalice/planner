@@ -1,0 +1,40 @@
+@if (hasActive) {
+  <div class="period-banner-wrap">
+    <button class="banner-toggle" (click)="collapsed = !collapsed" [title]="collapsed ? 'Expandir lembretes' : 'Recolher lembretes'">
+      <svg viewBox="0 0 24 24" [class.rotated]="collapsed"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+      <span class="banner-count-chip">
+        @if (uncheckedCount > 0) {
+          {{ uncheckedCount }} lembrete{{ uncheckedCount !== 1 ? 's' : '' }} pendente{{ uncheckedCount !== 1 ? 's' : '' }}
+        } @else {
+          ✓ Tudo concluído
+        }
+      </span>
+    </button>
+
+    @if (!collapsed) {
+      <div class="banner-items">
+        @for (p of activePeriods(); track p.id) {
+          <div class="banner-item" [class.checked]="isChecked(p)"
+               [style.--item-cor]="p.cor"
+               [style.background]="isChecked(p) ? '#f0fdf4' : '#f8faff'">
+            <span class="banner-icon">{{ p.icone }}</span>
+            <div class="banner-text">
+              <span class="banner-titulo" [class.done]="isChecked(p)">{{ p.titulo }}</span>
+              @if (p.descricao) {
+                <span class="banner-desc">{{ p.descricao }}</span>
+              }
+            </div>
+            <button class="banner-check-btn"
+                    [class.is-checked]="isChecked(p)"
+                    (click)="isChecked(p) ? uncheck(p) : check(p)"
+                    [title]="isChecked(p) ? 'Desmarcar como feito' : 'Marcar como feito'">
+              @if (isChecked(p)) {
+                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              }
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}

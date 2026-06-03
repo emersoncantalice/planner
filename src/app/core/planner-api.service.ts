@@ -473,6 +473,65 @@ export class PlannerApiService {
     return this.http.put<any>(`${this.api}/lo-realizado/${loId}/${month}`, { valor }, { headers: this.headers(token) });
   }
 
+  // ── LO Favoritos ────────────────────────────────────────────────────────────
+  listLoFavoritos(token: string) {
+    return this.http.get<any[]>(`${this.api}/lo-favorites`, { headers: this.headers(token) });
+  }
+
+  addLoFavorito(token: string, loId: string) {
+    return this.http.put<any[]>(`${this.api}/lo-favorites/${loId}`, {}, { headers: this.headers(token) });
+  }
+
+  removeLoFavorito(token: string, loId: string) {
+    return this.http.delete<any[]>(`${this.api}/lo-favorites/${loId}`, { headers: this.headers(token) });
+  }
+
+  // ── Drawings ────────────────────────────────────────────────────────────────
+  listDrawings(token: string) {
+    return this.http.get<any[]>(`${this.api}/drawings`, { headers: this.headers(token) });
+  }
+
+  createDrawing(token: string, nome: string, pasta = '') {
+    return this.http.post<any>(`${this.api}/drawings`, { nome, pasta }, { headers: this.headers(token) });
+  }
+
+  updateDrawing(token: string, id: string, nome: string, data: string, pasta = '') {
+    return this.http.put<any>(`${this.api}/drawings/${id}`, { nome, data, pasta }, { headers: this.headers(token) });
+  }
+
+  deleteDrawing(token: string, id: string) {
+    return this.http.delete<void>(`${this.api}/drawings/${id}`, { headers: this.headers(token) });
+  }
+
+  // ── Periods ─────────────────────────────────────────────────────────────────
+  listPeriods(token: string) {
+    return this.http.get<any[]>(`${this.api}/periods`, { headers: this.headers(token) });
+  }
+
+  createPeriod(token: string, payload: any) {
+    return this.http.post<any>(`${this.api}/periods`, payload, { headers: this.headers(token) });
+  }
+
+  updatePeriod(token: string, id: string, payload: any) {
+    return this.http.put<any>(`${this.api}/periods/${id}`, payload, { headers: this.headers(token) });
+  }
+
+  deletePeriod(token: string, id: string) {
+    return this.http.delete<void>(`${this.api}/periods/${id}`, { headers: this.headers(token) });
+  }
+
+  listPeriodChecks(token: string) {
+    return this.http.get<any[]>(`${this.api}/periods/checks`, { headers: this.headers(token) });
+  }
+
+  checkPeriod(token: string, periodId: string, ano: number, mes: number) {
+    return this.http.put<any>(`${this.api}/periods/${periodId}/check?ano=${ano}&mes=${mes}`, {}, { headers: this.headers(token) });
+  }
+
+  uncheckPeriod(token: string, periodId: string, ano: number, mes: number) {
+    return this.http.delete<void>(`${this.api}/periods/${periodId}/check?ano=${ano}&mes=${mes}`, { headers: this.headers(token) });
+  }
+
   transferProjectDono(token: string, projectId: string, novoDono: string) {
     return this.http.patch<any>(`${this.api}/projects/${projectId}/dono`, { novoDono }, { headers: this.headers(token) });
   }

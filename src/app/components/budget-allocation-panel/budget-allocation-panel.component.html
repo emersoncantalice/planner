@@ -34,7 +34,11 @@
         <div class="lo-card-body">
           <span class="lo-card-label">Total Comprometido</span>
           <strong class="lo-card-value">{{ currency(totalComprometidoGeralLos()) }}</strong>
-          <span class="lo-card-sub">{{ numAlocacoesAno() }} alocaç{{ numAlocacoesAno() !== 1 ? 'ões' : 'ão' }} no período</span>
+          <span class="lo-card-sub">
+            Folha: {{ currency(comprometidoGeralPorCategoria('FOLHA')) }}<br>
+            Prest.: {{ currency(comprometidoGeralPorCategoria('TERCEIRO')) }}<br>
+            {{ numAlocacoesAno() }} alocaç{{ numAlocacoesAno() !== 1 ? 'ões' : 'ão' }}
+          </span>
         </div>
       </div>
 
@@ -102,7 +106,10 @@
         <div class="lo-card-body">
           <span class="lo-card-label">Total Pago (Realizado)</span>
           <strong class="lo-card-value">{{ currency(totalPagoGeralLos()) }}</strong>
-          <span class="lo-card-sub">Soma dos meses marcados como pagos</span>
+          <span class="lo-card-sub">
+            Folha: {{ currency(totalPagoGeralLosPorCategoria('FOLHA')) }}<br>
+            Prest.: {{ currency(totalPagoGeralLosPorCategoria('TERCEIRO')) }}
+          </span>
         </div>
       </div>
 
@@ -163,7 +170,22 @@
         class="tab-btn"
         [class.active]="lo.id === loSelecionadaId"
         [class.tab-btn--draft]="lo.situacao === 'DRAFT'"
+        [class.tab-btn--fav]="isFavoritoLo(lo.id)"
         (click)="selectLoTab(lo.id)">
+        <button
+          type="button"
+          class="tab-fav-btn"
+          [class.fav-on]="isFavoritoLo(lo.id)"
+          [title]="isFavoritoLo(lo.id) ? 'Remover dos favoritos' : 'Favoritar LO'"
+          (click)="$event.stopPropagation(); toggleFavoritoLo(lo.id)">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            @if (isFavoritoLo(lo.id)) {
+              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+            } @else {
+              <path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/>
+            }
+          </svg>
+        </button>
         <span class="tab-codigo">{{ lo.codigo }}</span>
         @if (lo.nome) {
           <span class="tab-nome">{{ lo.nome }}</span>
@@ -248,7 +270,10 @@
         <div class="lo-summary-kpi lo-summary-kpi-teal">
           <span class="lo-summary-kpi-label">Pago (Realizado)</span>
           <strong class="lo-summary-kpi-value">{{ currency(totalPagoNaLoSelecionada()) }}</strong>
-          <span class="lo-summary-kpi-sub">Meses marcados como pagos</span>
+          <span class="lo-summary-kpi-sub">
+            Folha: {{ currency(totalPagoNaLoSelecionadaPorCategoria('FOLHA')) }}<br>
+            Prest.: {{ currency(totalPagoNaLoSelecionadaPorCategoria('TERCEIRO')) }}
+          </span>
         </div>
         <div class="lo-summary-kpi" [class]="saldoAtualLoSelecionada() >= 0 ? 'lo-summary-kpi-blue' : 'lo-summary-kpi-red'">
           <span class="lo-summary-kpi-label">Saldo Atual LO</span>

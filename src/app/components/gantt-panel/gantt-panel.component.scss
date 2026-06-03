@@ -1422,6 +1422,50 @@ $surface   : #fff;
   }
 }
 
+.gp-color-swatch-custom {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-style: dashed;
+  border-color: #c8d8fb;
+  color: #7a9ad2;
+  overflow: hidden;
+
+  svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+    pointer-events: none;
+    transition: fill .12s;
+  }
+
+  &:hover {
+    border-color: #1d63da;
+    color: #1d63da;
+  }
+
+  &.gp-color-swatch-active {
+    border-style: solid;
+    border-color: #0f2d6b;
+    box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px rgba(29,99,218,.35);
+    color: #fff;
+    svg { fill: #fff; mix-blend-mode: difference; }
+  }
+
+  input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+  }
+}
+
 .gp-drag-tooltip {
   position: absolute;
   top: -26px;

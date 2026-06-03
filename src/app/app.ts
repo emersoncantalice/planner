@@ -33,6 +33,9 @@ import { IndicatorsPanelComponent } from './components/indicators-panel/indicato
 import { PersonActivityPanelComponent } from './components/person-activity-panel/person-activity-panel.component';
 import { DataTransferPanelComponent } from './components/data-transfer-panel/data-transfer-panel.component';
 import { ProjectBudgetPanelComponent } from './components/project-budget-panel/project-budget-panel.component';
+import { DrawingPanelComponent } from './components/drawing-panel/drawing-panel.component';
+import { PeriodsPanelComponent } from './components/periods-panel/periods-panel.component';
+import { PeriodBannerComponent } from './components/period-banner/period-banner.component';
 
 @Component({
   selector: 'app-root',
@@ -63,7 +66,10 @@ import { ProjectBudgetPanelComponent } from './components/project-budget-panel/p
     IndicatorsPanelComponent,
     PersonActivityPanelComponent,
     DataTransferPanelComponent,
-    ProjectBudgetPanelComponent
+    ProjectBudgetPanelComponent,
+    DrawingPanelComponent,
+    PeriodsPanelComponent,
+    PeriodBannerComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './app.html',
@@ -113,7 +119,10 @@ export class App {
   confirmModalMessage = signal('');
   authSubmitting = signal(false);
   mobileSidebarOpen = signal(false);
-  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto'>('dashboard');
+  periodRefreshKey = signal(0);
+  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos'>(
+    (localStorage.getItem('planner_secao') as any) || 'dashboard'
+  );
   riscoEmFocoId = signal('');
   isFullscreen = signal(false);
 
@@ -205,6 +214,7 @@ export class App {
     localStorage.removeItem('planner_token');
     localStorage.removeItem('planner_user');
     localStorage.removeItem('planner_role');
+    localStorage.removeItem('planner_secao');
     this.token.set('');
     this.usuario.set('');
     this.role.set('');
@@ -238,7 +248,7 @@ export class App {
     this.projetosExpanded.set(false);
     if (event && this.sidebarCollapsed()) {
       const el = event.currentTarget as HTMLElement;
-      this.setFlyoutTop(el, 10); 
+      this.setFlyoutTop(el, 11);
     }
     this.cadastrosExpanded.set(willOpen);
   }
@@ -281,8 +291,13 @@ export class App {
     this.selecionarSecao('conta');
   }
 
-  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto') {
+  onPeriodsChanged() {
+    this.periodRefreshKey.update(value => value + 1);
+  }
+
+  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos') {
     this.secaoAtiva.set(secao);
+    localStorage.setItem('planner_secao', secao);
     if (secao !== 'riscos') this.riscoEmFocoId.set('');
     if (secao !== 'projetos') this.projectCreateModalOpen.set(false);
     if (secao === 'orcamento_projeto' && !this.orcamentosProjeto().length) this.carregarOrcamentosProjeto();

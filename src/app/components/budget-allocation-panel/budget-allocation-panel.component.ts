@@ -378,6 +378,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       this.startCursorRealtimeSync();
       this.startAllocationPercentRealtimeSync();
       this.startLoRealizadoRealtimeSync();
+      this.loadFavoritosFromBackend();
     }
     if (changes['linhasOrcamentarias']) this.heartbeatLoAberta();
   }
@@ -437,12 +438,52 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   linhasDoAnoFiltradas() {
     const q = this.searchLoTerm.trim().toLowerCase();
-    if (!q) return this.linhasDoAnoSelecionado();
-    return this.linhasDoAnoSelecionado().filter((lo: any) =>
-      (lo.codigo || '').toLowerCase().includes(q) ||
-      (lo.nome || '').toLowerCase().includes(q) ||
-      (lo.tipo || '').toLowerCase().includes(q)
-    );
+    const base = q
+      ? this.linhasDoAnoSelecionado().filter((lo: any) =>
+          (lo.codigo || '').toLowerCase().includes(q) ||
+          (lo.nome || '').toLowerCase().includes(q) ||
+          (lo.tipo || '').toLowerCase().includes(q)
+        )
+      : this.linhasDoAnoSelecionado();
+    return [...base].sort((a, b) => {
+      const fa = this.isFavoritoLo(a.id) ? 0 : 1;
+      const fb = this.isFavoritoLo(b.id) ? 0 : 1;
+      return fa - fb;
+    });
+  }
+
+  private losFavoritos = new Set<string>();
+
+  private loadFavoritosFromBackend() {
+    if (!this.token) return;
+    const me = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
+    this.api.listLoFavoritos(this.token).subscribe({
+      next: (rows: any[]) => {
+        this.losFavoritos = new Set(
+          (rows || [])
+            .filter((r: any) => !me || (r?.username || '').trim().toLowerCase() === me)
+            .map((r: any) => String(r?.loId || ''))
+            .filter(Boolean)
+        );
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  isFavoritoLo(loId: string): boolean {
+    return this.losFavoritos.has(loId);
+  }
+
+  toggleFavoritoLo(loId: string) {
+    const wasFav = this.losFavoritos.has(loId);
+    if (wasFav) {
+      this.losFavoritos.delete(loId);
+      this.api.removeLoFavorito(this.token, loId).subscribe({ error: () => this.loadFavoritosFromBackend() });
+    } else {
+      this.losFavoritos.add(loId);
+      this.api.addLoFavorito(this.token, loId).subscribe({ error: () => this.loadFavoritosFromBackend() });
+    }
+    this.cdr.markForCheck();
   }
 
   selecionarAno(ano: number) {
@@ -621,17 +662,20 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   totalComprometidoGeralLos(): number {
+    return this.comprometidoGeralPorCategoria('FOLHA') + this.comprometidoGeralPorCategoria('TERCEIRO');
+  }
+
+  comprometidoGeralPorCategoria(categoria: 'FOLHA' | 'TERCEIRO'): number {
     const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
     return this.alocacoes
       .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
       .filter((a: any) => this.alocacaoContaNoGeral(a))
+      .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
       .reduce((acc: number, a: any) => {
-      const vh = this.getValorHoraDaAlocacao(a);
-      const anual = this.meses.reduce(
-        (sum: number, _m: string, monthIndex: number) => sum + this.custoMensal(a.id, vh, monthIndex),
-        0
-      );
-      return acc + anual;
+        const vh = this.getValorHoraDaAlocacao(a);
+        return acc + this.meses.reduce(
+          (sum: number, _m: string, mi: number) => sum + this.custoMensal(a.id, vh, mi), 0
+        );
       }, 0);
   }
 
@@ -684,10 +728,15 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   totalPagoGeralLos(): number {
+    return this.totalPagoGeralLosPorCategoria('FOLHA') + this.totalPagoGeralLosPorCategoria('TERCEIRO');
+  }
+
+  totalPagoGeralLosPorCategoria(categoria: 'FOLHA' | 'TERCEIRO'): number {
     const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
     return this.alocacoes
       .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
       .filter((a: any) => this.alocacaoContaNoGeral(a))
+      .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
       .reduce((acc: number, a: any) => {
         const vh = this.getValorHoraDaAlocacao(a);
         const pagoAnual = this.meses.reduce((sum: number, _: string, mi: number) => {
@@ -1770,6 +1819,19 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         if (!this.isPago(a.id, mi)) return sum;
         return sum + this.custoMensal(a.id, vh, mi);
       }, 0);
+      }, 0);
+  }
+
+  totalPagoNaLoSelecionadaPorCategoria(categoria: 'FOLHA' | 'TERCEIRO'): number {
+    return this.alocacoesFiltradas()
+      .filter((a: any) => this.alocacaoContaNoResumoLo(a))
+      .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
+      .reduce((acc: number, a: any) => {
+        const vh = this.getValorHoraDaAlocacao(a);
+        return acc + this.meses.reduce((sum: number, _: string, mi: number) => {
+          if (!this.isPago(a.id, mi)) return sum;
+          return sum + this.custoMensal(a.id, vh, mi);
+        }, 0);
       }, 0);
   }
 

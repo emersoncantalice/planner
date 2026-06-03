@@ -1,0 +1,195 @@
+<div class="periods-wrap">
+  <div class="periods-header">
+    <div class="periods-title">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+      Periodos de Lembrete
+    </div>
+    <button class="btn-create" (click)="openCreate()">
+      <svg viewBox="0 0 24 24"><path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      Novo periodo
+    </button>
+  </div>
+
+  <p class="periods-hint">
+    Periodos diarios, semanais, mensais, trimestrais, semestrais ou anuais que exibem um banner no topo do sistema durante o intervalo configurado.
+    Cada usuario pode marcar individualmente como concluido.
+  </p>
+
+  @if (!periods.length) {
+    <div class="periods-empty">
+      <svg viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+      <p>Nenhum periodo cadastrado</p>
+    </div>
+  } @else {
+    <section class="upcoming-box">
+      <div class="upcoming-head">
+        <span class="upcoming-title">Proximos a acontecer</span>
+        <span class="upcoming-count">{{ upcomingPeriods().length }} ocorrencia{{ upcomingPeriods().length !== 1 ? 's' : '' }}</span>
+      </div>
+      <div class="upcoming-list">
+        @for (item of upcomingPeriods(); track item.period.id + '-' + item.start.toISOString()) {
+          <div class="upcoming-item">
+            <span class="upcoming-icon" [style.background]="item.period.cor + '18'">{{ item.period.icone }}</span>
+            <div class="upcoming-info">
+              <span class="upcoming-name">{{ item.period.titulo }}</span>
+              <span class="upcoming-date">{{ upcomingDateLabel(item) }}</span>
+            </div>
+            <span class="upcoming-chip" [style.color]="item.period.cor" [style.background]="item.period.cor + '18'">{{ daysUntil(item) }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <div class="period-list">
+      @for (p of periods; track p.id) {
+        <div class="period-card">
+          <div class="period-card-accent" [style.background]="p.cor"></div>
+          <div class="period-card-body">
+            <div class="period-card-head">
+              <span class="period-icon">{{ p.icone }}</span>
+              <div class="period-info">
+                <span class="period-titulo">{{ p.titulo }}</span>
+                <span class="period-range">{{ periodoLabel(p) }}</span>
+                @if (p.descricao) { <span class="period-desc">{{ p.descricao }}</span> }
+              </div>
+              <span class="period-tipo-chip" [style.background]="p.cor + '22'" [style.color]="p.cor">{{ tipoLabel(p.tipo) }}</span>
+            </div>
+          </div>
+          <div class="period-card-actions">
+            <button class="btn-edit" (click)="openEdit(p)" title="Editar">
+              <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </button>
+            <button class="btn-del" (click)="delete(p.id)" title="Excluir">
+              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@if (showForm) {
+  <div class="modal-backdrop" (click)="showForm = false"></div>
+  <div class="modal-card">
+    <h3>{{ editingId ? 'Editar periodo' : 'Novo periodo' }}</h3>
+
+    <div class="form-row">
+      <label>Titulo *</label>
+      <input [(ngModel)]="form.titulo" placeholder="Ex: Fechamento mensal"/>
+    </div>
+
+    <div class="form-row">
+      <label>Descricao</label>
+      <textarea [(ngModel)]="form.descricao" rows="2" placeholder="Instrucao ou lembrete..."></textarea>
+    </div>
+
+    <div class="form-row-2">
+      <div class="form-row">
+        <label>Icone</label>
+        <input [(ngModel)]="form.icone" placeholder="📅" style="width:60px"/>
+      </div>
+      <div class="form-row">
+        <label>Tipo</label>
+        <select [(ngModel)]="form.tipo" (ngModelChange)="onTipoChange()">
+          @for (tipo of tipos; track tipo.value) {
+            <option [value]="tipo.value">{{ tipo.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (form.tipo === 'DIARIO') {
+      <div class="form-note">Este lembrete acontece todos os dias.</div>
+    } @else if (form.tipo === 'SEMANAL') {
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Dia inicio</label>
+          <select [(ngModel)]="form.diaInicio">
+            @for (d of diasSemanaNums; track d) { <option [value]="d">{{ diaSemanaLabel(d) }}</option> }
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Dia fim</label>
+          <select [(ngModel)]="form.diaFim">
+            @for (d of diasSemanaNums; track d) { <option [value]="d">{{ diaSemanaLabel(d) }}</option> }
+          </select>
+        </div>
+      </div>
+    } @else if (form.tipo === 'MENSAL') {
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Dia inicio</label>
+          <select [(ngModel)]="form.diaInicio">
+            @for (d of dias; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Dia fim</label>
+          <select [(ngModel)]="form.diaFim">
+            @for (d of dias; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+        </div>
+      </div>
+    } @else {
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Mes inicio</label>
+          <select [(ngModel)]="form.mesInicio">
+            @for (m of meses; track $index) { <option [value]="$index + 1">{{ m }}</option> }
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Dia inicio</label>
+          <select [(ngModel)]="form.diaInicio">
+            @for (d of dias; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Mes fim</label>
+          <select [(ngModel)]="form.mesFim">
+            @for (m of meses; track $index) { <option [value]="$index + 1">{{ m }}</option> }
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Dia fim</label>
+          <select [(ngModel)]="form.diaFim">
+            @for (d of dias; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+        </div>
+      </div>
+      @if (form.tipo === 'TRIMESTRAL' || form.tipo === 'SEMESTRAL') {
+        <div class="form-note">A recorrencia usa o mes inicial como ponto de partida e repete a cada {{ form.tipo === 'TRIMESTRAL' ? '3' : '6' }} meses.</div>
+      }
+    }
+
+    <div class="form-row">
+      <label>Cor do banner</label>
+      <div class="cor-picks">
+        @for (c of corPresets; track c) {
+          <button class="cor-swatch" [class.active]="form.cor === c" [style.background]="c" (click)="form.cor = c"></button>
+        }
+        <label class="cor-custom-btn" [style.background]="isCorCustom() ? form.cor : null"
+               [class.active]="isCorCustom()" title="Escolher cor personalizada">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          <input type="color" [(ngModel)]="form.cor" />
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-preview" [style.background]="form.cor + '18'" [style.border-color]="form.cor + '55'">
+      <span class="preview-icon">{{ form.icone }}</span>
+      <div>
+        <strong [style.color]="form.cor">{{ form.titulo || 'Titulo do lembrete' }}</strong>
+        @if (form.descricao) { <span class="preview-desc">{{ form.descricao }}</span> }
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="showForm = false">Cancelar</button>
+      <button class="btn-save" (click)="save()">{{ editingId ? 'Salvar alteracoes' : 'Criar periodo' }}</button>
+    </div>
+  </div>
+}

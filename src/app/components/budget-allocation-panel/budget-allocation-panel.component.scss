@@ -267,6 +267,34 @@ th.current-month {
   strong { font-weight: 700; }
 }
 
+// ── LO tab favorite ──────────────────────────────────────────────────────────
+
+.tab-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+  color: #b0bed4;
+  transition: color .15s, transform .15s;
+  svg { width: 14px; height: 14px; fill: currentColor; }
+  &:hover { color: #f59e0b; transform: scale(1.2); }
+  &.fav-on { color: #f59e0b; }
+  .active & { color: rgba(255,255,255,.5); &:hover, &.fav-on { color: #fde68a; } }
+}
+
+.tab-btn--fav:not(.active) {
+  border-color: #fde68a;
+  background: linear-gradient(135deg, #fffbeb, #fff8e1);
+}
+
 // ── LO tab draft style ───────────────────────────────────────────────────────
 
 .tab-btn--draft {

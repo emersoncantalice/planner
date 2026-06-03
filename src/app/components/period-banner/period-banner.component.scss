@@ -1,0 +1,132 @@
+:host { display: block; flex-shrink: 0; }
+
+.period-banner-wrap {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.banner-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 700;
+  color: #4a6da6;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background .12s;
+  &:hover { background: #f8faff; }
+  svg {
+    width: 16px; height: 16px; fill: #94a3b8; flex-shrink: 0;
+    transition: transform .2s;
+    &.rotated { transform: rotate(180deg); }
+  }
+}
+
+.banner-count-chip {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #4a6da6;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.banner-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 10px 8px;
+}
+
+.banner-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  position: relative;
+  transition: opacity .15s;
+  &.checked { opacity: .65; }
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    border-radius: 8px 0 0 8px;
+    background: var(--item-cor, #3b82f6);
+  }
+}
+
+.banner-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.banner-titulo {
+  font-size: .83rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  &.done {
+    text-decoration: line-through;
+    color: #94a3b8;
+  }
+}
+
+.banner-desc {
+  font-size: .72rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.banner-check-btn {
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  max-height: 22px;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+  svg { width: 13px; height: 13px; fill: #fff; }
+  &.is-checked {
+    background: #16a34a;
+    border-color: #16a34a;
+  }
+  &:hover:not(.is-checked) {
+    border-color: #94a3b8;
+    background: #f0fdf4;
+  }
+}

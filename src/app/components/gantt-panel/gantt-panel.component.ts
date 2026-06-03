@@ -118,6 +118,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     { value: '#0d9488', label: 'Verde-água' },
   ];
 
+  isCorBarraCustom(cor: string | null | undefined): boolean {
+    return !!cor && !this.barColors.some(c => c.value === cor);
+  }
+
   
   readonly autoPalette: string[] = [
     '#1d63da', '#16a34a', '#d97706', '#7c3aed', '#0ea5e9',

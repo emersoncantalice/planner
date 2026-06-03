@@ -1,0 +1,702 @@
+<div class="drawing-root" tabindex="0" (click)="closeDrawingContextMenu()">
+
+  <!-- ── Drawings sidebar ── -->
+  @if (showList) {
+    <aside class="drawing-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Meus Desenhos</span>
+        <button class="btn-icon" (click)="showNewModal = true" title="Novo desenho">
+          <svg viewBox="0 0 24 24"><path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
+      </div>
+
+      <div class="drawing-search">
+        <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.17 10.44l4.44 4.45-1.42 1.41-4.44-4.44A6.5 6.5 0 1 1 9.5 3zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
+        <input [(ngModel)]="drawingSearch" placeholder="Buscar desenho ou pasta"/>
+      </div>
+
+      @if (!drawings.length) {
+        <div class="sidebar-empty">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83a1 1 0 0 0 0-1.41z"/></svg>
+          <p>Nenhum desenho ainda</p>
+          <button class="btn-primary" (click)="showNewModal = true">Criar desenho</button>
+        </div>
+      } @else if (!filteredDrawings().length) {
+        <div class="sidebar-empty compact">
+          <p>Nenhum desenho encontrado</p>
+        </div>
+      } @else {
+        <div class="drawing-list">
+          @for (group of drawingFolderGroups(); track group.path) {
+            <div class="folder-group">
+              <button class="folder-title" [class.open]="isFolderOpen(group.path)" [style.padding-left.px]="8 + folderDepth(group.path) * 12" (click)="toggleFolder(group.path); $event.stopPropagation()">
+                <svg class="folder-caret" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6z"/></svg>
+                <span>{{ group.label }}</span>
+                <em>{{ group.drawings.length }}</em>
+              </button>
+              @if (isFolderOpen(group.path)) {
+                @for (d of group.drawings; track d.id) {
+                  <button class="drawing-item"
+                          [class.active]="d.id === current?.id"
+                          (click)="open(d)"
+                          (contextmenu)="openDrawingContextMenu($event, d)">
+                    <span class="drawing-name">{{ d.nome }}</span>
+                    @if (d.atualizadoEm) {
+                      <span class="drawing-date">{{ d.atualizadoEm | date:'dd/MM HH:mm' }}</span>
+                    }
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+    </aside>
+  }
+
+  <!-- ── Main area ── -->
+  <div class="drawing-main">
+
+    <!-- Topbar -->
+    <div class="drawing-topbar">
+      <button class="btn-icon btn-toggle-list" [class.active]="showList" (click)="showList = !showList" title="Lista de desenhos">
+        <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+
+      @if (current) {
+        @if (!renaming) {
+          <div class="drawing-title-wrap">
+            <span class="drawing-title" (dblclick)="renaming = true; renameVal = current.nome">{{ current.nome }}</span>
+            <input class="folder-input"
+                   [(ngModel)]="folderDraft"
+                   (blur)="saveCurrentFolder()"
+                   (keydown.enter)="saveCurrentFolder()"
+                   placeholder="Pasta ex: Arquitetura/API"
+                   title="Pasta do desenho"/>
+          </div>
+        } @else {
+          <input class="rename-input" [(ngModel)]="renameVal" (blur)="saveRename()" (keydown.enter)="saveRename()" (keydown.escape)="renaming = false"/>
+        }
+      } @else {
+        <span class="drawing-title muted">Nenhum desenho aberto</span>
+      }
+
+      <div class="topbar-actions">
+        @if (saving) { <span class="saving-badge">Salvando…</span> }
+        <button class="btn-sm" (click)="persistNow()" [disabled]="!current" title="Salvar agora">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm2 16H5V5h11.17L19 7.83V19zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM6 6h9v4H6z"/></svg>
+          Salvar
+        </button>
+        <button class="btn-sm" (click)="exportPng()" [disabled]="!current" title="Exportar PNG">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+          PNG
+        </button>
+        <button class="btn-sm" (click)="exportSvg()" [disabled]="!current" title="Exportar SVG">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+          SVG
+        </button>
+        <button class="btn-sm" (click)="exportJson()" [disabled]="!current" title="Exportar para transferir a outra instância">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>
+          Exportar
+        </button>
+        <button class="btn-sm" (click)="importJson()" title="Importar desenho de arquivo">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" transform="rotate(180 12 11.5)"/></svg>
+          Importar
+        </button>
+        <button class="btn-sm btn-danger" (click)="deleteCurrent()" [disabled]="!current" title="Excluir desenho">
+          <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    @if (current) {
+      <div class="drawing-toolbar">
+        <!-- Tools grupo 1: seleção e caneta -->
+        <div class="tool-group">
+          <button class="tool-btn" [class.active]="tool === 'select'" (click)="setTool('select')" title="Selecionar (V)">
+            <svg viewBox="0 0 24 24"><path d="M4 0l16 12.279-6.78 1.427 4.421 8.194-2.227 1.1-4.396-8.148L4 18.357z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'pen'" (click)="setTool('pen')" title="Caneta (P)">
+            <svg viewBox="0 0 24 24"><path d="M20.71 4.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75zM3 17.25V21h3.75L17.59 10.17l-3.75-3.75z"/></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Tools grupo 2: formas básicas -->
+        <div class="tool-group">
+          <button class="tool-btn" [class.active]="tool === 'rect'" (click)="setTool('rect')" title="Retângulo (R)">
+            <svg viewBox="0 0 24 24"><path d="M3 5v14h18V5H3zm16 12H5V7h14v10z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'ellipse'" (click)="setTool('ellipse')" title="Elipse (E)">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'triangle'" (click)="setTool('triangle')" title="Triângulo">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4l7 14H5l7-14z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'diamond'" (click)="setTool('diamond')" title="Losango">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 12l10 10 10-10L12 2zm0 4.24L19.76 12 12 19.76 4.24 12z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'star'" (click)="setTool('star')" title="Estrela">
+            <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4.2 2.4-7.3L2 9.4h7.6z"/></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Tools grupo 3: linhas e setas -->
+        <div class="tool-group">
+          <button class="tool-btn" [class.active]="tool === 'line'" (click)="setTool('line')" title="Linha (L)">
+            <svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'arrow'" (click)="setTool('arrow')" title="Seta (A)">
+            <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Tools grupo 4: texto -->
+        <div class="tool-group">
+          <button class="tool-btn" [class.active]="tool === 'text'" (click)="setTool('text')" title="Texto (T)">
+            <svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="tool === 'sticky'" (click)="setTool('sticky')" title="Nota (N)">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10l6-6V5c0-1.1-.9-2-2-2zm0 13h-4v4H5V5h14v11z"/></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Cores -->
+        <div class="tool-group">
+          <button class="color-btn" [class.active]="showColorModal && colorModalTab === 'stroke'"
+                  (click)="openColorModal('stroke')" title="Cor do traço">
+            <span class="color-preview stroke-preview" [style.background]="strokeColor"></span>
+            <span class="color-btn-label">Traço</span>
+          </button>
+          <button class="color-btn" [class.active]="showColorModal && colorModalTab === 'fill'"
+                  (click)="openColorModal('fill')" title="Preenchimento">
+            <span class="color-preview fill-preview" [class.fill-transparent]="fillColor === 'transparent'"
+                  [style.background]="fillColor === 'transparent' ? '' : fillColor"></span>
+            <span class="color-btn-label">Fill</span>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Line width -->
+        <div class="tool-group lw-group">
+          @for (lw of lineWidths; track lw) {
+            <button class="lw-btn" [class.active]="lineWidth === lw" (click)="setLineWidth(lw)" [title]="lw + 'px'">
+              <svg viewBox="0 0 28 12" preserveAspectRatio="xMidYMid meet">
+                <line x1="2" y1="6" x2="26" y2="6" stroke="currentColor" [attr.stroke-width]="lw" stroke-linecap="round"/>
+              </svg>
+            </button>
+          }
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- sticky colors -->
+        @if (tool === 'sticky' || sel?.type === 'sticky') {
+          <div class="tool-group sticky-colors">
+            @for (sc of stickyColors; track sc) {
+              <button class="sticky-swatch" [class.active]="stickyBg === sc" [style.background]="sc"
+                      (click)="setStickyBg(sc)"></button>
+            }
+          </div>
+          <div class="tool-sep"></div>
+        }
+
+        <!-- History -->
+        <div class="tool-group">
+          <button class="tool-btn" [disabled]="!canUndo" (click)="undo()" title="Desfazer (Ctrl+Z)">
+            <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+          </button>
+          <button class="tool-btn" [disabled]="!canRedo" (click)="redo()" title="Refazer (Ctrl+Y)">
+            <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Selection actions -->
+        @if (sel) {
+          <div class="tool-group">
+            <button class="tool-btn" (click)="bringForward()" title="Trazer para frente">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h10v10H7z" opacity=".32"/>
+                <path d="M4 9h10v10H4z"/>
+                <path d="M17 3l4 4h-3v9h-2V7h-3z"/>
+              </svg>
+            </button>
+            <button class="tool-btn" (click)="sendBackward()" title="Enviar para trás">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h10v10H7z"/>
+                <path d="M4 9h10v10H4z" opacity=".32"/>
+                <path d="M17 21l4-4h-3V8h-2v9h-3z"/>
+              </svg>
+            </button>
+            <button class="tool-btn" (click)="duplicateSelected()" title="Duplicar (Ctrl+D)">
+              <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            </button>
+            <button class="tool-btn tool-btn-red" (click)="deleteSelected()" title="Excluir (Delete)">
+              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
+          </div>
+        }
+
+        @if (sel?.type === 'arrow') {
+          <div class="tool-group arrow-label-group">
+            <input class="arrow-label-input"
+                   [ngModel]="sel?.text || ''"
+                   (ngModelChange)="updateArrowLabel($event)"
+                   placeholder="Nome da seta"/>
+          </div>
+        }
+
+        <div class="tool-sep"></div>
+
+        <!-- View -->
+        <div class="tool-group">
+          <button class="tool-btn" (click)="fitContent()" title="Ajustar ao conteúdo">
+            <svg viewBox="0 0 24 24"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>
+          </button>
+          <button class="tool-btn" (click)="resetZoom()" title="Zoom 100%">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          </button>
+          <button class="tool-btn" [class.active]="gridEnabled" (click)="gridEnabled = !gridEnabled" title="Grade">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/></svg>
+          </button>
+          <button class="tool-btn tool-btn-red" (click)="clearCanvas()" title="Limpar tela">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+
+        <span class="zoom-badge">{{ (zoom * 100) | number:'1.0-0' }}%</span>
+
+        <div class="tool-sep"></div>
+        <button class="tool-btn" (click)="showShortcuts = !showShortcuts" title="Atalhos de teclado (?)">
+          <svg viewBox="0 0 24 24"><path d="M11.29 15.29L12.7 16.7c.39.39 1.02.39 1.41 0l3-3c.63-.63.19-1.71-.7-1.71H13V4c0-.55-.45-1-1-1s-1 .45-1 1v8H8.59c-.89 0-1.34 1.08-.7 1.71l3 3zM4 18c0 .55.45 1 1 1h14c.55 0 1-.45 1-1s-.45-1-1-1H5c-.55 0-1 .45-1 1z"/></svg>
+        </button>
+      </div>
+    }
+
+    <!-- Color modal — positionado como o painel de atalhos, dentro de .drawing-main com position:relative -->
+    @if (showColorModal) {
+      <div class="color-modal">
+        <div class="cm-header">
+          <div class="cm-tabs">
+            <button class="cm-tab" [class.active]="colorModalTab === 'stroke'" (click)="colorModalTab = 'stroke'; cdr.markForCheck()">
+              <span class="cm-tab-preview" [style.background]="strokeColor"></span>
+              Traço
+            </button>
+            <button class="cm-tab" [class.active]="colorModalTab === 'fill'" (click)="colorModalTab = 'fill'; cdr.markForCheck()">
+              <span class="cm-tab-preview" [class.fill-transparent]="fillColor === 'transparent'"
+                    [style.background]="fillColor === 'transparent' ? '' : fillColor"></span>
+              Preenchimento
+            </button>
+          </div>
+          <button class="cm-close" (click)="showColorModal = false; cdr.markForCheck()">×</button>
+        </div>
+
+        @if (colorModalTab === 'stroke') {
+          <div class="cm-swatches">
+            @for (c of strokePresets; track c) {
+              <button class="cm-swatch" [style.background]="c" [class.cm-active]="strokeColor === c"
+                      (click)="setStroke(c); showColorModal = false; cdr.markForCheck()">
+                @if (strokeColor === c) { <svg viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg> }
+              </button>
+            }
+          </div>
+          <label class="cm-custom-label">
+            <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            Cor personalizada
+            <input type="color" [value]="strokeColor" (change)="onCustomStrokeColorChange($event)"/>
+          </label>
+        }
+
+        @if (colorModalTab === 'fill') {
+          <div class="cm-swatches">
+            @for (c of fillPresets; track c) {
+              <button class="cm-swatch" [class.cm-active]="fillColor === c"
+                      [class.cm-transparent]="c === 'transparent'"
+                      [style.background]="c === 'transparent' ? '' : c"
+                      (click)="setFill(c); showColorModal = false; cdr.markForCheck()">
+                @if (fillColor === c && c !== 'transparent') { <svg viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg> }
+                @if (c === 'transparent') { <svg viewBox="0 0 10 10"><line x1="1" y1="9" x2="9" y2="1" stroke="#e11d48" stroke-width="1.5"/></svg> }
+              </button>
+            }
+          </div>
+          <label class="cm-custom-label">
+            <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            Cor personalizada
+            <input type="color" [value]="fillColor === 'transparent' ? '#ffffff' : fillColor" (change)="onCustomFillColorChange($event)"/>
+          </label>
+        }
+      </div>
+    }
+
+    @if (showShortcuts) {
+      <div class="shortcuts-panel">
+        <div class="sc-header">
+          <strong>Atalhos de teclado</strong>
+          <button (click)="showShortcuts = false; cdr.markForCheck()">×</button>
+        </div>
+        <div class="sc-grid">
+          <span class="sc-key">V / S</span><span>Selecionar</span>
+          <span class="sc-key">P</span><span>Caneta</span>
+          <span class="sc-key">R</span><span>Retângulo</span>
+          <span class="sc-key">E / O</span><span>Elipse</span>
+          <span class="sc-key">A</span><span>Seta</span>
+          <span class="sc-key">L</span><span>Linha</span>
+          <span class="sc-key">T</span><span>Texto</span>
+          <span class="sc-key">N</span><span>Nota sticky</span>
+          <span class="sc-key">Del / ⌫</span><span>Excluir</span>
+          <span class="sc-key">Ctrl+D</span><span>Duplicar</span>
+          <span class="sc-key">Ctrl+G</span><span>Agrupar seleção</span>
+          <span class="sc-key">Ctrl+Shift+G</span><span>Desagrupar</span>
+          <span class="sc-key">Botão direito</span><span>Menu de contexto</span>
+          <span class="sc-key">Ctrl+Z / Y</span><span>Desfazer / Refazer</span>
+          <span class="sc-key">↑↓←→</span><span>Mover 1px (Shift=10px)</span>
+          <span class="sc-key">+ / −</span><span>Zoom in/out</span>
+          <span class="sc-key">0</span><span>Zoom 100%</span>
+          <span class="sc-key">F</span><span>Ajustar conteúdo</span>
+          <span class="sc-key">Espaço</span><span>Pan (arrastar)</span>
+          <span class="sc-key">Esc</span><span>Desselecionar / fechar</span>
+        </div>
+      </div>
+    }
+
+    <!-- Canvas -->
+    <div class="canvas-wrap" [style.background-color]="current ? background : null">
+      @if (!current) {
+        <div class="canvas-empty">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83a1 1 0 0 0 0-1.41z"/></svg>
+          <p>Selecione ou crie um desenho para começar</p>
+          <button class="btn-primary" (click)="showNewModal = true">Novo desenho</button>
+        </div>
+      } @else {
+        <svg #svgEl class="drawing-svg"
+             [attr.viewBox]="viewBox"
+             [style.cursor]="svgCursor()"
+             (mousedown)="onSvgMouseDown($event)"
+             (mousemove)="onMouseMove($event)"
+             (mouseup)="onMouseUp($event)"
+             (mouseleave)="onMouseUp($event)"
+             (contextmenu)="onCanvasContextMenu($event)"
+             (wheel)="onWheel($event)">
+
+          <!-- Grid -->
+          @if (gridEnabled) {
+            <defs>
+              <pattern id="dp-grid" [attr.width]="gridSize" [attr.height]="gridSize" patternUnits="userSpaceOnUse">
+                <path [attr.d]="'M ' + gridSize + ' 0 L 0 0 0 ' + gridSize" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
+              </pattern>
+            </defs>
+            <rect [attr.x]="panX" [attr.y]="panY" [attr.width]="vw/zoom" [attr.height]="vh/zoom" fill="url(#dp-grid)"/>
+          }
+
+          <!-- Shapes -->
+          <g #shapesLayer>
+          @for (s of shapes; track s.id) {
+            @switch (s.type) {
+              @case ('rect') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <rect [attr.x]="s.x" [attr.y]="s.y" [attr.width]="s.w" [attr.height]="s.h"
+                        [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
+                        [attr.opacity]="s.opacity" rx="3"/>
+                  @for (line of shapeTextLines(s); track $index) {
+                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke">{{ line }}</text>
+                  }
+                </g>
+              }
+              @case ('ellipse') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <ellipse [attr.cx]="s.x + s.w/2" [attr.cy]="s.y + s.h/2" [attr.rx]="s.w/2" [attr.ry]="s.h/2"
+                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
+                           [attr.opacity]="s.opacity"/>
+                  @for (line of shapeTextLines(s); track $index) {
+                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke">{{ line }}</text>
+                  }
+                </g>
+              }
+              @case ('arrow') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <path [attr.d]="arrowHitPath(s)" stroke="transparent" fill="none" stroke-width="16" stroke-linecap="round"/>
+                  <path [attr.d]="arrowPath(s)" [attr.stroke]="s.stroke" fill="none" [attr.stroke-width]="s.lw"
+                        [attr.opacity]="s.opacity" stroke-linecap="round"/>
+                  @if (s.text) {
+                    <g class="arrow-label" [attr.transform]="'translate(' + arrowLabelPoint(s).x + ' ' + arrowLabelPoint(s).y + ')'">
+                      <rect [attr.x]="-((s.text || '').length * 3.8 + 8)" y="-11"
+                            [attr.width]="(s.text || '').length * 7.6 + 16" height="22" rx="5"/>
+                      <text y="4" text-anchor="middle"
+                            [attr.fill]="s.stroke"
+                            [attr.font-size]="s.fontSize || 13">{{ s.text }}</text>
+                    </g>
+                  }
+                </g>
+              }
+              @case ('pen') {
+                <path [attr.d]="penPath(s.pts)" [attr.stroke]="s.stroke" fill="none" [attr.stroke-width]="s.lw"
+                      [attr.opacity]="s.opacity" stroke-linecap="round" stroke-linejoin="round"
+                      [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                      (mousedown)="onShapeMouseDown($event, s)"/>
+              }
+              @case ('text') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'text'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <rect [attr.x]="s.x" [attr.y]="s.y" [attr.width]="s.w" [attr.height]="s.h"
+                        fill="transparent" stroke="none"/>
+                  <text [attr.x]="s.x + 4" [attr.y]="s.y + (s.fontSize || 16) + 2"
+                        [attr.font-size]="s.fontSize || 16" [attr.fill]="s.stroke"
+                        [attr.font-weight]="s.bold ? 'bold' : 'normal'"
+                        [attr.opacity]="s.opacity">{{ s.text || ' ' }}</text>
+                </g>
+              }
+              @case ('sticky') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <rect [attr.x]="s.x" [attr.y]="s.y" [attr.width]="s.w" [attr.height]="s.h"
+                        [attr.fill]="s.stickyBg || '#fef08a'" stroke="#e5c000" stroke-width="1.5"
+                        [attr.opacity]="s.opacity" rx="4"/>
+                  <!-- dog-ear fold -->
+                  <polygon [attr.points]="(s.x + s.w - 16) + ',' + s.y + ' ' + (s.x + s.w) + ',' + s.y + ' ' + (s.x + s.w) + ',' + (s.y + 16)"
+                           fill="rgba(0,0,0,0.12)"/>
+                  @for (line of stickyLines(s); track $index) {
+                    <text [attr.x]="s.x + 8" [attr.y]="s.y + (s.fontSize || 14) * ($index + 1) + 6"
+                          [attr.font-size]="s.fontSize || 14" fill="#1e293b">{{ line }}</text>
+                  }
+                </g>
+              }
+              @case ('line') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)">
+                  <line [attr.x1]="s.x" [attr.y1]="s.y" [attr.x2]="s.x + s.w" [attr.y2]="s.y + s.h"
+                        stroke="transparent" stroke-width="16" stroke-linecap="round"/>
+                  <line [attr.x1]="s.x" [attr.y1]="s.y" [attr.x2]="s.x + s.w" [attr.y2]="s.y + s.h"
+                        [attr.stroke]="s.stroke" [attr.stroke-width]="s.lw"
+                        [attr.opacity]="s.opacity" stroke-linecap="round"/>
+                </g>
+              }
+              @case ('triangle') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <polygon [attr.points]="trianglePts(s)"
+                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
+                           [attr.opacity]="s.opacity"/>
+                  @for (line of shapeTextLines(s); track $index) {
+                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length) + Math.abs(s.h) * 0.18"
+                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke">{{ line }}</text>
+                  }
+                </g>
+              }
+              @case ('diamond') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <polygon [attr.points]="diamondPts(s)"
+                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
+                           [attr.opacity]="s.opacity"/>
+                  @for (line of shapeTextLines(s); track $index) {
+                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke">{{ line }}</text>
+                  }
+                </g>
+              }
+              @case ('star') {
+                <g [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                   (mousedown)="onShapeMouseDown($event, s)"
+                   (dblclick)="onShapeDblClick($event, s)">
+                  <polygon [attr.points]="starPts(s)"
+                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
+                           [attr.opacity]="s.opacity"/>
+                  @for (line of shapeTextLines(s); track $index) {
+                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke">{{ line }}</text>
+                  }
+                </g>
+              }
+            }
+          }
+          </g>
+
+          @if (selectionRect; as dragBox) {
+            <rect class="selection-marquee"
+                  [attr.x]="dragBox.x"
+                  [attr.y]="dragBox.y"
+                  [attr.width]="dragBox.w"
+                  [attr.height]="dragBox.h"/>
+          }
+
+          @if (tool === 'select' || tool === 'arrow') {
+            @for (shape of connectableShapes(); track shape.id) {
+              @for (anchor of anchorIds(); track anchor) {
+                <circle class="anchor-point"
+                        [attr.cx]="anchorPoint(shape, anchor).x"
+                        [attr.cy]="anchorPoint(shape, anchor).y"
+                        r="5"
+                        [style.cursor]="anchorCursor(anchor)"
+                        (mousedown)="onAnchorMouseDown($event, shape, anchor)"/>
+              }
+            }
+          }
+
+          @if (selectionBounds(); as groupBox) {
+            @for (selectedShape of selectedShapes(); track selectedShape.id) {
+              @if (selectionHandleBounds(selectedShape); as itemBox) {
+                <rect class="multi-selected-item"
+                      [attr.x]="itemBox.x - 3"
+                      [attr.y]="itemBox.y - 3"
+                      [attr.width]="itemBox.w + 6"
+                      [attr.height]="itemBox.h + 6"
+                      rx="2"/>
+              }
+            }
+            <rect class="multi-selection-box"
+                  [attr.x]="groupBox.x - 6"
+                  [attr.y]="groupBox.y - 6"
+                  [attr.width]="groupBox.w + 12"
+                  [attr.height]="groupBox.h + 12"
+                  rx="3"/>
+          }
+
+          <!-- Selection handles -->
+          @if (sel && selectedIds.length <= 1) {
+            @if (selectionHandleBounds(sel); as selBox) {
+            <rect [attr.x]="selBox.x - 4"
+                  [attr.y]="selBox.y - 4"
+                  [attr.width]="selBox.w + 8"
+                  [attr.height]="selBox.h + 8"
+                  fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3"
+                  rx="2" style="pointer-events:none"/>
+            }
+            @if (sel.type === 'line') {
+              <rect [attr.x]="lineHandleX('line-start', sel)" [attr.y]="lineHandleY('line-start', sel)"
+                    [attr.width]="8" [attr.height]="8"
+                    fill="#3b82f6" stroke="#fff" stroke-width="1.5"
+                    rx="1" style="cursor:move"
+                    (mousedown)="onHandleMouseDown($event, 'line-start')"/>
+              <rect [attr.x]="lineHandleX('line-end', sel)" [attr.y]="lineHandleY('line-end', sel)"
+                    [attr.width]="8" [attr.height]="8"
+                    fill="#3b82f6" stroke="#fff" stroke-width="1.5"
+                    rx="1" style="cursor:move"
+                    (mousedown)="onHandleMouseDown($event, 'line-end')"/>
+            } @else if (sel.type !== 'arrow' && sel.type !== 'pen') {
+              @for (h of handles; track h) {
+                <rect [attr.x]="handleX(h, sel)" [attr.y]="handleY(h, sel)"
+                      [attr.width]="8" [attr.height]="8"
+                      fill="#3b82f6" stroke="#fff" stroke-width="1.5"
+                      rx="1" [style.cursor]="handleCursor(h)"
+                      (mousedown)="onHandleMouseDown($event, h)"/>
+              }
+            }
+          }
+        </svg>
+
+        <!-- Text overlay -->
+        @if (editingId) {
+          <textarea #textArea class="text-overlay" [ngStyle]="editStyle"
+                    [value]="sel?.text || ''"
+                    (blur)="commitText()"
+                    (keydown.escape)="commitText()"></textarea>
+        }
+
+        <!-- Zoom indicator -->
+        <div class="zoom-indicator">
+          <button class="zoom-btn" (click)="zoomOut()">−</button>
+          <span>{{ (zoom * 100) | number:'1.0-0' }}%</span>
+          <button class="zoom-btn" (click)="zoomIn()">+</button>
+        </div>
+      }
+    </div>
+
+  </div>
+
+  <!-- New drawing modal -->
+  @if (showNewModal) {
+    <div class="modal-backdrop" (click)="showNewModal = false"></div>
+    <div class="modal-card">
+      <h3>Novo desenho</h3>
+      <input class="modal-input" [(ngModel)]="newName" placeholder="Nome do desenho" (keydown.enter)="createDrawing()"/>
+      <input class="modal-input" [(ngModel)]="newFolder" placeholder="Pasta opcional, ex: Produto/Fluxos" (keydown.enter)="createDrawing()"/>
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="showNewModal = false">Cancelar</button>
+        <button class="btn-primary" (click)="createDrawing()">Criar</button>
+      </div>
+    </div>
+  }
+
+  @if (drawingContextMenu) {
+    <div class="drawing-context-menu"
+         [style.left.px]="drawingContextMenu.x"
+         [style.top.px]="drawingContextMenu.y"
+         (click)="$event.stopPropagation()">
+      <div class="ctx-title">{{ drawingContextMenu.drawing.nome }}</div>
+      <div class="ctx-section-title">Mover para pasta</div>
+      <div class="ctx-folder-list">
+        @for (folder of folderOptions(); track folder) {
+          <button class="ctx-item"
+                  [class.active]="normalizeFolder(drawingContextMenu.drawing.pasta) === folder"
+                  (click)="moveDrawingTo(drawingContextMenu.drawing, folder)">
+            <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6z"/></svg>
+            {{ folderLabel(folder) }}
+          </button>
+        }
+      </div>
+      <div class="ctx-new-folder">
+        <input [(ngModel)]="contextMoveFolder" placeholder="Nova pasta"/>
+        <button (click)="moveDrawingTo(drawingContextMenu.drawing, contextMoveFolder)">Mover</button>
+      </div>
+      <button class="ctx-item danger" (click)="deleteDrawingRecord(drawingContextMenu.drawing)">
+        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        Excluir desenho
+      </button>
+    </div>
+  }
+
+  <!-- Menu de contexto do canvas (agrupar / desagrupar) -->
+  @if (canvasContextMenu) {
+    <div class="ctx-backdrop" (mousedown)="closeCanvasContextMenu()" (contextmenu)="$event.preventDefault(); closeCanvasContextMenu()"></div>
+    <div class="drawing-context-menu canvas-ctx"
+         [style.left.px]="canvasContextMenu.x"
+         [style.top.px]="canvasContextMenu.y"
+         (mousedown)="$event.stopPropagation()">
+      <div class="ctx-title">{{ selectedIds.length }} elemento{{ selectedIds.length !== 1 ? 's' : '' }} selecionado{{ selectedIds.length !== 1 ? 's' : '' }}</div>
+      <button class="ctx-item" [disabled]="!canGroup()" (click)="groupSelection()">
+        <svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        Agrupar
+        <span class="ctx-shortcut">Ctrl+G</span>
+      </button>
+      <button class="ctx-item" [disabled]="!canUngroup()" (click)="ungroupSelection()">
+        <svg viewBox="0 0 24 24"><path d="M4 4h6v6H4V4zm10 10h6v6h-6v-6z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        Desagrupar
+        <span class="ctx-shortcut">Ctrl+Shift+G</span>
+      </button>
+      <button class="ctx-item" (click)="duplicateSelected(); closeCanvasContextMenu()">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        Duplicar
+        <span class="ctx-shortcut">Ctrl+D</span>
+      </button>
+      <button class="ctx-item danger" (click)="deleteSelected(); closeCanvasContextMenu()">
+        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        Excluir
+        <span class="ctx-shortcut">Del</span>
+      </button>
+    </div>
+  }
+</div>
