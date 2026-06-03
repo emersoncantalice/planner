@@ -674,7 +674,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       .reduce((acc: number, a: any) => {
         const vh = this.getValorHoraDaAlocacao(a);
         return acc + this.meses.reduce(
-          (sum: number, _m: string, mi: number) => sum + this.custoMensal(a.id, vh, mi), 0
+          (sum: number, _m: string, mi: number) => sum + this.round2(this.custoMensal(a.id, vh, mi)), 0
         );
       }, 0);
   }
@@ -741,7 +741,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         const vh = this.getValorHoraDaAlocacao(a);
         const pagoAnual = this.meses.reduce((sum: number, _: string, mi: number) => {
           if (!this.isPago(a.id, mi)) return sum;
-          return sum + this.custoMensal(a.id, vh, mi);
+          return sum + this.round2(this.custoMensal(a.id, vh, mi));
         }, 0);
         return acc + pagoAnual;
       }, 0);
@@ -877,7 +877,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return this.alocacoesFiltradas()
       .filter((a: any) => this.alocacaoContaNoResumoLo(a))
       .reduce((acc: number, a: any) => {
-      return acc + this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), month);
+      return acc + this.round2(this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), month));
       }, 0);
   }
 
@@ -886,7 +886,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return this.alocacoesFiltradas()
       .filter((a: any) => this.alocacaoContaNoResumoLo(a))
       .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
-      .reduce((acc: number, a: any) => acc + this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), month), 0);
+      .reduce((acc: number, a: any) => acc + this.round2(this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), month)), 0);
   }
 
   totalComprometidoClm(): number {
@@ -1817,7 +1817,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       const vh = this.getValorHoraDaAlocacao(a);
       return acc + this.meses.reduce((sum: number, _: string, mi: number) => {
         if (!this.isPago(a.id, mi)) return sum;
-        return sum + this.custoMensal(a.id, vh, mi);
+        return sum + this.round2(this.custoMensal(a.id, vh, mi));
       }, 0);
       }, 0);
   }
@@ -1830,7 +1830,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         const vh = this.getValorHoraDaAlocacao(a);
         return acc + this.meses.reduce((sum: number, _: string, mi: number) => {
           if (!this.isPago(a.id, mi)) return sum;
-          return sum + this.custoMensal(a.id, vh, mi);
+          return sum + this.round2(this.custoMensal(a.id, vh, mi));
         }, 0);
       }, 0);
   }
