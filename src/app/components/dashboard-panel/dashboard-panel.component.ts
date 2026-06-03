@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PlannerApiService } from '../../core/planner-api.service';
 
@@ -12,6 +12,7 @@ import { PlannerApiService } from '../../core/planner-api.service';
 })
 export class DashboardPanelComponent implements OnChanges, OnDestroy {
   private api = inject(PlannerApiService);
+  private cdr = inject(ChangeDetectorRef);
   @Input() nomeUsuario = '';
   @Input() usernameAtual = '';
   @Input() token = '';
@@ -31,6 +32,7 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   @Output() navigate = new EventEmitter<string>();
   @Output() selectProject = new EventEmitter<string>();
   @Output() selectRisk = new EventEmitter<string>();
+  @Output() selectLo = new EventEmitter<{ loId: string; ano: number }>();
   allocationPayments: any[] = [];
   allocationMonthlyState: any[] = [];
   private realizadoSyncTimer: ReturnType<typeof setInterval> | null = null;
@@ -51,8 +53,8 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
 
   private carregarRealizado() {
     if (!this.token) return;
-    this.api.listAllocationPayments(this.token).subscribe({ next: (rows) => this.allocationPayments = rows || [] });
-    this.api.listAllocationMonthlyState(this.token).subscribe({ next: (rows) => this.allocationMonthlyState = rows || [] });
+    this.api.listAllocationPayments(this.token).subscribe({ next: (rows) => { this.allocationPayments = rows || []; this.cdr.markForCheck(); } });
+    this.api.listAllocationMonthlyState(this.token).subscribe({ next: (rows) => { this.allocationMonthlyState = rows || []; this.cdr.markForCheck(); } });
   }
 
   private startRealizadoSync() {
@@ -185,17 +187,18 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   num(v: any): number { const n = Number(v); return isFinite(n) ? n : 0; }
 
   brl(v: number): string {
-    if (Math.abs(v) >= 1_000_000) {
-      return 'R$ ' + (v / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'M';
+    const r = Math.round(v);
+    if (Math.abs(r) >= 1_000_000) {
+      return 'R$ ' + (r / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M';
     }
-    if (Math.abs(v) >= 1_000) {
-      return 'R$ ' + (v / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + 'k';
+    if (Math.abs(r) >= 1_000) {
+      return 'R$ ' + (r / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'k';
     }
-    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return r.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   brlFull(v: number): string {
-    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return Math.round(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   saudacao(): string {
@@ -325,7 +328,7 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   }
 
   private horasEfetivas(monthIndex: number, categoria: 'FOLHA' | 'TERCEIRO'): number {
-    return categoria === 'FOLHA' ? 160 : this.getHorasMes(monthIndex);
+    return categoria === 'FOLHA' ? 168 : this.getHorasMes(monthIndex);
   }
 
   private debitaLoDaAlocacao(a: any): boolean {

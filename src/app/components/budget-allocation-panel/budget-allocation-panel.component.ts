@@ -1,4 +1,4 @@
-﻿import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+﻿import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
@@ -145,6 +145,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private realizadoMensal: Record<string, number> = {};
   private pagoMensal: Record<string, boolean> = {};
   private api = inject(PlannerApiService);
+  private cdr = inject(ChangeDetectorRef);
   private paymentsSyncTimer: ReturnType<typeof setInterval> | null = null;
   private presenceSyncTimer: ReturnType<typeof setInterval> | null = null;
   private monthlyStateSyncTimer: ReturnType<typeof setInterval> | null = null;
@@ -1140,6 +1141,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
             y: Number(r?.y)
           }))
           .filter((r: any) => !!r.username && r.username.toLowerCase() !== mine && !Number.isNaN(r.x) && !Number.isNaN(r.y));
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1171,6 +1173,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         this.canceladoMensal = nextCancelado;
         this.valorMensalManual = nextValorManual;
         this.percentualMensalManual = nextPctManual;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1200,6 +1203,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
           nextState[this.pagoKey(allocId, month)] = !!r?.paid;
         }
         this.pagoMensal = nextState;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1252,6 +1256,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
             } catch { /* ignore */ }
           }
         }
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1272,6 +1277,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
           this.realizadoMensal[key] = valor;
           localStorage.setItem(key, String(valor));
         }
+        this.cdr.markForCheck();
         // Migration: push localStorage values for all known LOs not yet in backend
         if (this.token) {
           for (const lo of this.linhasOrcamentarias) {

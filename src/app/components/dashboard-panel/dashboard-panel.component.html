@@ -133,12 +133,15 @@
           @for (row of utilizacaoLos(); track row.lo.id) {
             <div class="dash-lo-row">
               <div class="dash-lo-head">
-                <div class="dash-lo-info">
+                <button class="dash-lo-link" (click)="selectLo.emit({ loId: row.lo.id, ano: anoAtual })" [title]="'Abrir alocações da LO ' + row.lo.codigo">
                   <span class="dash-lo-codigo">{{ row.lo.codigo }}</span>
                   @if (row.lo.nome) {
                     <span class="dash-lo-nome">{{ row.lo.nome }}</span>
                   }
-                </div>
+                  @if (row.lo.tipo) {
+                    <span class="dash-lo-tipo-chip">{{ row.lo.tipo }}</span>
+                  }
+                </button>
                 <div class="dash-lo-meta">
                   <span class="dash-lo-pct" [class.over]="row.pct >= 100">{{ row.pct | number:'1.0-1' }}%</span>
                   <span class="dash-lo-qtd">{{ row.qtd }} aloc.</span>
@@ -148,9 +151,15 @@
                 <div class="dash-progress-fill" [class.over]="row.pct >= 100" [style.width.%]="row.pct"></div>
               </div>
               <div class="dash-lo-values">
-                <span>Comprometido: <strong>{{ brl(row.comprometido) }}</strong></span>
-                <span [class.saldo-neg]="row.saldo < 0">Saldo: <strong>{{ brl(row.saldo) }}</strong></span>
+                <span>Orç: <strong [title]="brlFull(row.orcamento)">{{ brl(row.orcamento) }}</strong></span>
+                <span>Comp: <strong [title]="brlFull(row.comprometido)">{{ brl(row.comprometido) }}</strong></span>
+                <span [class.saldo-neg]="row.saldo < 0">Saldo: <strong [title]="brlFull(row.saldo)">{{ brl(row.saldo) }}</strong></span>
               </div>
+              @if (row.lo.centroCusto) {
+                <div class="dash-lo-extra">
+                  <span class="dash-lo-cc">CC: {{ row.lo.centroCusto }}</span>
+                </div>
+              }
             </div>
           }
         </div>

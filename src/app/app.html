@@ -478,7 +478,8 @@
           [atividades]="atividades()"
           (navigate)="selecionarSecao($any($event))"
           (selectProject)="selecionarProjeto($event)"
-          (selectRisk)="abrirRiscoDoDashboard($event)">
+          (selectRisk)="abrirRiscoDoDashboard($event)"
+          (selectLo)="abrirAbaAlocacoesLo($event)">
         </app-dashboard-panel>
       }
       @if (secaoAtiva() === 'conta') {
