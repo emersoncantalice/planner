@@ -1686,7 +1686,17 @@ export class App {
           byId[id] = Math.max(0, Math.min(100, Number(r?.percentual ?? 100)));
         }
         this.allocationPercentById = byId;
+        // O Cockpit lê o percentual por alocação do localStorage (planner_lo_alloc_<id>).
+        // Populamos aqui para os cálculos ficarem corretos já na primeira carga,
+        // sem precisar abrir "Alocações por LO" e voltar.
+        try {
+          for (const id of Object.keys(byId)) {
+            localStorage.setItem(`planner_lo_alloc_${id}`, JSON.stringify({ percentual: byId[id] }));
+          }
+        } catch {}
         this.recomputarPercentuaisAlocacao();
+        // força o recálculo das telas que dependem do percentual (ex.: Cockpit)
+        this.alocacoesLo.set([...this.alocacoesLo()]);
       },
       error: () => {}
     });
