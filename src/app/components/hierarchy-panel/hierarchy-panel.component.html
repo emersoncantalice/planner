@@ -1,0 +1,262 @@
+<planner-card><article class="card">
+  <div class="panel-head">
+    <div>
+      <h2>Hierarquia organizacional</h2>
+      <small class="sub">Presidência, diretorias, tribos e squads — com pessoas alocadas e exportação para apresentações.</small>
+    </div>
+    <div class="panel-actions">
+      <select class="export-root-select" [(ngModel)]="exportRootId" [disabled]="!nodes.length" title="Escolher a estrutura raiz da exportação">
+        <option value="">Árvore completa</option>
+        @for (n of nodesParaExportar(); track n.id) {
+          <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
+        }
+      </select>
+      <label class="export-hide-toggle" title="Não mostrar os valores das LOs na imagem exportada">
+        <input type="checkbox" [(ngModel)]="ocultarValoresExport" />
+        Ocultar valores
+      </label>
+      <button type="button" class="sec" (click)="exportar()" [disabled]="!nodes.length" title="Exportar a árvore selecionada para apresentação em PNG">
+        Exportar apresentação
+      </button>
+      <button type="button" class="sec" (click)="abrirGerar()" [disabled]="!linhasOrcamentarias.length" title="Criar um squad importando as pessoas alocadas em uma LO">
+        Gerar squad da LO
+      </button>
+      <button type="button" (click)="abrirNovo()">+ Nova estrutura</button>
+    </div>
+  </div>
+
+  @if (gerarAberto) {
+    <div class="form-box">
+      <h3>Gerar squad a partir de uma LO</h3>
+      <small class="sub">As pessoas alocadas (não rascunho) na LO serão importadas como membros do squad e a LO fica vinculada.</small>
+      <div class="grid2">
+        <div>
+          <label>LO de origem</label>
+          <select [(ngModel)]="gerarLoId">
+            <option value="">Selecione a LO</option>
+            @for (lo of losDisponiveis(); track lo.id) {
+              <option [value]="lo.id">{{ lo.codigo || lo.nome }} ({{ lo.ano }})</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label>Estrutura superior (opcional)</label>
+          <select [(ngModel)]="gerarParentId">
+            <option value="">Nenhuma (raiz)</option>
+            @for (n of nodes; track n.id) {
+              <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      @if (gerarLoId) {
+        <small class="sub">{{ qtdPessoasDaLo(gerarLoId) }} pessoa(s) serão importadas.</small>
+      }
+      <div class="form-actions">
+        <button type="button" (click)="gerarSquadDaLo()" [disabled]="!gerarLoId">Gerar squad</button>
+        <button type="button" class="sec" (click)="cancelarGerar()">Cancelar</button>
+      </div>
+    </div>
+  }
+
+  @if (nodes.length) {
+    <div class="resumo">
+      <span><strong>{{ nodes.length }}</strong> estruturas</span>
+      <span><strong>{{ totalPessoas() }}</strong> pessoas alocadas</span>
+    </div>
+  }
+
+  @if (formAberto) {
+    <div class="form-box">
+      <h3>{{ editingId ? 'Editar estrutura' : 'Nova estrutura' }}</h3>
+      <div class="grid2">
+        <div>
+          <label>Tipo</label>
+          <select [(ngModel)]="form.tipo">
+            @for (t of tipos; track t) {
+              <option [value]="t">{{ tipoLabel(t) }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label>Estrutura superior (pai)</label>
+          <select [(ngModel)]="form.parentId">
+            <option value="">Nenhuma (raiz)</option>
+            @for (n of paisDisponiveis(); track n.id) {
+              <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <label>Nome</label>
+      <input [(ngModel)]="form.nome" placeholder="Ex: Diretoria de Tecnologia" />
+      <label>Descrição (opcional)</label>
+      <input [(ngModel)]="form.descricao" placeholder="Breve descrição" />
+
+      <div class="los-edit">
+        <label>LOs vinculadas (uma ou mais)</label>
+        @if (!linhasOrcamentarias.length) {
+          <small class="sub">Nenhuma LO cadastrada.</small>
+        } @else {
+          <div class="lo-checklist">
+            @for (lo of losDisponiveis(); track lo.id) {
+              <label class="lo-check" [class.on]="loVinculada(lo.id)">
+                <input type="checkbox" [checked]="loVinculada(lo.id)" (change)="toggleLo(lo.id)" />
+                <span class="lo-check-cod">{{ lo.codigo || lo.nome }}</span>
+                <span class="lo-check-val" [title]="currency(valorLoPorId(lo.id))">{{ formatCompact(valorLoPorId(lo.id)) }}</span>
+              </label>
+            }
+          </div>
+          @if (form.loIds.length) {
+            <small class="sub">Total vinculado: <strong [title]="currency(somaLosForm())">{{ formatCompact(somaLosForm()) }}</strong></small>
+          }
+        }
+      </div>
+
+      <div class="membros-edit">
+        <label>Pessoas alocadas</label>
+        <div class="membro-add">
+          <select [(ngModel)]="membroSel.personId">
+            <option value="">Selecione uma pessoa</option>
+            @for (p of pessoas; track p.id) {
+              <option [value]="p.id">{{ p.nome }}</option>
+            }
+          </select>
+          <input [(ngModel)]="membroSel.papel" placeholder="Cargo/papel (obrigatório para TBD)" />
+          <label class="cross-check" title="Mostrar esta pessoa acima dos demais na estrutura">
+            <input type="checkbox" [(ngModel)]="membroSel.cross" />
+            Cross
+          </label>
+          <button type="button" class="sec" (click)="adicionarMembro()">+ Adicionar</button>
+          <button type="button" class="sec" (click)="adicionarMembroTbd()" title="Adicionar TBD usando o cargo/papel informado como subtítulo">+ TBD</button>
+        </div>
+        @if (membros.length) {
+          <ul class="membro-list">
+            @for (m of membros; track $index) {
+              <li>
+                <span class="av">
+                  @if (fotoDe(m.nomePessoa)) {
+                    <img [src]="fotoDe(m.nomePessoa)" [alt]="m.nomePessoa" />
+                  } @else {
+                    {{ iniciais(m.nomePessoa) }}
+                  }
+                </span>
+                <span class="m-nome">{{ m.nomePessoa }}</span>
+                @if (m.papel) { <span class="m-papel">{{ primeiraPartePerfil(m.papel) }}</span> }
+                <label class="m-cross" title="Mostrar acima dos demais na estrutura">
+                  <input type="checkbox" [(ngModel)]="m.cross" />
+                  Cross
+                </label>
+                <button type="button" class="m-del" (click)="removerMembro($index)" title="Remover">✕</button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button type="button" (click)="salvar()">{{ editingId ? 'Salvar' : 'Criar' }}</button>
+        <button type="button" class="sec" (click)="cancelar()">Cancelar</button>
+      </div>
+    </div>
+  }
+
+  @if (!nodes.length) {
+    <p class="vazio">Nenhuma estrutura cadastrada. Comece criando a Presidência ou uma Diretoria.</p>
+  } @else {
+    <div class="tree-wrap">
+      <div class="tree">
+        @for (raiz of raizesVisiveis(); track raiz.id) {
+          <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: raiz }"></ng-container>
+        }
+      </div>
+    </div>
+  }
+
+  <ng-template #treeTpl let-node>
+    <div class="node" [class]="'t-' + node.tipo">
+      <div class="node-card"
+           [class.drop-target]="dragOverNodeId === node.id"
+           (dragover)="onNodeDragOver(node, $event)"
+           (dragleave)="onNodeDragLeave(node)"
+           (drop)="onNodeDrop(node, $event)">
+        <div class="node-top">
+          <span class="node-tipo">{{ tipoLabel(node.tipo) }}</span>
+          <span class="node-acts">
+            @if (nodeQtdAlertas(node) > 0) {
+              <span class="node-alert" [title]="nodeQtdAlertas(node) + ' pessoa(s) fora das LOs vinculadas'">⚠ {{ nodeQtdAlertas(node) }}</span>
+            }
+            <button type="button" title="Adicionar sub-estrutura" (click)="abrirNovo(node.id)">＋</button>
+            <button type="button" title="Editar" (click)="editar(node)">✎</button>
+            <button type="button" title="Excluir" (click)="excluir(node)">✕</button>
+          </span>
+        </div>
+        <div class="node-nome">{{ node.nome }}</div>
+        @if (node.descricao) { <div class="node-desc">{{ node.descricao }}</div> }
+
+        @if (losDoNode(node).length) {
+          <div class="node-los">
+            @for (loId of losDoNode(node); track loId) {
+              <span class="lo-chip" [title]="ocultarValoresExport ? loLabel(loId) : loLabel(loId) + ' · ' + currency(valorLoPorId(loId))">{{ loLabel(loId) }}</span>
+            }
+          </div>
+        }
+        @if (temValorAgregado(node) && !ocultarValoresExport) {
+          <div class="node-valor" [title]="(filhosDe(node.id).length ? 'Soma das LOs desta estrutura e das estruturas filhas' : 'Soma das LOs desta estrutura') + ' · ' + currency(valorAgregado(node))">
+            Σ LOs: <strong>{{ formatCompact(valorAgregado(node)) }}</strong>
+          </div>
+        }
+
+        @if (node.membros?.length) {
+          @for (grupo of [
+            { key: 'cross', titulo: 'Cross', cls: 'g-cross' },
+            { key: 'folha', titulo: 'Folha', cls: 'g-folha' },
+            { key: 'terceiro', titulo: 'Terceiros', cls: 'g-terceiro' }
+          ]; track grupo.titulo) {
+            @if (membrosPorGrupo(node, grupo.key).length) {
+              <div class="node-grupo" [class]="grupo.cls">
+                <div class="node-grupo-head">
+                  <span class="node-grupo-dot"></span>{{ grupo.titulo }}
+                  <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key) }}</span>
+                </div>
+                <div class="node-membros">
+                  @for (item of membrosPorGrupo(node, grupo.key); track item.idx) {
+                    <div class="node-m"
+                         [class.fora-lo]="membroForaDaLo(node, item.m)"
+                         draggable="true"
+                         (dragstart)="onMembroDragStart(node, item.idx, $event)"
+                         (dragend)="onMembroDragEnd()"
+                         [title]="item.m.nomePessoa + (metaDoMembro(item.m) ? ' — ' + metaDoMembro(item.m) : '') + (membroForaDaLo(node, item.m) ? ' — fora da(s) LO(s) vinculada(s)' : '')">
+                      <span class="av">
+                        @if (fotoDe(item.m.nomePessoa)) {
+                          <img [src]="fotoDe(item.m.nomePessoa)" [alt]="item.m.nomePessoa" />
+                        } @else {
+                          {{ iniciais(item.m.nomePessoa) }}
+                        }
+                      </span>
+                      <div class="node-m-info">
+                        <span class="node-m-nome">{{ item.m.nomePessoa }}</span>
+                        @if (metaDoMembro(item.m)) {
+                          <span class="node-m-meta">{{ metaDoMembro(item.m) }}</span>
+                        }
+                      </div>
+                      @if (membroForaDaLo(node, item.m)) { <span class="node-m-alert" title="Fora da(s) LO(s) vinculada(s)">⚠</span> }
+                      <button type="button" class="node-m-del" title="Remover pessoa desta estrutura" (click)="removerMembroDoNode(node, item.idx, $event)">✕</button>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          }
+        }
+      </div>
+      @if (filhosDe(node.id).length) {
+        <div class="node-children">
+          @for (filho of filhosDe(node.id); track filho.id) {
+            <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: filho }"></ng-container>
+          }
+        </div>
+      }
+    </div>
+  </ng-template>
+</article></planner-card>

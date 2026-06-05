@@ -16,8 +16,19 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
   @Input() linhasOrcamentarias: any[] = [];
   @Input() horasMes: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() fotos: Record<string, string> = {};
   @Input() token = '';
   @Output() openAllocation = new EventEmitter<{ loId: string; ano: number }>();
+
+  fotoDe(nome: string): string {
+    return this.fotos?.[this.normalized(nome || '')] || '';
+  }
+
+  iniciaisDe(nome: string): string {
+    const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    return ((partes[0][0] || '') + (partes.length > 1 ? (partes[partes.length - 1][0] || '') : '')).toUpperCase();
+  }
 
   searchTerm = '';
   anoSelecionado = new Date().getFullYear();

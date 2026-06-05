@@ -42,6 +42,13 @@
         <div class="pa-card-top" (click)="toggleExpand(entry.nome)" style="cursor:pointer">
           <div class="pa-card-left">
             <span class="pa-dot" [class]="workloadClass(entry.total)"></span>
+            <span class="pa-avatar" [title]="entry.nome">
+              @if (fotoDe(entry.nome)) {
+                <img [src]="fotoDe(entry.nome)" [alt]="entry.nome" />
+              } @else {
+                {{ iniciaisDe(entry.nome) }}
+              }
+            </span>
             <span class="pa-nome">{{ entry.nome }}</span>
           </div>
           <div class="pa-card-right">

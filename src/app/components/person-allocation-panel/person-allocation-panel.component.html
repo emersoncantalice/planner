@@ -17,6 +17,13 @@
     @for (p of pessoasAno(); track p.nomePessoa) {
       <section class="person-card">
         <header class="person-head">
+          <span class="person-avatar" [title]="p.nomePessoa">
+            @if (fotoDe(p.nomePessoa)) {
+              <img [src]="fotoDe(p.nomePessoa)" [alt]="p.nomePessoa" />
+            } @else {
+              {{ iniciaisDe(p.nomePessoa) }}
+            }
+          </span>
           <strong>{{ p.nomePessoa }}</strong>
           <span class="person-pico">Pico: {{ p.picoPercentual.toFixed(2) }}%</span>
         </header>

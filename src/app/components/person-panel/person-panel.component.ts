@@ -2,11 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
+import { PhotoUploadComponent } from '../photo-upload/photo-upload.component';
 
 @Component({
   selector: 'app-person-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PhotoUploadComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './person-panel.component.html',
   styleUrl: './person-panel.component.scss'
@@ -16,10 +17,65 @@ export class PersonPanelComponent {
   @Input() perfis: any[] = [];
   @Input() pessoas: any[] = [];
   @Input() consultorias: any[] = [];
+  @Input() fotos: Record<string, string> = {};
   @Output() create = new EventEmitter<any>();
   @Output() update = new EventEmitter<any>();
   @Output() remove = new EventEmitter<string>();
   @Output() importCsv = new EventEmitter<File>();
+  @Output() savePhoto = new EventEmitter<{ personId: string; dataUrl: string }>();
+
+  // Modal de foto
+  fotoModalAberto = false;
+  fotoPessoaId = '';
+  fotoPessoaNome = '';
+  // Foto escolhida no formulário de uma pessoa NOVA (ainda sem id) — salva após o cadastro.
+  fotoPendente = '';
+
+  fotoDe(personId: string): string {
+    return this.fotos?.[personId] || '';
+  }
+
+  iniciais(nome: string): string {
+    const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    const a = partes[0][0] || '';
+    const b = partes.length > 1 ? (partes[partes.length - 1][0] || '') : '';
+    return (a + b).toUpperCase();
+  }
+
+  // Foto a exibir no formulário: na edição usa a foto persistida; na criação usa a pendente.
+  fotoFormPreview(): string {
+    return this.editingId ? (this.fotoDe(this.editingId) || this.fotoPendente) : this.fotoPendente;
+  }
+
+  // Abre o modal de foto pela LINHA da tabela (pessoa já existente).
+  abrirFoto(p: any) {
+    this.fotoPessoaId = p.id;
+    this.fotoPessoaNome = p.nome || '';
+    this.fotoModalAberto = true;
+  }
+
+  // Abre o modal de foto a partir do FORMULÁRIO (criação ou edição).
+  abrirFotoFormulario() {
+    this.fotoPessoaId = this.editingId;   // vazio quando é criação
+    this.fotoPessoaNome = this.pessoa.nome || 'nova pessoa';
+    this.fotoModalAberto = true;
+  }
+
+  onFotoSalvar(dataUrl: string) {
+    if (this.fotoPessoaId) {
+      // Pessoa já existe (linha da tabela ou edição): salva imediatamente.
+      this.savePhoto.emit({ personId: this.fotoPessoaId, dataUrl });
+    } else {
+      // Criação: guarda para salvar logo após cadastrar a pessoa.
+      this.fotoPendente = dataUrl;
+    }
+    this.fotoModalAberto = false;
+  }
+
+  onFotoFechar() {
+    this.fotoModalAberto = false;
+  }
 
   formExpanded = false;
   editingId = '';
@@ -42,6 +98,7 @@ export class PersonPanelComponent {
     this.editingId = p.id;
     this.formExpanded = true;
     this.historicoExpanded = false;
+    this.fotoPendente = '';
     this.novaVaga = { alias: '', url: '', inicio: '', fim: '' };
     this.vagasAnteriores = Array.isArray(p.vagasAnteriores)
       ? p.vagasAnteriores.map((v: any) => ({ alias: v.alias || '', url: v.url || '', inicio: v.inicio || '', fim: v.fim || '' }))
@@ -84,6 +141,7 @@ export class PersonPanelComponent {
     this.formExpanded = false;
     this.vagasAnteriores = [];
     this.historicoExpanded = false;
+    this.fotoPendente = '';
   }
 
   adicionarVagaHistorico() {
@@ -112,12 +170,13 @@ export class PersonPanelComponent {
     if (!this.perfilSelecionadoDebitaLo()) {
       this.pessoa.valorHora = null;
     }
-    this.create.emit({ ...this.pessoa, valorMensal: this.valorMensalMedioDaPessoa(this.pessoa) });
+    this.create.emit({ ...this.pessoa, valorMensal: this.valorMensalMedioDaPessoa(this.pessoa), foto: this.fotoPendente || '' });
     this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true };
     this.vagasAnteriores = [];
     this.historicoExpanded = false;
     this.valorHoraMasked = '';
     this.valorMensalMasked = '';
+    this.fotoPendente = '';
     this.formExpanded = false;
   }
 

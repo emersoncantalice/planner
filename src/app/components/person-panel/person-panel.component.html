@@ -12,6 +12,24 @@
   <small class="csv-hint">Exemplo: Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500</small>
 
   @if (formExpanded) {
+    <div class="foto-form-row">
+      <button type="button" class="foto-btn foto-btn-lg" (click)="abrirFotoFormulario()" title="Incluir / alterar foto">
+        @if (fotoFormPreview()) {
+          <img class="foto-avatar" [src]="fotoFormPreview()" [alt]="pessoa.nome" />
+        } @else {
+          <span class="foto-iniciais">{{ pessoa.nome ? iniciais(pessoa.nome) : '+' }}</span>
+        }
+      </button>
+      <div class="foto-form-info">
+        <strong>Foto da pessoa</strong>
+        <button type="button" class="link-btn" (click)="abrirFotoFormulario()">
+          {{ fotoFormPreview() ? 'Alterar foto' : 'Adicionar foto' }}
+        </button>
+        @if (!editingId && fotoPendente) {
+          <small>A foto será salva ao cadastrar a pessoa.</small>
+        }
+      </div>
+    </div>
     <label>Nome da pessoa</label>
     <input [(ngModel)]="pessoa.nome" placeholder="Nome da pessoa" />
     <label>Perfil</label>
@@ -153,6 +171,7 @@
     <table class="modern-table">
       <thead>
         <tr>
+          <th>Foto</th>
           <th (click)="toggleSort('nome')">Nome{{ sortIndicator('nome') }}</th>
           <th>Status</th>
           <th>Vaga</th>
@@ -169,6 +188,15 @@
       <tbody>
         @for (p of sortedPessoas(); track p.id) {
           <tr [class.row-inativo]="p.ativo === false">
+            <td>
+              <button type="button" class="foto-btn" (click)="abrirFoto(p)" title="Incluir / alterar foto">
+                @if (fotoDe(p.id)) {
+                  <img class="foto-avatar" [src]="fotoDe(p.id)" [alt]="p.nome" />
+                } @else {
+                  <span class="foto-iniciais">{{ iniciais(p.nome) }}</span>
+                }
+              </button>
+            </td>
             <td>{{ p.nome }}</td>
             <td>
               @if (p.ativo === false) {
@@ -200,4 +228,11 @@
       </tbody>
     </table>
   </div>
+
+  <app-photo-upload
+    [aberto]="fotoModalAberto"
+    [titulo]="'Foto de ' + fotoPessoaNome"
+    [imagemAtual]="fotoPessoaId ? fotoDe(fotoPessoaId) : fotoPendente"
+    (salvar)="onFotoSalvar($event)"
+    (fechar)="onFotoFechar()"></app-photo-upload>
 </article></planner-card>

@@ -163,6 +163,34 @@ export class PlannerApiService {
     return this.http.post<{ criados: number; ignorados: number }>(`${this.api}/people/import-csv`, { csv }, { headers: this.headers(token) });
   }
 
+  // Fotos das pessoas
+  listPersonImages(token: string) {
+    return this.http.get<{ personId: string; dataUrl: string }[]>(`${this.api}/people/images`, { headers: this.headers(token) });
+  }
+  getPersonImage(token: string, personId: string) {
+    return this.http.get<{ dataUrl: string }>(`${this.api}/people/${personId}/image`, { headers: this.headers(token) });
+  }
+  updatePersonImage(token: string, personId: string, dataUrl: string) {
+    return this.http.put<{ dataUrl: string }>(`${this.api}/people/${personId}/image`, { dataUrl }, { headers: this.headers(token) });
+  }
+
+  // Hierarquia organizacional
+  listHierarchy(token: string) {
+    return this.http.get<any[]>(`${this.api}/hierarchy`, { headers: this.headers(token) });
+  }
+  createHierarchyNode(token: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
+    return this.http.post<any>(`${this.api}/hierarchy`, payload, { headers: this.headers(token) });
+  }
+  updateHierarchyNode(token: string, nodeId: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
+    return this.http.put<any>(`${this.api}/hierarchy/${nodeId}`, payload, { headers: this.headers(token) });
+  }
+  deleteHierarchyNode(token: string, nodeId: string) {
+    return this.http.delete<void>(`${this.api}/hierarchy/${nodeId}`, { headers: this.headers(token) });
+  }
+  moveHierarchyMember(token: string, payload: { fromNodeId: string; toNodeId: string; nomePessoa: string }) {
+    return this.http.put<any[]>(`${this.api}/hierarchy/move-member`, payload, { headers: this.headers(token) });
+  }
+
   listConsultancies(token: string) {
     return this.http.get<any[]>(`${this.api}/consultancies`, { headers: this.headers(token) });
   }

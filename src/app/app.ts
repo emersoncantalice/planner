@@ -36,6 +36,7 @@ import { ProjectBudgetPanelComponent } from './components/project-budget-panel/p
 import { DrawingPanelComponent } from './components/drawing-panel/drawing-panel.component';
 import { PeriodsPanelComponent } from './components/periods-panel/periods-panel.component';
 import { PeriodBannerComponent } from './components/period-banner/period-banner.component';
+import { HierarchyPanelComponent } from './components/hierarchy-panel/hierarchy-panel.component';
 
 @Component({
   selector: 'app-root',
@@ -69,7 +70,8 @@ import { PeriodBannerComponent } from './components/period-banner/period-banner.
     ProjectBudgetPanelComponent,
     DrawingPanelComponent,
     PeriodsPanelComponent,
-    PeriodBannerComponent
+    PeriodBannerComponent,
+    HierarchyPanelComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './app.html',
@@ -96,6 +98,9 @@ export class App {
   indicadores = signal<any[]>([]);
   atividades = signal<any[]>([]);
   pessoas = signal<any[]>([]);
+  fotosPorPessoaId = signal<Record<string, string>>({});
+  fotosPorNome = signal<Record<string, string>>({});
+  hierarquia = signal<any[]>([]);
   consultorias = signal<any[]>([]);
   pontosFocais = signal<any[]>([]);
   ausencias    = signal<any[]>([]);
@@ -120,7 +125,7 @@ export class App {
   authSubmitting = signal(false);
   mobileSidebarOpen = signal(false);
   periodRefreshKey = signal(0);
-  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos'>(
+  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia'>(
     (localStorage.getItem('planner_secao') as any) || 'dashboard'
   );
   riscoEmFocoId = signal('');
@@ -295,7 +300,7 @@ export class App {
     this.periodRefreshKey.update(value => value + 1);
   }
 
-  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos') {
+  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia') {
     this.secaoAtiva.set(secao);
     localStorage.setItem('planner_secao', secao);
     if (secao !== 'riscos') this.riscoEmFocoId.set('');
@@ -738,10 +743,18 @@ export class App {
     });
   }
 
-  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[] }) {
+  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; foto?: string }) {
+    const foto = payload.foto || '';
     this.api.createPerson(this.token(), payload).subscribe({
-      next: () => {
+      next: (criada: any) => {
         this.mensagem.set('Pessoa cadastrada.');
+        // Salva a foto escolhida no formulário assim que a pessoa passa a ter id.
+        if (foto && criada?.id) {
+          this.api.updatePersonImage(this.token(), criada.id, foto).subscribe({
+            next: () => { this.carregarFotosPessoas(); },
+            error: () => {}
+          });
+        }
         this.carregarPessoas();
       },
       error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao cadastrar pessoa.')
@@ -1563,6 +1576,8 @@ export class App {
         this.carregarIndicadores();
         this.carregarAtividades();
         this.carregarPessoas();
+        this.carregarFotosPessoas();
+        this.carregarHierarquia();
         this.carregarHorasMes();
         this.carregarConsultorias();
         this.carregarPontosFocais();
@@ -1742,8 +1757,89 @@ export class App {
 
   private carregarPessoas() {
     this.api.listPeople(this.token()).subscribe({
-      next: (res) => { this.pessoas.set(res); this.tentarNotificacoes(); },
+      next: (res) => { this.pessoas.set(res); this.recomputarFotosPorNome(); this.tentarNotificacoes(); },
       error: (err) => this.tratarErroCarga('Falha ao carregar pessoas.', err)
+    });
+  }
+
+  private carregarFotosPessoas() {
+    this.api.listPersonImages(this.token()).subscribe({
+      next: (rows) => {
+        const byId: Record<string, string> = {};
+        for (const r of rows || []) {
+          if (r?.personId && r?.dataUrl) byId[r.personId] = r.dataUrl;
+        }
+        this.fotosPorPessoaId.set(byId);
+        this.recomputarFotosPorNome();
+      },
+      error: () => {}
+    });
+  }
+
+  private recomputarFotosPorNome() {
+    const byId = this.fotosPorPessoaId();
+    const byNome: Record<string, string> = {};
+    for (const p of this.pessoas()) {
+      const foto = byId[p.id];
+      if (foto && p?.nome) byNome[this.normalizarNomePessoa(p.nome)] = foto;
+    }
+    this.fotosPorNome.set(byNome);
+  }
+
+  private normalizarNomePessoa(nome: string): string {
+    return String(nome || '').trim().toLowerCase();
+  }
+
+  salvarFotoPessoa(payload: { personId: string; dataUrl: string }) {
+    this.api.updatePersonImage(this.token(), payload.personId, payload.dataUrl || '').subscribe({
+      next: (res) => {
+        const saved = res?.dataUrl || '';
+        const byId = { ...this.fotosPorPessoaId() };
+        if (saved) byId[payload.personId] = saved; else delete byId[payload.personId];
+        this.fotosPorPessoaId.set(byId);
+        this.recomputarFotosPorNome();
+        this.mensagem.set(saved ? 'Foto atualizada.' : 'Foto removida.');
+      },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao salvar foto.')
+    });
+  }
+
+  // ── Hierarquia ─────────────────────────────────────────────────────────
+  private carregarHierarquia() {
+    this.api.listHierarchy(this.token()).subscribe({
+      next: (res) => this.hierarquia.set(res || []),
+      error: (err) => this.tratarErroCarga('Falha ao carregar hierarquia.', err)
+    });
+  }
+
+  criarNoHierarquia(payload: any) {
+    this.api.createHierarchyNode(this.token(), payload).subscribe({
+      next: () => { this.mensagem.set('Estrutura criada.'); this.carregarHierarquia(); },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao criar estrutura.')
+    });
+  }
+
+  atualizarNoHierarquia(payload: any) {
+    const { id, ...rest } = payload;
+    this.api.updateHierarchyNode(this.token(), id, rest).subscribe({
+      next: () => { this.mensagem.set('Estrutura atualizada.'); this.carregarHierarquia(); },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar estrutura.')
+    });
+  }
+
+  excluirNoHierarquia(id: string) {
+    this.confirmarExclusao('Excluir esta estrutura e todas as estruturas filhas?', () => {
+      this.api.deleteHierarchyNode(this.token(), id).subscribe({
+        next: () => { this.mensagem.set('Estrutura excluída.'); this.carregarHierarquia(); },
+        error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir estrutura.')
+      });
+    });
+  }
+
+  moverMembroHierarquia(payload: { fromNodeId: string; toNodeId: string; nomePessoa: string }) {
+    this.api.moveHierarchyMember(this.token(), payload).subscribe({
+      next: (res) => { this.hierarquia.set(res || []); },
+      error: (err) => { this.mensagem.set(err?.error?.error ?? 'Falha ao mover pessoa.'); this.carregarHierarquia(); }
     });
   }
 

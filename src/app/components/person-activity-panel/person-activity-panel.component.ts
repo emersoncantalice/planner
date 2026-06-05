@@ -23,11 +23,27 @@ interface WorkloadEntry {
 })
 export class PersonActivityPanelComponent {
   @Input() pessoas: any[] = [];
+  @Input() fotos: Record<string, string> = {};
   @Input() riscos: any[] = [];
   @Input() incidentes: any[] = [];
   @Input() debitos: any[] = [];
   @Input() indicadores: any[] = [];
-  @Input() atividades: any[] = [];   
+  @Input() atividades: any[] = [];
+
+  fotoDe(nome: string): string {
+    return this.fotos?.[this.normNome(nome || '')] || '';
+  }
+
+  iniciaisDe(nome: string): string {
+    const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    return ((partes[0][0] || '') + (partes.length > 1 ? (partes[partes.length - 1][0] || '') : '')).toUpperCase();
+  }
+
+  // O mapa de fotos é indexado por nome em minúsculas e com trim (sem remover acentos).
+  private normNome(v: string): string {
+    return String(v || '').trim().toLowerCase();
+  }
 
   searchTerm = '';
   sortKey: 'nome' | 'total' = 'total';

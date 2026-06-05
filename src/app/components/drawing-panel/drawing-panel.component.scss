@@ -94,7 +94,8 @@
   background: transparent;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  text-align: left;
   min-height: 24px;
   font-size: .68rem;
   font-weight: 800;
@@ -117,8 +118,10 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+    text-align: left;
   }
   em {
+    margin-left: auto;
     font-style: normal;
     font-size: .62rem;
     color: #94a3b8;

@@ -280,6 +280,12 @@
           </span>
           <span class="sb-text"><strong>Indicadores</strong></span>
         </a>
+        <a [class.active]="secaoAtiva() === 'hierarquia'" (click)="selecionarSecao('hierarquia')" title="Hierarquia organizacional">
+          <span class="sb-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M10 2h4v4h3v4h3v4h-4v-2h-2v2h-4v-2H8v2H4v-4h3V6h3zm1 2v4h2V4z"/></svg>
+          </span>
+          <span class="sb-text"><strong>Hierarquia</strong></span>
+        </a>
         <div class="sb-group">
           <a [class.active]="secaoAtiva() === 'perfis' || secaoAtiva() === 'orcamento' || secaoAtiva() === 'epicos' || secaoAtiva() === 'pessoas' || secaoAtiva() === 'horas_mes' || secaoAtiva() === 'prestadores' || secaoAtiva() === 'pontos_focais' || secaoAtiva() === 'feriados' || secaoAtiva() === 'ausencias' || secaoAtiva() === 'dados' || secaoAtiva() === 'periodos'" (click)="toggleCadastrosMenu($event)" title="Cadastros">
             <span class="sb-icon" aria-hidden="true">
@@ -610,9 +616,11 @@
           [perfis]="perfis()"
           [pessoas]="pessoas()"
           [consultorias]="consultorias()"
+          [fotos]="fotosPorPessoaId()"
           (create)="criarPessoa($event)"
           (importCsv)="importarPessoasCsv($event)"
           (update)="atualizarPessoa($event)"
+          (savePhoto)="salvarFotoPessoa($event)"
           (remove)="excluirPessoa($event)"></app-person-panel>
       }
       @if (secaoAtiva() === 'prestadores') {
@@ -659,6 +667,7 @@
           [ausencias]="ausencias()"
           [alocacoes]="alocacoesLo()"
           [atividades]="atividades()"
+          [fotos]="fotosPorNome()"
           [token]="token()"
           (createPerson)="criarPessoa($event)"
           (create)="criarAlocacaoLo($event)"
@@ -672,12 +681,14 @@
           [horasMes]="horasMes()"
           [alocacoes]="alocacoesLo()"
           [pessoas]="pessoas()"
+          [fotos]="fotosPorNome()"
           [token]="token()"
           (openAllocation)="abrirAbaAlocacoesLo($event)"></app-person-allocation-panel>
       }
       @if (secaoAtiva() === 'pessoas_atividade') {
         <app-person-activity-panel
           [pessoas]="pessoas()"
+          [fotos]="fotosPorNome()"
           [riscos]="riscos()"
           [incidentes]="incidentes()"
           [debitos]="debitosTecnicos()"
@@ -744,6 +755,21 @@
           (removeAction)="excluirAcaoIndicador($event)"
           (transferOwnership)="transferirDonoIndicador($event)">
         </app-indicators-panel>
+      }
+      @if (secaoAtiva() === 'hierarquia') {
+        <app-hierarchy-panel
+          [nodes]="hierarquia()"
+          [pessoas]="pessoas()"
+          [perfis]="perfis()"
+          [fotos]="fotosPorNome()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [ajustes]="ajustesLo()"
+          [alocacoes]="alocacoesLo()"
+          (create)="criarNoHierarquia($event)"
+          (update)="atualizarNoHierarquia($event)"
+          (remove)="excluirNoHierarquia($event)"
+          (moveMember)="moverMembroHierarquia($event)">
+        </app-hierarchy-panel>
       }
       @if (secaoAtiva() === 'orcamento_projeto') {
         <app-project-budget-panel

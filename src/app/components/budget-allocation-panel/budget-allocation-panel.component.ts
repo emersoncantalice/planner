@@ -116,7 +116,18 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   @Input() ausencias: any[] = [];
   @Input() alocacoes: any[] = [];
   @Input() atividades: any[] = [];
+  @Input() fotos: Record<string, string> = {};
   @Input() token = '';
+
+  fotoDe(nome: string): string {
+    return this.fotos?.[this.normalized(nome || '')] || '';
+  }
+
+  iniciaisDe(nome: string): string {
+    const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    return ((partes[0][0] || '') + (partes.length > 1 ? (partes[partes.length - 1][0] || '') : '')).toUpperCase();
+  }
   @Output() create = new EventEmitter<{ linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }>();
   @Output() update = new EventEmitter<{ id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }>();
   @Output() remove = new EventEmitter<string>();
@@ -1413,7 +1424,20 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   saveEdit() {
     if (!this.editingId) return;
-    this.update.emit({ id: this.editingId, ...this.form, horasPlanejadas: this.horasMesAtual() });
+    const atual = this.alocacoes.find((a: any) => a.id === this.editingId);
+    if (!this.normalized(this.form.nomePessoa)) {
+      this.percentualAviso = 'Informe o nome da pessoa.';
+      return;
+    }
+    if (!this.form.perfilId) {
+      this.percentualAviso = 'Informe o perfil da pessoa.';
+      return;
+    }
+    // Mantém a alocação como rascunho se ela já era ou se a LO está em rascunho,
+    // pois uma LO em rascunho só aceita alocações do tipo rascunho.
+    const payload: any = { id: this.editingId, ...this.form, horasPlanejadas: this.horasMesAtual() };
+    if (!!atual?.draft || this.loSelecionadaEhDraft()) payload.draft = true;
+    this.update.emit(payload);
     this.editingId = '';
     this.pessoaEdicaoSelecionadaId = '';
     this.pessoaEdicaoNome = '';
@@ -1515,8 +1539,20 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   adicionarAlocacao() {
     const nomePessoa = this.form.nomePessoa || '';
+    // Uma LO em rascunho só aceita alocações do tipo rascunho, então tratamos
+    // a alocação como draft mesmo sem o toggle manual estar ligado.
+    const ehDraft = this.draftMode || this.loSelecionadaEhDraft();
 
-    if (!this.draftMode) {
+    if (!this.normalized(nomePessoa)) {
+      this.percentualAviso = ehDraft ? 'Informe o nome da pessoa rascunho.' : 'Selecione uma pessoa.';
+      return;
+    }
+    if (!this.form.perfilId) {
+      this.percentualAviso = 'Informe o perfil da pessoa.';
+      return;
+    }
+
+    if (!ehDraft) {
       if (this.normalized(nomePessoa) && this.profissionalSemDisponibilidadeNoAno(nomePessoa)) {
         this.percentualAviso = `${nomePessoa} já está com 100% de alocação em todos os meses e não pode receber nova linha de alocação.`;
         return;
@@ -1534,13 +1570,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       }
     }
 
-    if (this.normalized(nomePessoa) && this.loSelecionadaId && !this.draftMode) {
+    if (this.normalized(nomePessoa) && this.loSelecionadaId && !ehDraft) {
       const pendingKey = this.pendingPctKey(nomePessoa, this.loSelecionadaId);
       localStorage.setItem(pendingKey, String(this.novaAlocacaoPercentual));
     }
 
     const payload: any = { ...this.form, horasPlanejadas: this.horasMesAtual() };
-    if (this.draftMode) payload.draft = true;
+    if (ehDraft) payload.draft = true;
     if (this.novoMesInicio > 0) payload.mesInicio = this.novoMesInicio;
 
     this.create.emit(payload);
@@ -1783,8 +1819,15 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     );
     if (pessoa) {
       this.selecionarPessoaNova(pessoa.id);
+      return;
+    }
+
+    this.novaPessoaSelecionadaId = '';
+    if (this.draftMode || this.loSelecionadaEhDraft()) {
+      this.form.nomePessoa = nome;
     } else {
-      this.selecionarPessoaNova('');
+      this.form.nomePessoa = '';
+      this.form.perfilId = '';
     }
   }
 
@@ -1795,9 +1838,21 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     );
     if (pessoa) {
       this.selecionarPessoaEdicao(pessoa.id);
-    } else {
-      this.selecionarPessoaEdicao('');
+      return;
     }
+
+    this.pessoaEdicaoSelecionadaId = '';
+    if (this.editandoAlocacaoDraft()) {
+      this.form.nomePessoa = nome;
+    } else {
+      this.form.nomePessoa = '';
+      this.form.perfilId = '';
+    }
+  }
+
+  private editandoAlocacaoDraft(): boolean {
+    const alocacao = this.alocacoes.find((a: any) => a.id === this.editingId);
+    return !!alocacao?.draft || this.loSelecionadaEhDraft();
   }
 
   numAlocacoesNaLoSelecionada(): number {
@@ -2371,11 +2426,504 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       this.applyExcelStyle(wsAtiv, atividadeRows[0].length);
       XLSX.utils.book_append_sheet(wb, wsAtiv, 'Por Atividade');
 
+      this.appendTimeSheets(wb, XLSX);
       
       const dt = new Date();
       const fileName = `alocacoes_${this.anoSelecionado}_${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}.xlsx`;
       XLSX.writeFile(wb, fileName);
     });
+  }
+
+  exportarTimeExcel() {
+    const lo = this.loSelecionada();
+    if (!lo) {
+      this.percentualAviso = 'Selecione uma LO para exportar o time.';
+      return;
+    }
+
+    import('xlsx').then(XLSX => {
+      const wb = XLSX.utils.book_new();
+      this.appendTimeSheets(wb, XLSX);
+      const dt = new Date();
+      const stamp = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}`;
+      const codigo = this.safeFilePart(lo.codigo || lo.nome || 'time');
+      XLSX.writeFile(wb, `time_${codigo}_${this.anoSelecionado}_${stamp}.xlsx`);
+    });
+  }
+
+  exportarTimeImagem() {
+    const lo = this.loSelecionada();
+    if (!lo) {
+      this.percentualAviso = 'Selecione uma LO para exportar o time.';
+      return;
+    }
+
+    const rows = this.timeImagemRows();
+    const width = 1800;
+    const top = 324;
+    const rowHeight = 108;
+    const height = Math.max(1040, top + Math.max(1, rows.length) * rowHeight + 168);
+    const scale = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(scale, scale);
+
+    const total = rows.reduce((sum, row) => sum + row.totalValor, 0);
+    const totalHoras = rows.reduce((sum, row) => sum + row.totalHoras, 0);
+    const orcamento = this.orcamentoLoSelecionada();
+    const saldo = orcamento - total;
+    const maxMes = Math.max(1, ...rows.flatMap(row => row.valoresMes));
+    const mesesHeader = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, '#0f172a');
+    bg.addColorStop(0.46, '#172554');
+    bg.addColorStop(1, '#0f766e');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#67e8f9';
+    ctx.beginPath();
+    ctx.arc(1450, 120, 280, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#a7f3d0';
+    ctx.beginPath();
+    ctx.arc(220, height - 120, 260, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    this.fillRoundRect(ctx, 54, 48, width - 108, height - 96, 36, 'rgba(255,255,255,.94)');
+    this.fillRoundRect(ctx, 82, 78, width - 164, 184, 28, '#f8fafc');
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 54px Inter, Arial, sans-serif';
+    ctx.fillText('Visão do time', 122, 146);
+    ctx.font = '700 30px Inter, Arial, sans-serif';
+    ctx.fillStyle = '#1d4ed8';
+    ctx.fillText(String(lo.codigo || 'LO'), 122, 194);
+    ctx.fillStyle = '#334155';
+    ctx.font = '500 25px Inter, Arial, sans-serif';
+    this.drawTextFit(ctx, String(lo.nome || '-'), 122, 232, 820);
+
+    const chipY = 104;
+    this.drawMetricCard(ctx, 1040, chipY, 180, 112, 'Pessoas', String(rows.length), '#0f766e');
+    this.drawMetricCard(ctx, 1240, chipY, 190, 112, 'Horas', this.formatCompactNumber(totalHoras), '#7c3aed');
+    this.drawMetricCard(ctx, 1450, chipY, 250, 112, 'Total', this.formatCompactCurrency(total), '#0369a1');
+
+    this.fillRoundRect(ctx, 82, 280, width - 164, 62, 18, '#e0f2fe');
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 18px Inter, Arial, sans-serif';
+    ctx.fillText('Pessoa', 132, 319);
+    ctx.fillText('Perfil e vínculo', 400, 319);
+    ctx.fillText('Meses', 690, 319);
+    ctx.fillText('Total', 1548, 319);
+
+    rows.forEach((row, index) => {
+      const y = top + index * rowHeight;
+      const alt = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+      this.fillRoundRect(ctx, 82, y, width - 164, rowHeight - 14, 20, alt);
+
+      const avatarColor = row.temRascunho && !row.temReal ? '#7c3aed' : row.categoria === 'TERCEIRO' ? '#0891b2' : '#2563eb';
+      this.fillRoundRect(ctx, 122, y + 22, 56, 56, 18, avatarColor);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 21px Inter, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.initials(row.pessoa), 150, y + 58);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 23px Inter, Arial, sans-serif';
+      this.drawTextFit(ctx, row.pessoa, 196, y + 46, 178);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '600 15px Inter, Arial, sans-serif';
+      ctx.fillText(row.situacao, 196, y + 70);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = '700 18px Inter, Arial, sans-serif';
+      this.drawTextFit(ctx, row.perfis, 400, y + 43, 240);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '500 15px Inter, Arial, sans-serif';
+      this.drawTextFit(ctx, [row.categoria, row.consultoria].filter(Boolean).join(' • ') || '-', 400, y + 68, 240);
+
+      row.valoresMes.forEach((valor, month) => {
+        const x = 690 + month * 68;
+        const barH = Math.max(5, Math.round((valor / maxMes) * 42));
+        const barY = y + 68 - barH;
+        ctx.fillStyle = '#e2e8f0';
+        this.fillRoundRect(ctx, x, y + 24, 42, 46, 10, '#e2e8f0');
+        ctx.fillStyle = row.temRascunho && !row.temReal ? '#a855f7' : '#14b8a6';
+        this.fillRoundRect(ctx, x, barY, 42, barH, 10, ctx.fillStyle as string);
+        ctx.fillStyle = '#475569';
+        ctx.font = '700 11px Inter, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(mesesHeader[month], x + 21, y + 88);
+        ctx.textAlign = 'left';
+      });
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 21px Inter, Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(this.formatCompactCurrency(row.totalValor), 1660, y + 44);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '600 15px Inter, Arial, sans-serif';
+      ctx.fillText(`${this.formatCompactNumber(row.totalHoras)}h`, 1660, y + 68);
+      ctx.textAlign = 'left';
+    });
+
+    if (!rows.length) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '700 28px Inter, Arial, sans-serif';
+      ctx.fillText('Nenhuma alocação nesta LO.', 122, top + 72);
+    }
+
+    const footerY = height - 120;
+    ctx.fillStyle = '#334155';
+    ctx.font = '700 19px Inter, Arial, sans-serif';
+    ctx.fillText(`Orçamento ajustado: ${this.currency(orcamento)}   •   Saldo projetado: ${this.currency(saldo)}   •   Ano ${this.anoSelecionado}`, 122, footerY);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '500 15px Inter, Arial, sans-serif';
+    ctx.fillText(`Gerado em ${new Date().toLocaleDateString('pt-BR')} pelo Planner`, 122, footerY + 32);
+
+    const link = document.createElement('a');
+    link.download = `time_${this.safeFilePart(lo.codigo || lo.nome || 'time')}_${this.anoSelecionado}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  private appendTimeSheets(wb: any, XLSX: any) {
+    const lo = this.loSelecionada();
+    if (!lo) return;
+
+    const brl = (v: number) => Number(v.toFixed(2));
+    const pct = (v: number) => Number(v.toFixed(2));
+    const mesesHeader = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const alocacoesTime = this.alocacoes
+      .filter((a: any) => a.linhaOrcamentariaId === lo.id)
+      .sort((a: any, b: any) => {
+        const byPessoa = String(a.nomePessoa || '').localeCompare(String(b.nomePessoa || ''), 'pt-BR', { sensitivity: 'base' });
+        if (byPessoa !== 0) return byPessoa;
+        return String(a.perfilNome || '').localeCompare(String(b.perfilNome || ''), 'pt-BR', { sensitivity: 'base' });
+      });
+
+    const resumoMap = new Map<string, any>();
+    for (const a of alocacoesTime) {
+      const nome = String(a.nomePessoa || '-').trim() || '-';
+      const key = this.normalized(nome);
+      const pessoa = this.pessoaPorNome(nome);
+      const valorHora = this.getValorHoraDaAlocacao(a);
+      const categoria = this.getCategoriaDaPessoa(a);
+      const row = resumoMap.get(key) ?? {
+        pessoa: nome,
+        categoria,
+        tipoVinculo: pessoa?.tipoVinculo || categoria,
+        consultoria: pessoa?.consultoria || '',
+        perfis: new Set<string>(),
+        alocacoes: 0,
+        temReal: false,
+        temRascunho: false,
+        contaNosTotais: false,
+        valoresHora: [] as number[],
+        horasMes: Array(12).fill(0),
+        valoresMes: Array(12).fill(0),
+      };
+
+      row.perfis.add(a.perfilNome || '-');
+      row.alocacoes += 1;
+      row.temReal = row.temReal || !a.draft;
+      row.temRascunho = row.temRascunho || !!a.draft;
+      row.contaNosTotais = row.contaNosTotais || this.alocacaoContaNoResumoLo(a);
+      row.valoresHora.push(valorHora);
+
+      for (let month = 0; month < 12; month++) {
+        row.horasMes[month] += this.horasMensaisExportacao(a, month);
+        row.valoresMes[month] += this.round2(this.custoMensal(a.id, valorHora, month));
+      }
+      resumoMap.set(key, row);
+    }
+
+    const metaRows = [
+      ['LO', lo.nome || '-'],
+      ['Código', lo.codigo || '-'],
+      ['Ano', this.anoSelecionado],
+      ['Situação', lo.situacao === 'DRAFT' ? 'Rascunho' : 'Publicada'],
+      ['Orçamento ajustado', brl(this.orcamentoLoSelecionada())],
+      ['Total do time', brl(alocacoesTime.reduce((sum: number, a: any) => {
+        const valorHora = this.getValorHoraDaAlocacao(a);
+        return sum + this.meses.reduce((acc: number, _m: string, month: number) => acc + this.round2(this.custoMensal(a.id, valorHora, month)), 0);
+      }, 0))],
+      ['Saldo projetado', brl(this.orcamentoLoSelecionada() - alocacoesTime.reduce((sum: number, a: any) => {
+        const valorHora = this.getValorHoraDaAlocacao(a);
+        return sum + this.meses.reduce((acc: number, _m: string, month: number) => acc + this.round2(this.custoMensal(a.id, valorHora, month)), 0);
+      }, 0))],
+      [],
+    ];
+
+    const resumoRows: any[] = [
+      ...metaRows,
+      ['Pessoa', 'Categoria', 'Tipo vínculo', 'Consultoria', 'Perfis', 'Alocações', 'Situação', 'Conta nos totais', 'Valor/h médio',
+        ...mesesHeader.map(m => `${m} Valor`), 'Total Anual',
+        ...mesesHeader.map(m => `${m} Horas`), 'Total Horas']
+    ];
+
+    for (const row of [...resumoMap.values()].sort((a: any, b: any) =>
+      String(a.pessoa || '').localeCompare(String(b.pessoa || ''), 'pt-BR', { sensitivity: 'base' })
+    )) {
+      const valores = row.valoresMes.map((v: number) => brl(v));
+      const horas = row.horasMes.map((v: number) => pct(v));
+      const totalValor = brl(valores.reduce((sum: number, v: number) => sum + v, 0));
+      const totalHoras = pct(horas.reduce((sum: number, v: number) => sum + v, 0));
+      resumoRows.push([
+        row.pessoa,
+        row.categoria,
+        row.tipoVinculo || '-',
+        row.consultoria || '-',
+        [...row.perfis].join(', '),
+        row.alocacoes,
+        row.temReal && row.temRascunho ? 'Real + rascunho' : row.temRascunho ? 'Rascunho' : 'Real',
+        row.contaNosTotais ? 'Sim' : 'Não',
+        brl(row.valoresHora.reduce((sum: number, v: number) => sum + v, 0) / Math.max(1, row.valoresHora.length)),
+        ...valores,
+        totalValor,
+        ...horas,
+        totalHoras
+      ]);
+    }
+
+    const detalheHeader = ['LO', 'Código', 'Pessoa', 'Perfil', 'Categoria', 'Tipo vínculo', 'Consultoria', 'Situação', 'Conta nos totais', 'Valor/h', 'Percentual padrão'];
+    for (const mes of mesesHeader) {
+      detalheHeader.push(`${mes} %`, `${mes} Horas`, `${mes} Valor`, `${mes} Status`);
+    }
+    detalheHeader.push('Total Horas', 'Total Valor');
+    const detalheRows: any[] = [detalheHeader];
+
+    for (const a of alocacoesTime) {
+      const nome = a.nomePessoa || '-';
+      const pessoa = this.pessoaPorNome(nome);
+      const valorHora = this.getValorHoraDaAlocacao(a);
+      const row: any[] = [
+        lo.nome || '-',
+        lo.codigo || '-',
+        nome,
+        a.perfilNome || '-',
+        this.getCategoriaDaPessoa(a),
+        pessoa?.tipoVinculo || '-',
+        pessoa?.consultoria || '-',
+        a.draft ? 'Rascunho' : 'Real',
+        this.alocacaoContaNoResumoLo(a) ? 'Sim' : 'Não',
+        brl(valorHora),
+        pct(Number(this.getConfig(a.id).percentual || 0)),
+      ];
+      let totalHoras = 0;
+      let totalValor = 0;
+      for (let month = 0; month < 12; month++) {
+        const horas = this.horasMensaisExportacao(a, month);
+        const valor = this.round2(this.custoMensal(a.id, valorHora, month));
+        totalHoras += horas;
+        totalValor += valor;
+        row.push(
+          pct(this.getPercentualEfetivoMes(a.id, month)),
+          pct(horas),
+          brl(valor),
+          this.statusMensalExportacao(a.id, month)
+        );
+      }
+      row.push(pct(totalHoras), brl(totalValor));
+      detalheRows.push(row);
+    }
+
+    if (!alocacoesTime.length) {
+      detalheRows.push([lo.nome || '-', lo.codigo || '-', '(sem alocações)', '', '', '', '', '', '', 0, 0, ...Array(48).fill(''), 0, 0]);
+    }
+
+    const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
+    this.applyExcelStyle(wsResumo, resumoRows[resumoRows.length > metaRows.length ? metaRows.length : 0]?.length || 8);
+    wsResumo['!cols'] = this.timeResumoCols(resumoRows[metaRows.length]?.length || 12);
+    XLSX.utils.book_append_sheet(wb, wsResumo, 'Time Resumo');
+
+    const wsDetalhe = XLSX.utils.aoa_to_sheet(detalheRows);
+    wsDetalhe['!cols'] = this.timeDetalheCols(detalheHeader.length);
+    XLSX.utils.book_append_sheet(wb, wsDetalhe, 'Time Detalhe');
+  }
+
+  private pessoaPorNome(nomePessoa: string): any | null {
+    const nome = this.normalized(nomePessoa || '');
+    return this.pessoas.find((p: any) => this.normalized(p?.nome || '') === nome) || null;
+  }
+
+  private timeImagemRows(): Array<{
+    pessoa: string;
+    categoria: string;
+    consultoria: string;
+    perfis: string;
+    situacao: string;
+    temReal: boolean;
+    temRascunho: boolean;
+    valoresMes: number[];
+    totalValor: number;
+    totalHoras: number;
+  }> {
+    const lo = this.loSelecionada();
+    if (!lo) return [];
+    const map = new Map<string, {
+      pessoa: string;
+      categoria: string;
+      consultoria: string;
+      perfis: Set<string>;
+      temReal: boolean;
+      temRascunho: boolean;
+      valoresMes: number[];
+      totalHoras: number;
+    }>();
+
+    this.alocacoes
+      .filter((a: any) => a.linhaOrcamentariaId === lo.id)
+      .forEach((a: any) => {
+        const pessoaNome = String(a.nomePessoa || '-').trim() || '-';
+        const pessoa = this.pessoaPorNome(pessoaNome);
+        const key = this.normalized(pessoaNome);
+        const row = map.get(key) ?? {
+          pessoa: pessoaNome,
+          categoria: this.getCategoriaDaPessoa(a),
+          consultoria: pessoa?.consultoria || '',
+          perfis: new Set<string>(),
+          temReal: false,
+          temRascunho: false,
+          valoresMes: Array(12).fill(0),
+          totalHoras: 0,
+        };
+        row.perfis.add(a.perfilNome || '-');
+        row.temReal = row.temReal || !a.draft;
+        row.temRascunho = row.temRascunho || !!a.draft;
+        const valorHora = this.getValorHoraDaAlocacao(a);
+        for (let month = 0; month < 12; month++) {
+          const valor = this.round2(this.custoMensal(a.id, valorHora, month));
+          const horas = this.horasMensaisExportacao(a, month);
+          row.valoresMes[month] = this.round2(row.valoresMes[month] + valor);
+          row.totalHoras = this.round2(row.totalHoras + horas);
+        }
+        map.set(key, row);
+      });
+
+    return [...map.values()]
+      .map(row => ({
+        pessoa: row.pessoa,
+        categoria: row.categoria,
+        consultoria: row.consultoria,
+        perfis: [...row.perfis].join(', '),
+        situacao: row.temReal && row.temRascunho ? 'Real + rascunho' : row.temRascunho ? 'Rascunho' : 'Real',
+        temReal: row.temReal,
+        temRascunho: row.temRascunho,
+        valoresMes: row.valoresMes,
+        totalValor: this.round2(row.valoresMes.reduce((sum, value) => sum + value, 0)),
+        totalHoras: row.totalHoras,
+      }))
+      .sort((a, b) => b.totalValor - a.totalValor || a.pessoa.localeCompare(b.pessoa, 'pt-BR', { sensitivity: 'base' }));
+  }
+
+  private horasMensaisExportacao(a: any, month: number): number {
+    if (this.isCancelado(a.id, month) || this.mesIndisponivelParaAlocacao(a.id, month)) return 0;
+    const horas = this.horasEfetivas(month, this.getCategoriaDaPessoa(a), a.nomePessoa || '', !!a.draft);
+    return this.round2(horas * Number(this.getPercentualEfetivoMes(a.id, month) || 0) / 100);
+  }
+
+  private statusMensalExportacao(allocationId: string, month: number): string {
+    if (this.isCancelado(allocationId, month)) return 'Cancelado';
+    if (this.mesIndisponivelParaAlocacao(allocationId, month)) return this.motivoMesIndisponivelAlocacao(allocationId, month);
+    if (this.isPago(allocationId, month)) return 'Pago';
+    if ((this.getValorMensalManual(allocationId, month) ?? 0) > 0) return 'Valor manual';
+    if (this.isPercentualMesSobrescrito(allocationId, month)) return 'Percentual manual';
+    return this.getPercentualEfetivoMes(allocationId, month) > 0 ? 'Ativo' : '-';
+  }
+
+  private timeResumoCols(colCount: number): any[] {
+    return Array.from({ length: colCount }, (_v, index) => {
+      if (index === 0) return { wch: 28 };
+      if (index >= 9 && index <= 21) return { wch: 13 };
+      if (index >= 22) return { wch: 11 };
+      return { wch: 16 };
+    });
+  }
+
+  private timeDetalheCols(colCount: number): any[] {
+    return Array.from({ length: colCount }, (_v, index) => {
+      if (index <= 3) return { wch: 24 };
+      if (index >= 11 && (index - 11) % 4 === 3) return { wch: 18 };
+      return { wch: 12 };
+    });
+  }
+
+  private safeFilePart(value: string): string {
+    return String(value || 'export')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 48) || 'export';
+  }
+
+  private fillRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number, fill: string) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.fill();
+  }
+
+  private drawMetricCard(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, label: string, value: string, color: string) {
+    this.fillRoundRect(ctx, x, y, width, height, 22, '#ffffff');
+    this.fillRoundRect(ctx, x, y, 8, height, 4, color);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '700 15px Inter, Arial, sans-serif';
+    ctx.fillText(label.toUpperCase(), x + 24, y + 34);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 31px Inter, Arial, sans-serif';
+    this.drawTextFit(ctx, value, x + 24, y + 76, width - 42);
+  }
+
+  private drawTextFit(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number) {
+    const raw = String(text || '-');
+    if (ctx.measureText(raw).width <= maxWidth) {
+      ctx.fillText(raw, x, y);
+      return;
+    }
+    let next = raw;
+    while (next.length > 1 && ctx.measureText(`${next}…`).width > maxWidth) {
+      next = next.slice(0, -1);
+    }
+    ctx.fillText(`${next}…`, x, y);
+  }
+
+  private initials(value: string): string {
+    const parts = String(value || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    return (parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : (parts[0] || '?').slice(0, 2)).toUpperCase();
+  }
+
+  private formatCompactCurrency(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1).replace('.', ',')} mi`;
+    if (abs >= 1_000) return `R$ ${(value / 1_000).toFixed(0)} mil`;
+    return this.currency(value);
+  }
+
+  private formatCompactNumber(value: number): string {
+    if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1).replace('.', ',')}k`;
+    return String(Math.round(value));
   }
 
   private num(v: any): number { const n = Number(v); return isFinite(n) ? n : 0; }
@@ -2684,4 +3232,3 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
 }
-
