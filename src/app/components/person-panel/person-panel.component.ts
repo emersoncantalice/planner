@@ -4,10 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
 import { PhotoUploadComponent } from '../photo-upload/photo-upload.component';
 
+import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
+
 @Component({
   selector: 'app-person-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, PhotoUploadComponent],
+  imports: [CommonModule, FormsModule, PhotoUploadComponent, ScrollIntoViewWhenDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './person-panel.component.html',
   styleUrl: './person-panel.component.scss'
@@ -80,7 +82,7 @@ export class PersonPanelComponent {
   formExpanded = false;
   editingId = '';
   filtroAtivo: 'todos' | 'ativos' | 'inativos' = 'ativos';
-  pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true };
+  pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
   vagasAnteriores: { alias: string; url: string; inicio: string; fim: string }[] = [];
   historicoExpanded = false;
   novaVaga = { alias: '', url: '', inicio: '', fim: '' };
@@ -114,7 +116,8 @@ export class PersonPanelComponent {
       vagaAlias: p.vagaAlias || '',
       dataNascimento: p.dataNascimento || '',
       contato: this.formatContato(p.contato || ''),
-      ativo: p.ativo !== false   
+      ativo: p.ativo !== false,
+      contaFte: p.contaFte !== false
     };
     this.valorHoraMasked = this.formatValorHora(this.pessoa.valorHora ?? 0);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal ?? 0);
@@ -171,7 +174,7 @@ export class PersonPanelComponent {
       this.pessoa.valorHora = null;
     }
     this.create.emit({ ...this.pessoa, valorMensal: this.valorMensalMedioDaPessoa(this.pessoa), foto: this.fotoPendente || '' });
-    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true };
+    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
     this.vagasAnteriores = [];
     this.historicoExpanded = false;
     this.valorHoraMasked = '';

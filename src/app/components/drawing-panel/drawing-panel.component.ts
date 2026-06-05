@@ -37,6 +37,7 @@ interface DragOrigin extends Rect { pts?: number[]; }
 interface DrawingFolderGroup { path: string; label: string; drawings: DrawingRecord[]; }
 interface CanvasContextMenu { x: number; y: number; }
 interface DrawingContextMenu { drawing: DrawingRecord; x: number; y: number; }
+interface AlignmentGuide { axis: 'x' | 'y'; value: number; from: number; to: number; }
 
 const HANDLE_SIZE = 8;
 const MIN_SIZE    = 10;
@@ -108,6 +109,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   private activeHandle  = '';
   isMultiSelecting      = false;
   selectionRect: Rect | null = null;
+  alignmentGuides: AlignmentGuide[] = [];
   private selectionStart = { x: 0, y: 0 };
   private selectionAdditive = false;
   private selectionBaseIds: string[] = [];
@@ -575,11 +577,12 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   }
 
   onMouseMove(e: MouseEvent) {
-    if (this.isPanning) {
+  if (this.isPanning) {
       const svg = this.svgRef.nativeElement;
       const r   = svg.getBoundingClientRect();
       this.panX = this.panStart.px - (e.clientX - this.panStart.sx) * (this.vw / this.zoom) / r.width;
       this.panY = this.panStart.py - (e.clientY - this.panStart.sy) * (this.vh / this.zoom) / r.height;
+      this.alignmentGuides = [];
       this.cdr.markForCheck();
       return;
     }
@@ -588,6 +591,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
     if (this.isMultiSelecting) {
       this.selectionRect = this.normalizeRect(this.selectionStart, p);
+      this.alignmentGuides = [];
       this.cdr.markForCheck();
       return;
     }
@@ -623,6 +627,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         }
         this.shapes = [...this.shapes.slice(0, idx), s, ...this.shapes.slice(idx + 1)];
       }
+      const created = this.shapes.find(shape => shape.id === this.drawId);
+      this.alignmentGuides = created ? this.computeAlignmentGuides(this.selectionHandleBounds(created), new Set([created.id])) : [];
       this.cdr.markForCheck();
       return;
     }
@@ -635,6 +641,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
     if (!this.activeHandle && (this.selectedIds.length > 1 || this.sel.type === 'pen')) {
       this.moveSelectedBy(dx, dy);
+      this.updateAlignmentGuidesForCurrentSelection();
     } else if (!this.activeHandle) {
       this.updateShape(this.sel.id, {
         x: this.dragOrig.x + dx,
@@ -644,6 +651,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         fromAnchor: this.sel.type === 'arrow' ? undefined : this.sel.fromAnchor,
         toAnchor: this.sel.type === 'arrow' ? undefined : this.sel.toAnchor
       });
+      const moved = this.findShape(this.sel.id);
+      this.alignmentGuides = moved ? this.computeAlignmentGuides(this.selectionHandleBounds(moved), new Set([moved.id])) : [];
     } else if (this.sel.type === 'line') {
       if (this.activeHandle === 'line-start') {
         const endX = this.dragOrig.x + this.dragOrig.w;
@@ -654,6 +663,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       } else if (this.activeHandle === 'line-end') {
         this.updateShape(this.sel.id, { w: this.dragOrig.w + dx, h: this.dragOrig.h + dy });
       }
+      const resized = this.findShape(this.sel.id);
+      this.alignmentGuides = resized ? this.computeAlignmentGuides(this.selectionHandleBounds(resized), new Set([resized.id])) : [];
     } else {
       let { x, y, w, h } = this.dragOrig;
       const hnd = this.activeHandle;
@@ -664,6 +675,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       if (w < MIN_SIZE) { if (hnd.includes('l')) x = this.dragOrig.x + this.dragOrig.w - MIN_SIZE; w = MIN_SIZE; }
       if (h < MIN_SIZE) { if (hnd.includes('t')) y = this.dragOrig.y + this.dragOrig.h - MIN_SIZE; h = MIN_SIZE; }
       this.updateShape(this.sel.id, { x, y, w, h });
+      const resized = this.findShape(this.sel.id);
+      this.alignmentGuides = resized ? this.computeAlignmentGuides(this.selectionHandleBounds(resized), new Set([resized.id])) : [];
     }
     this.cdr.markForCheck();
   }
@@ -676,6 +689,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.isDragging    = false;
     this.isPanning     = false;
     this.isMultiSelecting = false;
+    this.alignmentGuides = [];
 
     if (wasPanning) { this.cdr.markForCheck(); return; }
 
@@ -862,6 +876,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   private clearSelection() {
     this.selectedId = null;
     this.selectedIds = [];
+    this.alignmentGuides = [];
   }
 
   isSelected(id: string): boolean {
@@ -988,6 +1003,63 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         pts: origin.pts ? origin.pts.map((value, index) => value + (index % 2 === 0 ? dx : dy)) : shape.pts
       };
     });
+  }
+
+  private updateAlignmentGuidesForCurrentSelection() {
+    const selected = this.selectedShapes();
+    if (!selected.length && this.sel) selected.push(this.sel);
+    if (!selected.length) {
+      this.alignmentGuides = [];
+      return;
+    }
+    const bounds = selected.map(shape => this.selectionHandleBounds(shape));
+    const minX = Math.min(...bounds.map(b => b.x));
+    const minY = Math.min(...bounds.map(b => b.y));
+    const maxX = Math.max(...bounds.map(b => b.x + b.w));
+    const maxY = Math.max(...bounds.map(b => b.y + b.h));
+    this.alignmentGuides = this.computeAlignmentGuides(
+      { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+      new Set(selected.map(shape => shape.id))
+    );
+  }
+
+  private computeAlignmentGuides(activeBounds: Rect, activeIds: Set<string>): AlignmentGuide[] {
+    const tolerance = 2.5 / Math.max(this.zoom, 0.25);
+    const activeX = [activeBounds.x, activeBounds.x + activeBounds.w / 2, activeBounds.x + activeBounds.w];
+    const activeY = [activeBounds.y, activeBounds.y + activeBounds.h / 2, activeBounds.y + activeBounds.h];
+    const guides: AlignmentGuide[] = [];
+    for (const shape of this.shapes) {
+      if (activeIds.has(shape.id)) continue;
+      const bounds = this.selectionHandleBounds(shape);
+      const targetX = [bounds.x, bounds.x + bounds.w / 2, bounds.x + bounds.w];
+      const targetY = [bounds.y, bounds.y + bounds.h / 2, bounds.y + bounds.h];
+      for (const value of activeX) {
+        const match = targetX.find(target => Math.abs(target - value) <= tolerance);
+        if (match !== undefined) {
+          guides.push({
+            axis: 'x',
+            value: match,
+            from: Math.min(activeBounds.y, bounds.y) - 40,
+            to: Math.max(activeBounds.y + activeBounds.h, bounds.y + bounds.h) + 40
+          });
+          break;
+        }
+      }
+      for (const value of activeY) {
+        const match = targetY.find(target => Math.abs(target - value) <= tolerance);
+        if (match !== undefined) {
+          guides.push({
+            axis: 'y',
+            value: match,
+            from: Math.min(activeBounds.x, bounds.x) - 40,
+            to: Math.max(activeBounds.x + activeBounds.w, bounds.x + bounds.w) + 40
+          });
+          break;
+        }
+      }
+      if (guides.length >= 2) break;
+    }
+    return guides;
   }
 
   selectedShapes(): DrawShape[] {

@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
 
+import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
+
 @Component({
   selector: 'app-business-epic-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './business-epic-panel.component.html',
   styleUrl: './business-epic-panel.component.scss'

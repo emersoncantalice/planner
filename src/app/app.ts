@@ -100,6 +100,7 @@ export class App {
   pessoas = signal<any[]>([]);
   fotosPorPessoaId = signal<Record<string, string>>({});
   fotosPorNome = signal<Record<string, string>>({});
+  percentuaisAlocacaoPorNome = signal<Record<string, number>>({});
   hierarquia = signal<any[]>([]);
   consultorias = signal<any[]>([]);
   pontosFocais = signal<any[]>([]);
@@ -1578,6 +1579,7 @@ export class App {
         this.carregarPessoas();
         this.carregarFotosPessoas();
         this.carregarHierarquia();
+        this.carregarPercentuaisAlocacao();
         this.carregarHorasMes();
         this.carregarConsultorias();
         this.carregarPontosFocais();
@@ -1666,9 +1668,40 @@ export class App {
 
   private carregarAlocacoesLo() {
     this.api.listBudgetAllocations(this.token()).subscribe({
-      next: (res) => this.alocacoesLo.set(res),
+      next: (res) => { this.alocacoesLo.set(res); this.recomputarPercentuaisAlocacao(); },
       error: (err) => this.tratarErroCarga('Falha ao carregar alocacoes LO.', err)
     });
+  }
+
+  // Percentual de alocação por pessoa (mesmo número da tela de Alocações por LO), somado e limitado a 100%.
+  private allocationPercentById: Record<string, number> = {};
+
+  private carregarPercentuaisAlocacao() {
+    this.api.listAllocationPercent(this.token()).subscribe({
+      next: (rows: any[]) => {
+        const byId: Record<string, number> = {};
+        for (const r of rows || []) {
+          const id = String(r?.allocationId || '').trim();
+          if (!id) continue;
+          byId[id] = Math.max(0, Math.min(100, Number(r?.percentual ?? 100)));
+        }
+        this.allocationPercentById = byId;
+        this.recomputarPercentuaisAlocacao();
+      },
+      error: () => {}
+    });
+  }
+
+  private recomputarPercentuaisAlocacao() {
+    const byNome: Record<string, number> = {};
+    for (const a of this.alocacoesLo()) {
+      if (a?.draft) continue;
+      const nome = String(a?.nomePessoa || '').trim().toLowerCase();
+      if (!nome) continue;
+      const pct = this.allocationPercentById[a.id] ?? 100;
+      byNome[nome] = Math.min(100, (byNome[nome] || 0) + pct);
+    }
+    this.percentuaisAlocacaoPorNome.set(byNome);
   }
 
   private carregarPagamentosAlocacao() {

@@ -535,6 +535,22 @@
           }
           </g>
 
+          @for (guide of alignmentGuides; track $index) {
+            @if (guide.axis === 'x') {
+              <line class="alignment-guide"
+                    [attr.x1]="guide.value"
+                    [attr.x2]="guide.value"
+                    [attr.y1]="guide.from"
+                    [attr.y2]="guide.to"/>
+            } @else {
+              <line class="alignment-guide"
+                    [attr.x1]="guide.from"
+                    [attr.x2]="guide.to"
+                    [attr.y1]="guide.value"
+                    [attr.y2]="guide.value"/>
+            }
+          }
+
           @if (selectionRect; as dragBox) {
             <rect class="selection-marquee"
                   [attr.x]="dragBox.x"

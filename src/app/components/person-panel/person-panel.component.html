@@ -1,4 +1,4 @@
-<planner-card><article class="card">
+<planner-card><article class="card" [scrollIntoViewWhen]="editingId">
   <div class="panel-head">
     <h2>Pessoas</h2>
     <div class="panel-actions">
@@ -143,6 +143,10 @@
     <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
       <input type="checkbox" [(ngModel)]="pessoa.ativo" id="pessoa-ativo" style="width:auto" />
       <label for="pessoa-ativo" style="margin:0">Pessoa ativa</label>
+    </div>
+    <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
+      <input type="checkbox" [(ngModel)]="pessoa.contaFte" id="pessoa-conta-fte" style="width:auto" />
+      <label for="pessoa-conta-fte" style="margin:0">Conta para o FTE (alocação na hierarquia)</label>
     </div>
     <label>Valor mensal medio</label>
     <input

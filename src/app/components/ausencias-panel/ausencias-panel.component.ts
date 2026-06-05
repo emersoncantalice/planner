@@ -26,10 +26,12 @@ interface Conflito {
   overlapDias: number;
 }
 
+import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
+
 @Component({
   selector: 'app-ausencias-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './ausencias-panel.component.html',
   styleUrl: './ausencias-panel.component.scss'

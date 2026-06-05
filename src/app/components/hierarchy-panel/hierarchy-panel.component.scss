@@ -50,14 +50,14 @@
   padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
 }
 .lo-check {
-  display: inline-flex; align-items: center; gap: 6px;
-  border: 1px solid #e2e8f0; border-radius: 20px; padding: 4px 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid #e2e8f0; border-radius: 20px; padding: 4px 12px;
   font-size: .78rem; cursor: pointer; background: #f8fafc;
 }
 .lo-check.on { background: #ecfdf5; border-color: #6ee7b7; }
-.lo-check input { width: auto; margin: 0; }
-.lo-check-cod { font-weight: 600; color: #0f172a; }
-.lo-check-val { color: #64748b; }
+.lo-check input { width: auto; margin: 0 2px 0 0; flex: 0 0 auto; }
+.lo-check-cod { font-weight: 600; color: #0f172a; white-space: nowrap; }
+.lo-check-val { color: #64748b; white-space: nowrap; margin-left: 6px; }
 
 .vazio { color: #64748b; padding: 24px 0; text-align: center; }
 
@@ -95,6 +95,19 @@
 .node-nome { font-size: .95rem; font-weight: 700; color: #0f172a; margin-top: 2px; }
 .node-desc { font-size: .74rem; color: #64748b; margin-top: 2px; }
 
+/* subgrupos (caixas para agrupar pessoas dentro da estrutura) */
+.node-subgrupo { margin-top: 8px; }
+.node-subgrupo:not(.flat) {
+  border: 1px dashed #cbd5e1; border-radius: 10px; padding: 6px 8px 8px; background: #fbfdff;
+}
+.node-subgrupo-head {
+  font-size: .66rem; font-weight: 800; letter-spacing: .03em; color: #0f172a;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.node-subgrupo:not(.flat) .node-grupo:first-of-type { margin-top: 2px; }
+.membro-list .m-subgrupo { width: 130px; flex: 0 0 130px; font-size: .8rem; }
+.membro-list .m-vinculo { width: auto; flex: 0 0 auto; min-width: 92px; }
+
 /* grupos por vínculo (Folha × Terceiro) */
 .node-grupo { margin-top: 8px; border-radius: 8px; padding: 4px 6px 6px; }
 .node-grupo.g-cross { background: #fff7ed; border: 1px solid #fed7aa; }
@@ -125,9 +138,30 @@
 .node-m:hover { background: rgba(255,255,255,.7); border-color: #e2e8f0; }
 .node-m:active { cursor: grabbing; }
 .node-m.fora-lo { background: #fff7ed; border-color: #fed7aa; }
+.node-m.is-cross .av { box-shadow: 0 0 0 2px #fdba74; }
+.node-m-cross {
+  align-self: flex-start; margin-bottom: 1px;
+  font-size: .52rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+  color: #c2410c; background: #ffedd5; border-radius: 6px; padding: 0 5px; line-height: 1.4;
+}
+.node-m-nofte { margin-left: auto; color: #64748b; font-size: .8rem; line-height: 1; flex: 0 0 auto; }
+.node-m-nofte + .node-m-alert, .node-m-nofte + .node-m-del { margin-left: 4px; }
 .node-m-info { display: flex; flex-direction: column; min-width: 0; }
-.node-m-nome { font-weight: 600; color: #1e293b; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.node-m-meta { color: #64748b; font-size: .66rem; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node-m-nome { font-weight: 600; color: #1e293b; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.node-m-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; color: #64748b; font-size: .66rem; line-height: 1.15; min-width: 0; }
+.node-m-metatext { white-space: normal; overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.node-m-pct {
+  flex: 0 0 auto;
+  font-size: .58rem; font-weight: 800; line-height: 1;
+  color: #3730a3; background: #e0e7ff; border-radius: 8px; padding: 1px 5px;
+  cursor: pointer; user-select: none;
+}
+.node-m-pct:hover { background: #c7d2fe; }
+.node-m-pct.vazio { color: #94a3b8; background: #f1f5f9; }
+.node-m-pct-input {
+  flex: 0 0 auto; width: 44px; padding: 0 4px; height: 16px;
+  font-size: .58rem; font-weight: 700; border: 1px solid #6366f1; border-radius: 6px;
+}
 .node-m-alert { margin-left: auto; color: #ea580c; font-size: .8rem; }
 .node-m-del {
   margin-left: auto; border: none; background: transparent; cursor: pointer;

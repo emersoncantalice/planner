@@ -771,6 +771,15 @@
   pointer-events: none;
 }
 
+.alignment-guide {
+  stroke: #14b8c8;
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px rgba(20,184,200,.55));
+}
+
 .multi-selected-item {
   fill: none;
   stroke: rgba(37,99,235,.72);

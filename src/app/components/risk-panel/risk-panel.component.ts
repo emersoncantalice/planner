@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
 
+import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
+
 @Component({
   selector: 'app-risk-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './risk-panel.component.html',
   styleUrl: './risk-panel.component.scss'

@@ -3,10 +3,12 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output 
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/toast.service';
 
+import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
+
 @Component({
   selector: 'app-focal-point-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './focal-point-panel.component.html',
   styleUrl: './focal-point-panel.component.scss'

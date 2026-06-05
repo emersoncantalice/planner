@@ -1,4 +1,4 @@
-<planner-card><article class="card">
+<planner-card><article class="card" [scrollIntoViewWhen]="editingId">
   <div class="panel-head">
     <div>
       <h2>Hierarquia organizacional</h2>
@@ -123,12 +123,20 @@
             }
           </select>
           <input [(ngModel)]="membroSel.papel" placeholder="Cargo/papel (obrigatório para TBD)" />
+          <input [(ngModel)]="membroSel.subgrupo" list="hierarquia-subgrupos" placeholder="Subgrupo (opcional)" title="Agrupa as pessoas dentro da estrutura; o nome é o título do subgrupo" style="min-width:140px" />
+          <datalist id="hierarquia-subgrupos">
+            @for (sg of subgruposSugeridos(); track sg) { <option [value]="sg"></option> }
+          </datalist>
           <label class="cross-check" title="Mostrar esta pessoa acima dos demais na estrutura">
             <input type="checkbox" [(ngModel)]="membroSel.cross" />
             Cross
           </label>
+          <select [(ngModel)]="tbdVinculo" title="Vínculo do TBD (usado quando a pessoa não tem cadastro)" style="flex:0 0 auto;min-width:96px">
+            <option value="FOLHA">Folha</option>
+            <option value="TERCEIRO">Terceiro</option>
+          </select>
           <button type="button" class="sec" (click)="adicionarMembro()">+ Adicionar</button>
-          <button type="button" class="sec" (click)="adicionarMembroTbd()" title="Adicionar TBD usando o cargo/papel informado como subtítulo">+ TBD</button>
+          <button type="button" class="sec" (click)="adicionarMembroTbd()" title="Adicionar TBD (folha/terceiro conforme seleção) usando o cargo/papel como subtítulo">+ TBD</button>
         </div>
         @if (membros.length) {
           <ul class="membro-list">
@@ -143,6 +151,14 @@
                 </span>
                 <span class="m-nome">{{ m.nomePessoa }}</span>
                 @if (m.papel) { <span class="m-papel">{{ primeiraPartePerfil(m.papel) }}</span> }
+                <input [(ngModel)]="m.subgrupo" list="hierarquia-subgrupos" class="m-subgrupo" placeholder="Subgrupo" title="Subgrupo (título)" />
+                @if (!m.personId) {
+                  <select [(ngModel)]="m.vinculo" class="m-vinculo" title="Vínculo do TBD">
+                    <option [ngValue]="null">—</option>
+                    <option value="FOLHA">Folha</option>
+                    <option value="TERCEIRO">Terceiro</option>
+                  </select>
+                }
                 <label class="m-cross" title="Mostrar acima dos demais na estrutura">
                   <input type="checkbox" [(ngModel)]="m.cross" />
                   Cross
@@ -208,25 +224,27 @@
         }
 
         @if (node.membros?.length) {
-          @for (grupo of [
-            { key: 'cross', titulo: 'Cross', cls: 'g-cross' },
-            { key: 'folha', titulo: 'Folha', cls: 'g-folha' },
-            { key: 'terceiro', titulo: 'Terceiros', cls: 'g-terceiro' }
-          ]; track grupo.titulo) {
-            @if (membrosPorGrupo(node, grupo.key).length) {
+          @for (sg of subgruposParaRender(node); track sg.key) {
+            <div class="node-subgrupo" [class.flat]="sg.key === '__flat__'">
+            @if (sg.key !== '__flat__') {
+              <div class="node-subgrupo-head">{{ sg.label }}</div>
+            }
+            @for (grupo of grupoDefs; track grupo.key) {
+            @if (membrosPorGrupo(node, grupo.key, sg.filter).length) {
               <div class="node-grupo" [class]="grupo.cls">
                 <div class="node-grupo-head">
                   <span class="node-grupo-dot"></span>{{ grupo.titulo }}
-                  <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key) }}</span>
+                  <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
                 </div>
                 <div class="node-membros">
-                  @for (item of membrosPorGrupo(node, grupo.key); track item.idx) {
+                  @for (item of membrosPorGrupo(node, grupo.key, sg.filter); track item.idx) {
                     <div class="node-m"
                          [class.fora-lo]="membroForaDaLo(node, item.m)"
+                         [class.is-cross]="ehCross(item.m)"
                          draggable="true"
                          (dragstart)="onMembroDragStart(node, item.idx, $event)"
                          (dragend)="onMembroDragEnd()"
-                         [title]="item.m.nomePessoa + (metaDoMembro(item.m) ? ' — ' + metaDoMembro(item.m) : '') + (membroForaDaLo(node, item.m) ? ' — fora da(s) LO(s) vinculada(s)' : '')">
+                         [title]="item.m.nomePessoa + (metaDoMembro(item.m) ? ' — ' + metaDoMembro(item.m) : '') + (membroForaDaLo(node, item.m) ? ' — fora da(s) LO(s) vinculada(s)' : '') + (!membroContaFte(item.m) ? ' — não conta para o FTE' : '')">
                       <span class="av">
                         @if (fotoDe(item.m.nomePessoa)) {
                           <img [src]="fotoDe(item.m.nomePessoa)" [alt]="item.m.nomePessoa" />
@@ -235,11 +253,35 @@
                         }
                       </span>
                       <div class="node-m-info">
+                        @if (ehCross(item.m)) { <span class="node-m-cross" title="Cross (atua em mais de um time)">Cross</span> }
                         <span class="node-m-nome">{{ item.m.nomePessoa }}</span>
-                        @if (metaDoMembro(item.m)) {
-                          <span class="node-m-meta">{{ metaDoMembro(item.m) }}</span>
+                        @if (metaDoMembro(item.m) || mostrarPercentual(node)) {
+                          <span class="node-m-meta">
+                            @if (metaDoMembro(item.m)) { <span class="node-m-metatext">{{ metaDoMembro(item.m) }}</span> }
+                            @if (mostrarPercentual(node)) {
+                              @if (editandoPct(node, item.idx)) {
+                                <input class="node-m-pct-input" type="number" min="0" max="100" step="1"
+                                       [(ngModel)]="pctEditValue"
+                                       (mousedown)="$event.stopPropagation()"
+                                       (click)="$event.stopPropagation()"
+                                       (blur)="salvarPct(node, item.idx)"
+                                       (keydown.enter)="salvarPct(node, item.idx)"
+                                       (keydown.escape)="cancelarEdicaoPct()"
+                                       autofocus />
+                              } @else {
+                                <span class="node-m-pct" [class.vazio]="percentualPessoa(item.m) == null"
+                                      [style.background]="percentualPessoa(item.m) != null ? corPercentual(percentualPessoa(item.m)) : null"
+                                      [style.color]="percentualPessoa(item.m) != null ? '#fff' : null"
+                                      title="Duplo clique para editar (cópia para o time — não altera a alocação por LO)"
+                                      (dblclick)="iniciarEdicaoPct(node, item.idx, item.m, $event)">
+                                  {{ percentualPessoa(item.m) != null ? percentualPessoa(item.m) + '%' : '—' }}
+                                </span>
+                              }
+                            }
+                          </span>
                         }
                       </div>
+                      @if (!membroContaFte(item.m)) { <span class="node-m-nofte" title="Não conta para o FTE">∅</span> }
                       @if (membroForaDaLo(node, item.m)) { <span class="node-m-alert" title="Fora da(s) LO(s) vinculada(s)">⚠</span> }
                       <button type="button" class="node-m-del" title="Remover pessoa desta estrutura" (click)="removerMembroDoNode(node, item.idx, $event)">✕</button>
                     </div>
@@ -247,6 +289,8 @@
                 </div>
               </div>
             }
+            }
+            </div>
           }
         }
       </div>

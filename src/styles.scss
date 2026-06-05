@@ -3381,7 +3381,7 @@ input, textarea, select {
   border-radius: 10px;
   background: #fbfdff;
 }
-button { border: 0; background: var(--brand-600); color: #fff; padding: 10px 13px; border-radius: 10px; cursor: pointer; transition: .2s; }
+button { border: 0; background: var(--brand-600); color: #fff; padding: 10px 13px; border-radius: 10px; cursor: pointer; transition: .2s; margin: 2px; }
 button:hover { transform: translateY(-1px); filter: brightness(1.05); }
 button.sec { background: #4f7bc3; }
 button.danger { background: #d93b3b; }
