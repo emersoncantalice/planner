@@ -60,8 +60,8 @@ import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, NgZone, 
     }
   `,
   styles: [`
-    .pu-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; z-index: 1200; }
-    .pu-modal { background:#fff; border-radius:14px; width:min(420px,92vw); box-shadow:0 18px 48px rgba(0,0,0,.28); overflow:hidden; display:flex; flex-direction:column; }
+    .pu-backdrop { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(15,23,42,.55); z-index: 10000; }
+    .pu-modal { position: fixed; top: 50%; top: 50dvh; left: 50vw; transform: translate(-50%, -50%); background:#fff; border-radius:14px; width:min(420px,92vw); max-height:min(760px,92vh); max-height:min(760px,92dvh); box-shadow:0 18px 48px rgba(0,0,0,.28); overflow:auto; display:flex; flex-direction:column; }
     .pu-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #eef2f7; }
     .pu-head h3 { margin:0; font-size:1rem; color:#0f172a; }
     .pu-x { border:none; background:transparent; font-size:1rem; cursor:pointer; color:#64748b; }

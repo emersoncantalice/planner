@@ -89,6 +89,8 @@ export class PersonPanelComponent {
   valorHoraMasked = '';
   valorMensalMasked = '';
   searchTerm = '';
+  currentPage = 1;
+  pageSize = 10;
   sortKey: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal' = 'nome';
   sortDirection: 'asc' | 'desc' = 'asc';
 
@@ -236,10 +238,12 @@ export class PersonPanelComponent {
   toggleSort(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal') {
     if (this.sortKey === key) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+      this.currentPage = 1;
       return;
     }
     this.sortKey = key;
     this.sortDirection = 'asc';
+    this.currentPage = 1;
   }
 
   sortedPessoas() {
@@ -258,6 +262,63 @@ export class PersonPanelComponent {
       if (typeof av === 'number' || typeof bv === 'number') return ((Number(av) || 0) - (Number(bv) || 0)) * direction;
       return String(av ?? '').localeCompare(String(bv ?? ''), 'pt-BR', { sensitivity: 'base' }) * direction;
     });
+  }
+
+  paginatedPessoas() {
+    const pessoas = this.sortedPessoas();
+    const page = this.normalizedCurrentPage(pessoas.length);
+    const start = (page - 1) * this.pageSize;
+    return pessoas.slice(start, start + this.pageSize);
+  }
+
+  totalPessoasFiltradas(): number {
+    return this.sortedPessoas().length;
+  }
+
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.totalPessoasFiltradas() / this.pageSize));
+  }
+
+  pageStart(): number {
+    const total = this.totalPessoasFiltradas();
+    if (!total) return 0;
+    return (this.normalizedCurrentPage(total) - 1) * this.pageSize + 1;
+  }
+
+  pageEnd(): number {
+    const total = this.totalPessoasFiltradas();
+    return Math.min(this.normalizedCurrentPage(total) * this.pageSize, total);
+  }
+
+  pageNumbers(): number[] {
+    const total = this.totalPages();
+    const current = this.normalizedCurrentPage();
+    const start = Math.max(1, current - 2);
+    const end = Math.min(total, start + 4);
+    const adjustedStart = Math.max(1, end - 4);
+    return Array.from({ length: end - adjustedStart + 1 }, (_, index) => adjustedStart + index);
+  }
+
+  currentPageView(): number {
+    return this.normalizedCurrentPage();
+  }
+
+  goToPage(page: number) {
+    this.currentPage = Math.min(Math.max(1, page), this.totalPages());
+  }
+
+  onPageFiltersChanged() {
+    this.currentPage = 1;
+  }
+
+  onPageSizeChange(value: string | number) {
+    this.pageSize = Number(value) || 10;
+    this.currentPage = 1;
+  }
+
+  private normalizedCurrentPage(totalItems = this.totalPessoasFiltradas()): number {
+    const totalPages = Math.max(1, Math.ceil(totalItems / this.pageSize));
+    return Math.min(Math.max(1, this.currentPage), totalPages);
   }
 
   sortIndicator(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal') {

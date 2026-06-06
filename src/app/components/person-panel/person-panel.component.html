@@ -164,11 +164,17 @@
   }
 
   <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center;">
-    <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." style="flex:1;min-width:160px" />
-    <select [(ngModel)]="filtroAtivo" style="width:auto">
+    <input [(ngModel)]="searchTerm" (ngModelChange)="onPageFiltersChanged()" placeholder="Pesquisar na tabela..." style="flex:1;min-width:160px" />
+    <select [(ngModel)]="filtroAtivo" (ngModelChange)="onPageFiltersChanged()" style="width:auto">
       <option value="ativos">Só ativos</option>
       <option value="inativos">Só inativos</option>
       <option value="todos">Todos</option>
+    </select>
+    <select [ngModel]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:auto">
+      <option [ngValue]="10">10 por página</option>
+      <option [ngValue]="25">25 por página</option>
+      <option [ngValue]="50">50 por página</option>
+      <option [ngValue]="100">100 por página</option>
     </select>
   </div>
   <div class="table-wrap">
@@ -190,7 +196,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (p of sortedPessoas(); track p.id) {
+        @for (p of paginatedPessoas(); track p.id) {
           <tr [class.row-inativo]="p.ativo === false">
             <td>
               <button type="button" class="foto-btn" (click)="abrirFoto(p)" title="Incluir / alterar foto">
@@ -228,15 +234,38 @@
               <button type="button" (click)="remove.emit(p.id)">Excluir</button>
             </td>
           </tr>
+        } @empty {
+          <tr>
+            <td colspan="12" class="empty-cell">Nenhuma pessoa encontrada.</td>
+          </tr>
         }
       </tbody>
     </table>
   </div>
+  <div class="pagination">
+    <span class="pagination-info">
+      Mostrando {{ pageStart() }}-{{ pageEnd() }} de {{ totalPessoasFiltradas() }}
+    </span>
+    <div class="pagination-actions">
+      <button class="pager-nav" type="button" (click)="goToPage(currentPageView() - 1)" [disabled]="currentPageView() <= 1">← Anterior</button>
+      @for (page of pageNumbers(); track page) {
+        <button
+          type="button"
+          class="page-btn"
+          [class.active]="page === currentPageView()"
+          (click)="goToPage(page)">
+          {{ page }}
+        </button>
+      }
+      <button class="pager-nav" type="button" (click)="goToPage(currentPageView() + 1)" [disabled]="currentPageView() >= totalPages()">Próxima →</button>
+    </div>
+  </div>
 
-  <app-photo-upload
-    [aberto]="fotoModalAberto"
-    [titulo]="'Foto de ' + fotoPessoaNome"
-    [imagemAtual]="fotoPessoaId ? fotoDe(fotoPessoaId) : fotoPendente"
-    (salvar)="onFotoSalvar($event)"
-    (fechar)="onFotoFechar()"></app-photo-upload>
 </article></planner-card>
+
+<app-photo-upload
+  [aberto]="fotoModalAberto"
+  [titulo]="'Foto de ' + fotoPessoaNome"
+  [imagemAtual]="fotoPessoaId ? fotoDe(fotoPessoaId) : fotoPendente"
+  (salvar)="onFotoSalvar($event)"
+  (fechar)="onFotoFechar()"></app-photo-upload>

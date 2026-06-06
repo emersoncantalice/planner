@@ -48,6 +48,80 @@
 .modern-table th { cursor: pointer; user-select: none; }
 .modern-table tbody tr:hover { background: #f9fbff; }
 .actions { gap: 6px; white-space: nowrap; }
+.empty-cell { text-align: center; color: #64748b; font-weight: 600; padding: 18px !important; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.pagination-info {
+  color: #4f6b98;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 32px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cfe0ff;
+  background: #fff;
+  color: #1e3a6a;
+  font-size: .78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-btn.active {
+  background: #1d63da;
+  border-color: #1d63da;
+  color: #fff;
+}
+
+.pager-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #b8cff8;
+  background: linear-gradient(180deg, #ffffff, #eef5ff);
+  color: #174582;
+  font-size: .78rem;
+  font-weight: 800;
+  box-shadow: 0 6px 14px rgba(29, 99, 218, .10);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+
+.pager-nav:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #7aa7ef;
+  background: linear-gradient(180deg, #f8fbff, #dceaff);
+  box-shadow: 0 10px 20px rgba(29, 99, 218, .16);
+}
+
+.pager-nav:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+  box-shadow: none;
+  background: #f3f6fb;
+  color: #8aa0bd;
+}
 
 .vaga-link-cell {
   display: inline-block;
