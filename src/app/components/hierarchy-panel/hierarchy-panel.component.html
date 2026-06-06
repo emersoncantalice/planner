@@ -190,7 +190,7 @@
   }
 
   <ng-template #treeTpl let-node>
-    <div class="node" [class]="'t-' + node.tipo">
+    <div class="node" [class]="'t-' + tipoClasse(node.tipo)">
       <div class="node-card"
            [class.drop-target]="dragOverNodeId === node.id"
            (dragover)="onNodeDragOver(node, $event)"
@@ -232,8 +232,7 @@
             @for (grupo of grupoDefs; track grupo.key) {
             @if (membrosPorGrupo(node, grupo.key, sg.filter).length) {
               <div class="node-grupo" [class]="grupo.cls">
-                <div class="node-grupo-head">
-                  <span class="node-grupo-dot"></span>{{ grupo.titulo }}
+                <div class="node-grupo-head count-only">
                   <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
                 </div>
                 <div class="node-membros">

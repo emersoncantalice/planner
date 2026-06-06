@@ -118,6 +118,7 @@
   font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
   margin-bottom: 4px;
 }
+.node-grupo-head.count-only { justify-content: flex-end; }
 .node-grupo-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
 .g-cross .node-grupo-head { color: #c2410c; }
 .g-cross .node-grupo-dot { background: #f97316; }
@@ -211,6 +212,12 @@
 /* cores por tipo */
 .t-PRESIDENCIA > .node-card { border-top: 4px solid #7c3aed; }
 .t-PRESIDENCIA .node-tipo { color: #7c3aed; }
+.t-VICE_PRESIDENCIA > .node-card { border-top: 4px solid #4f46e5; }
+.t-VICE_PRESIDENCIA .node-tipo { color: #4f46e5; }
+.t-SUPERINTENDENCIA > .node-card { border-top: 4px solid #2563eb; }
+.t-SUPERINTENDENCIA .node-tipo { color: #2563eb; }
+.t-GERENCIA > .node-card { border-top: 4px solid #0891b2; }
+.t-GERENCIA .node-tipo { color: #0891b2; }
 .t-DIRETORIA > .node-card { border-top: 4px solid #2563eb; }
 .t-DIRETORIA .node-tipo { color: #2563eb; }
 .t-TRIBO > .node-card { border-top: 4px solid #0891b2; }
