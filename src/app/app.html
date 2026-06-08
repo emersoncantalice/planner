@@ -348,10 +348,12 @@
               <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg></span>
               <span class="sb-text"><strong>Períodos</strong></span>
             </a>
-            <a class="sb-subitem" [class.active]="secaoAtiva() === 'dados'" (click)="selecionarSecao('dados')" title="Exportar / Importar">
-              <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg></span>
-              <span class="sb-text"><strong>Exp./Imp.</strong></span>
-            </a>
+            @if (isAdmin()) {
+              <a class="sb-subitem" [class.active]="secaoAtiva() === 'dados'" (click)="selecionarSecao('dados')" title="Exportar / Importar">
+                <span class="sb-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg></span>
+                <span class="sb-text"><strong>Exp./Imp.</strong></span>
+              </a>
+            }
           } @else if (cadastrosExpanded() && sidebarCollapsed()) {
             <div class="sb-flyout" [style.top.px]="flyoutTop()" [style.bottom]="flyoutBottom() !== null ? flyoutBottom() + 'px' : null" [style.max-height]="flyoutMaxHeight() !== null ? flyoutMaxHeight() + 'px' : null">
               <p class="sb-flyout-label">Cadastros</p>
@@ -423,12 +425,14 @@
                 </span>
                 <span>Períodos</span>
               </a>
-              <a [class.active]="secaoAtiva() === 'dados'" (click)="selecionarSecao('dados')">
-                <span class="sb-subicon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
-                </span>
-                <span>Exp./Imp.</span>
-              </a>
+              @if (isAdmin()) {
+                <a [class.active]="secaoAtiva() === 'dados'" (click)="selecionarSecao('dados')">
+                  <span class="sb-subicon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+                  </span>
+                  <span>Exp./Imp.</span>
+                </a>
+              }
             </div>
           }
         </div>
@@ -790,7 +794,7 @@
       @if (secaoAtiva() === 'usuarios' && isAdmin()) {
         <app-admin-users-panel [token]="token()"></app-admin-users-panel>
       }
-      @if (secaoAtiva() === 'dados') {
+      @if (secaoAtiva() === 'dados' && isAdmin()) {
         <app-data-transfer-panel
           [token]="token()"
           [perfis]="perfis()"

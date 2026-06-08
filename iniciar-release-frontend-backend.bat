@@ -25,6 +25,23 @@ echo  Backend : http://localhost:%BACK_PORT%
 echo ================================================
 echo.
 
+:: ── IP da maquina (muda a cada subida) ─────────────────────────────────
+set "LOCAL_IP="
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$ip=(Get-NetIPAddress -AddressFamily IPv4 ^| Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254*' } ^| Select-Object -First 1 -ExpandProperty IPAddress); if (-not $ip) { $ip='localhost' }; Write-Output $ip"`) do set "LOCAL_IP=%%I"
+if "%LOCAL_IP%"=="" set "LOCAL_IP=localhost"
+set "FRONT_URL=http://%LOCAL_IP%:%FRONT_PORT%"
+
+:: ── Atualiza env.js do front para apontar a API no IP/porta atuais ──────
+set "ENV_JS=%FRONT_RELEASE%\browser\env.js"
+if not exist "%FRONT_RELEASE%\browser" set "ENV_JS=%FRONT_RELEASE%\env.js"
+(
+  echo window.__env = window.__env ^|^| {};
+  echo window.__env.API_URL = 'http://%LOCAL_IP%:%BACK_PORT%/api';
+) > "%ENV_JS%"
+echo env.js atualizado: API_URL=http://%LOCAL_IP%:%BACK_PORT%/api
+echo CORS sera liberado para: %FRONT_URL%
+echo.
+
 if exist "%FRONT_RELEASE%\start-frontend.bat" (
   start "Planner Frontend :%FRONT_PORT%" cmd /k "cd /d ""%FRONT_RELEASE%"" && call start-frontend.bat %FRONT_PORT%"
 ) else (
@@ -37,12 +54,8 @@ if exist "%FRONT_RELEASE%\start-frontend.bat" (
   start "Planner Frontend :%FRONT_PORT%" cmd /k "cd /d ""%FRONT_RELEASE%"" && npx http-server browser -p %FRONT_PORT% -c-1"
 )
 
-start "Planner Backend :%BACK_PORT%" cmd /k "cd /d ""%BACK_RELEASE%"" && set PLANNER_SERVER_PORT=%BACK_PORT% && call start-backend.bat"
+start "Planner Backend :%BACK_PORT%" cmd /k "cd /d ""%BACK_RELEASE%"" && set PLANNER_SERVER_PORT=%BACK_PORT% && set PLANNER_CORS_ORIGINS=%FRONT_URL% && call start-backend.bat"
 
-set "LOCAL_IP="
-for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$ip=(Get-NetIPAddress -AddressFamily IPv4 ^| Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254*' } ^| Select-Object -First 1 -ExpandProperty IPAddress); if (-not $ip) { $ip='localhost' }; Write-Output $ip"`) do set "LOCAL_IP=%%I"
-if "%LOCAL_IP%"=="" set "LOCAL_IP=localhost"
-set "FRONT_URL=http://%LOCAL_IP%:%FRONT_PORT%"
 set "MANIFEST_FILE=%FRONT_RELEASE%\browser\manifest.webmanifest"
 
 if exist "%MANIFEST_FILE%" (

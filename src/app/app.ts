@@ -127,7 +127,11 @@ export class App {
   mobileSidebarOpen = signal(false);
   periodRefreshKey = signal(0);
   secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia'>(
-    (localStorage.getItem('planner_secao') as any) || 'dashboard'
+    (() => {
+      const s = (localStorage.getItem('planner_secao') as any) || 'dashboard';
+      // Nao restaura secoes admin-only para usuario comum (ex.: apos reload).
+      return (s === 'dados' || s === 'usuarios') && this.role() !== 'ADMIN' ? 'dashboard' : s;
+    })()
   );
   riscoEmFocoId = signal('');
   isFullscreen = signal(false);
@@ -302,6 +306,8 @@ export class App {
   }
 
   selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia') {
+    // Secoes restritas a admin (UI). Nao-admin cai no dashboard em vez de tela em branco.
+    if ((secao === 'dados' || secao === 'usuarios') && !this.isAdmin()) secao = 'dashboard';
     this.secaoAtiva.set(secao);
     localStorage.setItem('planner_secao', secao);
     if (secao !== 'riscos') this.riscoEmFocoId.set('');
@@ -2026,9 +2032,11 @@ export class App {
   }
 
   private readLegacyProfileImage(username: string) {
+    // Apenas a chave por-usuario. A chave global 'planner_profile_image' guarda a foto
+    // do ultimo usuario logado e nao pode ser usada como fallback, senao um usuario sem
+    // foto herda (e ate persiste) a foto do anterior.
     const key = this.profileImageKey(username);
-    const byUser = key ? localStorage.getItem(key) : '';
-    return byUser || localStorage.getItem('planner_profile_image') || '';
+    return (key ? localStorage.getItem(key) : '') || '';
   }
 
   private syncLegacyProfileImage(dataUrl: string) {
