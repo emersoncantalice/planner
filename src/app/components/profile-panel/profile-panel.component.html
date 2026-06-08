@@ -7,33 +7,10 @@
         <span>Importar CSV</span>
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      <button class="warn" type="button" (click)="abrirNovo()">Novo perfil</button>
     </div>
   </div>
   <small class="csv-hint">Exemplo: "Desenvolvedor Frontend Senior",150,true</small>
-  @if (formExpanded) {
-    <input [(ngModel)]="perfil.nomePerfil" placeholder="Ex.: Desenvolvedor Frontend Senior" />
-    <input [(ngModel)]="perfil.nivel" placeholder="Nivel (Junior, Pleno, Senior)" />
-    <input [(ngModel)]="perfil.departamento" placeholder="Departamento (Ex.: Tecnologia)" />
-    <label class="check">
-      <input [(ngModel)]="perfil.debitaLo" type="checkbox" />
-      Debita da LO
-    </label>
-    <textarea [(ngModel)]="perfil.observacoes" placeholder="Observacoes do perfil (competencias, escopo, etc.)"></textarea>
-    <input
-      [ngModel]="valorHoraMasked"
-      (ngModelChange)="onValorHoraChange($event)"
-      inputmode="numeric"
-      placeholder="R$ 0,000" />
-    @if (!editingId) {
-      <button (click)="submit()">Cadastrar perfil</button>
-    } @else {
-      <div class="linha">
-        <button (click)="saveEdit()">Salvar edicao</button>
-        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
-      </div>
-    }
-  }
   <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
   <div class="table-wrap">
     <table class="modern-table">
@@ -61,5 +38,45 @@
     </table>
   </div>
 </article></planner-card>
-  
+
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar perfil' : 'Novo perfil' }}</h3>
+      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+    </div>
+
+    <label>Nome do perfil <span class="req">*</span></label>
+    <input [(ngModel)]="perfil.nomePerfil" placeholder="Ex.: Desenvolvedor Frontend Senior" />
+    <input [(ngModel)]="perfil.nivel" placeholder="Nivel (Junior, Pleno, Senior)" />
+    <input [(ngModel)]="perfil.departamento" placeholder="Departamento (Ex.: Tecnologia)" />
+    <label class="check">
+      <input [(ngModel)]="perfil.debitaLo" type="checkbox" />
+      Debita da LO
+    </label>
+    <textarea [(ngModel)]="perfil.observacoes" placeholder="Observacoes do perfil (competencias, escopo, etc.)"></textarea>
+    <label>Valor/hora <span class="req">*</span></label>
+    <input
+      [ngModel]="valorHoraMasked"
+      (ngModelChange)="onValorHoraChange($event)"
+      inputmode="numeric"
+      placeholder="R$ 0,000" />
+
+    <div class="form-validation">
+      <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome do perfil é obrigatório</p>
+      <p [class.ok]="valorValido" [class.error]="!valorValido">Valor/hora deve ser maior que zero</p>
+    </div>
+
+    @if (!editingId) {
+      <button (click)="submit()" [disabled]="!formValido">Cadastrar perfil</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()" [disabled]="!formValido">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  </div>
+}
+
 

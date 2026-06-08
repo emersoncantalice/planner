@@ -28,11 +28,17 @@ export class FocalPointPanelComponent {
   sortKey: 'area' | 'responsavelPor' | 'email' | 'telefone' = 'area';
   sortDirection: 'asc' | 'desc' = 'asc';
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.pontoFocal = { area: '', responsavelPor: '', email: '', telefone: '' };
+    this.formExpanded = true;
   }
 
+  get areaValido() { return (this.pontoFocal.area || '').trim().length > 0; }
+  get formValido() { return this.areaValido; }
+
   submit() {
+    if (!this.formValido) return;
     this.create.emit(this.pontoFocal);
     this.pontoFocal = { area: '', responsavelPor: '', email: '', telefone: '' };
     this.formExpanded = false;
@@ -50,7 +56,7 @@ export class FocalPointPanelComponent {
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     this.update.emit({ id: this.editingId, ...this.pontoFocal });
     this.cancelEdit();
   }

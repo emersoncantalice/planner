@@ -31,6 +31,34 @@
 
 .td-header-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.panel-head h3 { margin: 0; }
+
+.td-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0;
+  border-radius: .35rem;
+  border: 1px solid #c3d9ff;
+  background: transparent;
+  color: #5f7399;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  &:hover { color: #1a3a7a; background: #e0eaff; transform: none; filter: none; }
+}
+
 .td-csv-btn {
   display: inline-flex;
   align-items: center;

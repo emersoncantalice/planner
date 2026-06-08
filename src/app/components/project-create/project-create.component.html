@@ -9,7 +9,7 @@
   }
 
   @if (shouldShowForm()) {
-    <label>Nome do projeto</label>
+    <label>Nome do projeto <span class="req">*</span></label>
     <input [(ngModel)]="projeto.nome" placeholder="Ex.: Implantacao do e-commerce" />
 
     <label>Cliente/area solicitante</label>
@@ -83,6 +83,10 @@
     <label>Descricao</label>
     <textarea [(ngModel)]="projeto.descricao" placeholder="Ex.: Projeto para lancar a loja online em 60 dias"></textarea>
 
-    <button type="button" (click)="submit()">Criar</button>
+    <div class="form-validation">
+      <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome do projeto é obrigatório</p>
+    </div>
+
+    <button type="button" (click)="submit()" [disabled]="!formValido">Criar</button>
   }
 </article></planner-card>

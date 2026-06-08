@@ -1,19 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 import { ScrollIntoViewWhenDirective } from '../../core/scroll-into-view-when.directive';
 
 interface HierarchyMember { personId: string | null; nomePessoa: string; papel: string; cross?: boolean; vinculo?: string | null; percentual?: number | null; subgrupo?: string | null; }
 interface HierarchyNode {
   id: string; tipo: string; nome: string; descricao?: string;
-  parentId?: string | null; ordem?: number; membros?: HierarchyMember[]; loIds?: string[];
+  parentId?: string | null; parentIds?: string[] | null; ordem?: number; membros?: HierarchyMember[]; loIds?: string[];
 }
 
 @Component({
   selector: 'app-hierarchy-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './hierarchy-panel.component.html',
   styleUrl: './hierarchy-panel.component.scss'
@@ -34,20 +35,20 @@ export class HierarchyPanelComponent {
   @Output() remove = new EventEmitter<string>();
   @Output() moveMember = new EventEmitter<{ fromNodeId: string; toNodeId: string; nomePessoa: string }>();
 
-  readonly tipos = ['PRESIDENCIA', 'VICE_PRESIDENCIA', 'SUPERINTENDENCIA', 'GERENCIA', 'TRIBO', 'SQUAD'];
+  readonly tipos = ['PRESIDENCIA', 'VICE_PRESIDENCIA', 'SUPERINTENDENCIA', 'DIRETORIA', 'GERENCIA', 'TRIBO', 'SQUAD'];
   readonly tipoLabels: Record<string, string> = {
     PRESIDENCIA: 'Presidência',
     VICE_PRESIDENCIA: 'Vice-presidência',
     SUPERINTENDENCIA: 'Superintendência',
+    DIRETORIA: 'Diretoria',
     GERENCIA: 'Gerência',
-    DIRETORIA: 'Gerência',
     TRIBO: 'Tribo',
     SQUAD: 'Squad'
   };
 
   formAberto = false;
   editingId = '';
-  form = { tipo: 'PRESIDENCIA', nome: '', descricao: '', parentId: '', loIds: [] as string[] };
+  form = { tipo: 'PRESIDENCIA', nome: '', descricao: '', parentIds: [] as string[], loIds: [] as string[] };
   membros: HierarchyMember[] = [];
   membroSel = { personId: '', papel: '', cross: false, subgrupo: '' };
 
@@ -65,6 +66,7 @@ export class HierarchyPanelComponent {
   gerarParentId = '';
   exportRootId = '';
   ocultarValoresExport = false;
+  private hiddenNodeIds: Set<string> | null = null;
 
   // Drag de pessoas entre estruturas
   private dragOrigem: { nodeId: string; index: number } | null = null;
@@ -79,7 +81,12 @@ export class HierarchyPanelComponent {
   }
 
   private tipoNormalizado(tipo: string): string {
-    return tipo === 'DIRETORIA' ? 'GERENCIA' : tipo;
+    return tipo;
+  }
+
+  private tipoPermiteMarcacoesDeTime(tipo: string): boolean {
+    const normalizado = this.tipoNormalizado(tipo);
+    return normalizado === 'TRIBO' || normalizado === 'SQUAD';
   }
 
   // ── Árvore ────────────────────────────────────────────────────────────
@@ -89,22 +96,173 @@ export class HierarchyPanelComponent {
     return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
   }
 
+  // Pais efetivos de um nó (suporta múltiplos pais; cai no parentId legado).
+  paisDe(n: HierarchyNode | null | undefined): string[] {
+    if (!n) return [];
+    const ids = (n.parentIds && n.parentIds.length ? n.parentIds : (n.parentId ? [n.parentId] : [])) || [];
+    return ids.filter((p): p is string => !!p);
+  }
+
+  // Marca/desmarca um pai no formulário (checklist de múltiplos pais).
+  parentVinculado(id: string): boolean {
+    return this.form.parentIds.includes(id);
+  }
+  toggleParent(id: string) {
+    const i = this.form.parentIds.indexOf(id);
+    if (i >= 0) this.form.parentIds.splice(i, 1);
+    else this.form.parentIds.push(id);
+  }
+
+  // ── Destaque de vínculo: clicar na linha mostra de onde sai (pai) até onde vai (filho) ──
+  vinculoDestacado: { de: string; para: string } | null = null;
+  alternarVinculo(deId: string, paraId: string, ev?: Event) {
+    ev?.stopPropagation();
+    if (this.vinculoAtivo(deId, paraId)) this.vinculoDestacado = null;
+    else this.vinculoDestacado = { de: deId, para: paraId };
+  }
+  vinculoAtivo(deId: string, paraId: string): boolean {
+    return !!this.vinculoDestacado && this.vinculoDestacado.de === deId && this.vinculoDestacado.para === paraId;
+  }
+  ehOrigemDestacada(id: string): boolean { return this.vinculoDestacado?.de === id; }
+  ehDestinoDestacado(id: string): boolean { return this.vinculoDestacado?.para === id; }
+  limparVinculoDestacado() { this.vinculoDestacado = null; }
+  nomePorId(id: string): string {
+    const n = this.nodes.find(x => x.id === id);
+    return n ? `${this.tipoLabel(n.tipo)} · ${n.nome}` : '';
+  }
+
   raizes(): HierarchyNode[] {
     const ids = new Set(this.nodes.map(n => n.id));
-    return this.nodes.filter(n => !n.parentId || !ids.has(n.parentId)).sort((a, b) => this.byOrdem(a, b));
+    // Raiz = sem nenhum pai existente na árvore.
+    return this.nodes
+      .filter(n => this.paisDe(n).filter(p => ids.has(p)).length === 0)
+      .sort((a, b) => this.byOrdem(a, b));
   }
 
   // Raízes exibidas na tela — respeita a estrutura selecionada (preview da exportação).
   raizesVisiveis(): HierarchyNode[] {
+    this.ensureHiddenLoaded();
     if (this.exportRootId) {
       const sel = this.nodes.find(n => n.id === this.exportRootId);
-      if (sel) return [sel];
+      if (sel && !this.estaEmCadeiaOculta(sel)) return [sel];
     }
-    return this.raizes();
+    return this.raizes().filter(n => !this.isOculto(n.id));
   }
 
   filhosDe(id: string): HierarchyNode[] {
-    return this.nodes.filter(n => n.parentId === id).sort((a, b) => this.byOrdem(a, b));
+    return this.nodes.filter(n => this.paisDe(n).includes(id)).sort((a, b) => this.byOrdem(a, b));
+  }
+
+  filhosVisiveisDe(id: string): HierarchyNode[] {
+    this.ensureHiddenLoaded();
+    return this.filhosDe(id).filter(n => !this.isOculto(n.id));
+  }
+
+  private paiPrincipalDeRender(node: HierarchyNode): string | null {
+    const ids = new Set(this.nodes.map(n => n.id));
+    const pais = this.paisDe(node).filter(id => ids.has(id) && !this.isOculto(id));
+    return pais[0] || null;
+  }
+
+  filhosRenderVisiveisDe(id: string): HierarchyNode[] {
+    return this.filhosVisiveisDe(id).filter(n => this.paiPrincipalDeRender(n) === id);
+  }
+
+  ocultosDiretosRenderDe(parentId: string): HierarchyNode[] {
+    return this.filhosDe(parentId).filter(n => this.isOculto(n.id) && this.paiPrincipalDeRender(n) === parentId);
+  }
+
+  temMultiplosPais(node: HierarchyNode): boolean {
+    return this.paisDe(node).filter(id => this.nodes.some(n => n.id === id)).length > 1;
+  }
+
+  paisVisiveisDoNode(node: HierarchyNode): HierarchyNode[] {
+    return this.paisDe(node)
+      .map(id => this.nodes.find(n => n.id === id))
+      .filter((n): n is HierarchyNode => !!n)
+      .sort((a, b) => this.byOrdem(a, b));
+  }
+
+  paisLabel(node: HierarchyNode): string {
+    const pais = this.paisVisiveisDoNode(node);
+    return pais.length ? `Ligado a: ${pais.map(p => p.nome).join(', ')}` : '';
+  }
+
+  private hiddenStorageKey(): string {
+    const user = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
+    return user ? `planner_hierarchy_hidden_${user}` : 'planner_hierarchy_hidden';
+  }
+
+  private ensureHiddenLoaded() {
+    if (this.hiddenNodeIds) return;
+    try {
+      const parsed = JSON.parse(localStorage.getItem(this.hiddenStorageKey()) || '[]');
+      this.hiddenNodeIds = new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch {
+      this.hiddenNodeIds = new Set<string>();
+    }
+  }
+
+  private saveHiddenState() {
+    this.ensureHiddenLoaded();
+    const ids = [...(this.hiddenNodeIds || [])].filter(id => this.nodes.some(n => n.id === id));
+    this.hiddenNodeIds = new Set(ids);
+    localStorage.setItem(this.hiddenStorageKey(), JSON.stringify(ids));
+  }
+
+  isOculto(nodeId: string): boolean {
+    this.ensureHiddenLoaded();
+    return !!this.hiddenNodeIds?.has(nodeId);
+  }
+
+  private estaEmCadeiaOculta(node: HierarchyNode): boolean {
+    this.ensureHiddenLoaded();
+    let current: HierarchyNode | undefined = node;
+    const seen = new Set<string>();
+    while (current && !seen.has(current.id)) {
+      if (this.isOculto(current.id)) return true;
+      seen.add(current.id);
+      const pai: string | undefined = this.paisDe(current)[0];
+      current = pai ? this.nodes.find(n => n.id === pai) : undefined;
+    }
+    return false;
+  }
+
+  ocultarCadeia(node: HierarchyNode, ev?: Event) {
+    ev?.stopPropagation();
+    this.ensureHiddenLoaded();
+    this.hiddenNodeIds?.add(node.id);
+    if (this.exportRootId === node.id) this.exportRootId = '';
+    this.saveHiddenState();
+  }
+
+  mostrarCadeia(nodeId: string) {
+    this.ensureHiddenLoaded();
+    this.hiddenNodeIds?.delete(nodeId);
+    this.saveHiddenState();
+  }
+
+  limparOcultos() {
+    this.ensureHiddenLoaded();
+    this.hiddenNodeIds?.clear();
+    this.saveHiddenState();
+  }
+
+  ocultosDiretosDe(parentId: string): HierarchyNode[] {
+    return this.filhosDe(parentId).filter(n => this.isOculto(n.id));
+  }
+
+  raizesOcultas(): HierarchyNode[] {
+    return this.raizes().filter(n => this.isOculto(n.id));
+  }
+
+  totalOcultos(): number {
+    this.ensureHiddenLoaded();
+    return [...(this.hiddenNodeIds || [])].filter(id => this.nodes.some(n => n.id === id)).length;
+  }
+
+  countCadeia(node: HierarchyNode): number {
+    return this.subtree(node.id).size;
   }
 
   // Opções de "pai" válidas (não pode ser o próprio nó nem um descendente).
@@ -120,7 +278,7 @@ export class HierarchyPanelComponent {
     while (changed) {
       changed = false;
       for (const n of this.nodes) {
-        if (n.parentId && result.has(n.parentId) && !result.has(n.id)) { result.add(n.id); changed = true; }
+        if (!result.has(n.id) && this.paisDe(n).some(p => result.has(p))) { result.add(n.id); changed = true; }
       }
     }
     return result;
@@ -175,8 +333,12 @@ export class HierarchyPanelComponent {
   }
 
   // Percentual de alocação da pessoa nas LOs (mesmo número da tela de Alocações). Mostrado em squad e tribo.
+  mostrarMarcacoesDeTime(node: HierarchyNode): boolean {
+    return this.tipoPermiteMarcacoesDeTime(node.tipo);
+  }
+
   mostrarPercentual(node: HierarchyNode): boolean {
-    return node.tipo === 'SQUAD' || node.tipo === 'TRIBO';
+    return this.mostrarMarcacoesDeTime(node);
   }
 
   percentualPessoa(m: HierarchyMember): number | null {
@@ -209,6 +371,7 @@ export class HierarchyPanelComponent {
   }
 
   iniciarEdicaoPct(node: HierarchyNode, idx: number, m: HierarchyMember, ev: Event) {
+    if (!this.mostrarPercentual(node)) return;
     ev.stopPropagation();
     ev.preventDefault();
     this.pctEditKey = this.pctKey(node, idx);
@@ -217,6 +380,10 @@ export class HierarchyPanelComponent {
   }
 
   salvarPct(node: HierarchyNode, idx: number) {
+    if (!this.mostrarPercentual(node)) {
+      this.cancelarEdicaoPct();
+      return;
+    }
     if (this.pctEditKey !== this.pctKey(node, idx)) return;
     const raw = Number(this.pctEditValue);
     const valor = Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : null;
@@ -373,6 +540,7 @@ export class HierarchyPanelComponent {
   }
 
   fteGrupo(node: HierarchyNode, grupo: string, subgrupo: string | null = null): number {
+    if (!this.mostrarMarcacoesDeTime(node)) return 0;
     return this.membrosPorGrupo(node, grupo, subgrupo).reduce((s, x) => s + this.fteMembro(x.m), 0);
   }
 
@@ -392,6 +560,10 @@ export class HierarchyPanelComponent {
   }
 
   resumoGrupoSquad(node: HierarchyNode, grupo: string, subgrupo: string | null = null): string {
+    if (!this.mostrarMarcacoesDeTime(node)) {
+      const totalMembros = this.membrosPorGrupo(node, grupo, subgrupo).length;
+      return totalMembros ? String(totalMembros) : '';
+    }
     const total = this.formatFte(this.fteGrupo(node, grupo, subgrupo));
     const percentual = this.percentualGrupoSquad(node, grupo, subgrupo);
     return percentual ? `${total} · ${percentual}` : total;
@@ -402,7 +574,7 @@ export class HierarchyPanelComponent {
   abrirNovo(parentId = '') {
     this.formAberto = true;
     this.editingId = '';
-    this.form = { tipo: parentId ? this.tipoSugerido(parentId) : 'PRESIDENCIA', nome: '', descricao: '', parentId, loIds: [] };
+    this.form = { tipo: parentId ? this.tipoSugerido(parentId) : 'PRESIDENCIA', nome: '', descricao: '', parentIds: parentId ? [parentId] : [], loIds: [] };
     this.membros = [];
     this.membroSel = { personId: '', papel: '', cross: false, subgrupo: '' };
   }
@@ -420,7 +592,7 @@ export class HierarchyPanelComponent {
       tipo: this.tipoNormalizado(node.tipo),
       nome: node.nome,
       descricao: node.descricao || '',
-      parentId: node.parentId || '',
+      parentIds: [...this.paisDe(node)],
       loIds: [...(node.loIds || [])]
     };
     this.membros = (node.membros || []).map(m => ({ personId: m.personId ?? null, nomePessoa: m.nomePessoa, papel: m.papel || '', cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: m.percentual ?? null, subgrupo: m.subgrupo ?? null }));
@@ -432,6 +604,9 @@ export class HierarchyPanelComponent {
     this.editingId = '';
     this.membros = [];
   }
+
+  get nomeValido() { return (this.form.nome || '').trim().length > 0; }
+  get formValido() { return this.nomeValido; }
 
   adicionarMembro() {
     if (!this.membroSel.personId) {
@@ -483,15 +658,20 @@ export class HierarchyPanelComponent {
     if (!this.tipos.includes(this.form.tipo)) return 'Selecione um tipo válido para a estrutura.';
     if (!nome) return 'Informe o nome da estrutura.';
     if (nome.length < 2) return 'O nome da estrutura precisa ter pelo menos 2 caracteres.';
-    if (this.form.parentId && !this.nodes.some(n => n.id === this.form.parentId)) return 'A estrutura superior selecionada não existe mais.';
+    for (const p of this.form.parentIds) {
+      if (!this.nodes.some(n => n.id === p)) return 'Uma das estruturas superiores selecionadas não existe mais.';
+    }
 
-    const parentId = this.form.parentId || '';
+    const meusPais = this.form.parentIds;
     const nomeNormalizado = this.norm(nome);
-    const duplicada = this.nodes.some(n =>
-      n.id !== this.editingId &&
-      this.norm(n.nome) === nomeNormalizado &&
-      String(n.parentId || '') === parentId
-    );
+    const duplicada = this.nodes.some(n => {
+      if (n.id === this.editingId) return false;
+      if (this.norm(n.nome) !== nomeNormalizado) return false;
+      const seusPais = this.paisDe(n);
+      // Mesmo nível = ambos raiz, ou compartilham pelo menos um pai.
+      if (meusPais.length === 0 && seusPais.length === 0) return true;
+      return seusPais.some(p => meusPais.includes(p));
+    });
     if (duplicada) return 'Já existe uma estrutura com esse nome no mesmo nível.';
 
     const nomesReais = new Set<string>();
@@ -519,12 +699,14 @@ export class HierarchyPanelComponent {
       this.toast.show(erro, 'error');
       return;
     }
+    const tipo = this.tipoNormalizado(this.form.tipo);
     const payload: any = {
-      tipo: this.tipoNormalizado(this.form.tipo),
+      tipo,
       nome: this.form.nome.trim(),
       descricao: this.form.descricao.trim(),
-      parentId: this.form.parentId || null,
-      membros: this.membros.map(m => ({ personId: m.personId, nomePessoa: m.nomePessoa, papel: m.papel, cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: m.percentual ?? null, subgrupo: m.subgrupo ?? null })),
+      parentIds: [...this.form.parentIds],
+      parentId: this.form.parentIds[0] || null,
+      membros: this.membros.map(m => ({ personId: m.personId, nomePessoa: m.nomePessoa, papel: m.papel, cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: this.tipoPermiteMarcacoesDeTime(tipo) ? (m.percentual ?? null) : null, subgrupo: m.subgrupo ?? null })),
       loIds: [...this.form.loIds]
     };
     if (this.editingId) this.update.emit({ id: this.editingId, ...payload });
@@ -589,7 +771,7 @@ export class HierarchyPanelComponent {
     const set = new Set<string>();
     const visitar = (n: HierarchyNode) => {
       (n.loIds || []).forEach(id => set.add(id));
-      this.filhosDe(n.id).forEach(visitar);
+      this.filhosVisiveisDe(n.id).forEach(visitar);
     };
     visitar(node);
     return set;
@@ -627,6 +809,7 @@ export class HierarchyPanelComponent {
 
   // ── Alertas: pessoa fora da LO vinculada ────────────────────────────────
   membroForaDaLo(node: HierarchyNode, m: HierarchyMember): boolean {
+    if (!this.mostrarMarcacoesDeTime(node)) return false;
     if (!m.personId && this.norm(m.nomePessoa) === this.norm(this.tbdNome)) return false;
     const ids = node.loIds || [];
     if (!ids.length) return false; // sem LO vinculada → sem alerta
@@ -635,6 +818,7 @@ export class HierarchyPanelComponent {
   }
 
   nodeQtdAlertas(node: HierarchyNode): number {
+    if (!this.mostrarMarcacoesDeTime(node)) return 0;
     return (node.membros || []).filter(m => this.membroForaDaLo(node, m)).length;
   }
 
@@ -726,20 +910,22 @@ export class HierarchyPanelComponent {
   }
 
   private emitirAtualizacaoMembros(node: HierarchyNode, membros: HierarchyMember[]) {
+    const tipo = this.tipoNormalizado(node.tipo);
     this.update.emit({
       id: node.id,
-      tipo: this.tipoNormalizado(node.tipo),
+      tipo,
       nome: node.nome,
       descricao: node.descricao || '',
       parentId: node.parentId || null,
       ordem: node.ordem,
-      membros: membros.map(m => ({ personId: m.personId ?? null, nomePessoa: m.nomePessoa, papel: m.papel || '', cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: m.percentual ?? null, subgrupo: m.subgrupo ?? null })),
+      membros: membros.map(m => ({ personId: m.personId ?? null, nomePessoa: m.nomePessoa, papel: m.papel || '', cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: this.tipoPermiteMarcacoesDeTime(tipo) ? (m.percentual ?? null) : null, subgrupo: m.subgrupo ?? null })),
       loIds: [...(node.loIds || [])]
     });
   }
 
   nodesParaExportar(): HierarchyNode[] {
-    return [...this.nodes].sort((a, b) => {
+    this.ensureHiddenLoaded();
+    return this.nodes.filter(n => !this.estaEmCadeiaOculta(n)).sort((a, b) => {
       const tipo = this.tipos.indexOf(this.tipoNormalizado(a.tipo)) - this.tipos.indexOf(this.tipoNormalizado(b.tipo));
       if (tipo !== 0) return tipo;
       return this.byOrdem(a, b);
@@ -750,7 +936,7 @@ export class HierarchyPanelComponent {
     const selectedRoot = this.exportRootId
       ? this.nodes.find(n => n.id === this.exportRootId)
       : null;
-    const raizes = selectedRoot ? [selectedRoot] : this.raizes();
+    const raizes = selectedRoot && !this.estaEmCadeiaOculta(selectedRoot) ? [selectedRoot] : this.raizesVisiveis();
     if (!raizes.length) return;
 
     const titulo = selectedRoot ? selectedRoot.nome : 'Hierarquia Organizacional';
@@ -838,8 +1024,18 @@ export class HierarchyPanelComponent {
   .equipe-avatars { display: flex; flex-wrap: wrap; }
   .eq-av { width: 30px; height: 30px; flex: 0 0 30px; margin-right: -7px; margin-bottom: 5px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(15,23,42,.18); }
   .eq-more { background: #e2e8f0; color: #475569; }
-  .children { display: flex; gap: 30px; margin-top: 24px; padding-top: 26px; position: relative; flex-wrap: nowrap; justify-content: center; }
-  .children::before { content: ''; position: absolute; top: 0; left: 50%; width: 2px; height: 26px; background: #cbd5e1; }
+  .multi-parent-export { display: flex; justify-content: center; gap: 6px; margin: 0 0 5px; }
+  .multi-parent-export span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 900; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 999px; padding: 2px 8px; }
+  .node.multi-parent > .card { box-shadow: 0 0 0 2px rgba(37,99,235,.16), 0 10px 28px rgba(15,23,42,.10); }
+  /* Conectores em organograma desenhados com background (renderizam no html2canvas). */
+  .children { display: flex; gap: 0; margin-top: 24px; padding-top: 26px; position: relative; flex-wrap: nowrap; justify-content: center; }
+  .children::before { content: ''; position: absolute; top: 0; left: 50%; margin-left: -1px; width: 2px; height: 13px; background: #cbd5e1; }
+  .children > .node { position: relative; padding: 0 16px; }
+  .children > .node::before { content: ''; position: absolute; top: -13px; left: 50%; margin-left: -1px; width: 2px; height: 13px; background: #cbd5e1; }
+  .children > .node::after { content: ''; position: absolute; top: -13px; left: 0; width: 100%; height: 2px; background: #cbd5e1; }
+  .children > .node:first-child::after { left: 50%; width: 50%; }
+  .children > .node:last-child::after { left: 0; width: 50%; }
+  .children > .node:only-child::after { display: none; }
   .footer { margin-top: 42px; display: flex; justify-content: center; color: #64748b; font-size: 13px; }
 </style>
 <section class="hierarchy-export">
@@ -878,7 +1074,7 @@ export class HierarchyPanelComponent {
       const exportEl = stage.querySelector<HTMLElement>('.hierarchy-export');
       if (!exportEl) return;
       const canvas = await html2canvas(exportEl, {
-        scale: 2,
+        scale: Math.max(3, window.devicePixelRatio || 1),
         useCORS: true,
         allowTaint: false,
         backgroundColor: null,
@@ -910,20 +1106,24 @@ export class HierarchyPanelComponent {
   }
 
   private countSubtreeNodes(roots: HierarchyNode[]): number {
-    let total = 0;
+    const visitados = new Set<string>();
     const visit = (node: HierarchyNode) => {
-      total++;
-      this.filhosDe(node.id).forEach(visit);
+      if (visitados.has(node.id)) return;
+      visitados.add(node.id);
+      this.filhosRenderVisiveisDe(node.id).forEach(visit);
     };
     roots.forEach(visit);
-    return total;
+    return visitados.size;
   }
 
   private countSubtreePessoas(roots: HierarchyNode[]): number {
     const pessoas = new Set<string>();
+    const visitados = new Set<string>();
     const visit = (node: HierarchyNode) => {
+      if (visitados.has(node.id)) return;
+      visitados.add(node.id);
       (node.membros || []).forEach(m => pessoas.add(this.norm(m.nomePessoa)));
-      this.filhosDe(node.id).forEach(visit);
+      this.filhosRenderVisiveisDe(node.id).forEach(visit);
     };
     roots.forEach(visit);
     return pessoas.size;
@@ -940,7 +1140,7 @@ export class HierarchyPanelComponent {
 
   // ── Exportação para apresentação (abre janela e imprime/salva PDF) ──────
   exportarImpressao() {
-    const raizes = this.raizes();
+    const raizes = this.raizesVisiveis();
     if (!raizes.length) return;
     const arvoreHtml = raizes.map(r => this.renderNodeHtml(r)).join('');
     const dataStr = new Date().toLocaleDateString('pt-BR');
@@ -951,9 +1151,9 @@ export class HierarchyPanelComponent {
   body { margin: 0; padding: 32px; background: #fff; color: #0f172a; }
   h1 { font-size: 22px; margin: 0 0 4px; }
   .sub { color: #64748b; font-size: 12px; margin-bottom: 28px; }
-  .tree { display: flex; gap: 36px; align-items: flex-start; flex-wrap: wrap; }
-  .node { display: flex; flex-direction: column; align-items: center; }
-  .card { border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px 16px; min-width: 210px; max-width: 340px;
+  .tree { display: flex; gap: 36px; align-items: flex-start; flex-wrap: nowrap; overflow-x: auto; }
+  .node { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
+  .card { border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px 16px; min-width: 210px; max-width: none; width: max-content;
           box-shadow: 0 2px 8px rgba(15,23,42,.06); text-align: center; background: #fff; }
   .tipo { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
   .nome { font-size: 14px; font-weight: 700; }
@@ -975,9 +1175,9 @@ export class HierarchyPanelComponent {
   .grupo-head { display: flex; justify-content: flex-end; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
   .g-cross .grupo-head { color: #c2410c; } .g-folha .grupo-head { color: #1d4ed8; } .g-terceiro .grupo-head { color: #0e7490; }
   .grupo-count { background: rgba(15,23,42,.08); color: #334155; border-radius: 10px; padding: 0 5px; font-size: 8px; }
-  .grupo-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+  .grupo-lista { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 3px 10px; }
   .m { display: flex; align-items: center; gap: 6px; font-size: 11px; text-align: left; margin-top: 3px; min-width: 0; }
-  .m-info { min-width: 0; } .m-nome, .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-info { min-width: 0; } .m-nome, .meta { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
   .m-info { display: flex; flex-direction: column; line-height: 1.2; }
   .m-nome { font-weight: 700; color: #1e293b; }
   .meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; color: #64748b; font-size: 9px; }
@@ -996,8 +1196,14 @@ export class HierarchyPanelComponent {
   .equipe-avatars { display: flex; flex-wrap: wrap; }
   .eq-av { width: 24px; height: 24px; flex: 0 0 24px; margin-right: -6px; margin-bottom: 4px; border: 2px solid #fff; }
   .eq-more { background: #e2e8f0; color: #475569; }
-  .children { display: flex; gap: 24px; margin-top: 18px; padding-top: 18px; position: relative; flex-wrap: wrap; justify-content: center; }
-  .children::before { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 18px; background: #cbd5e1; }
+  .children { display: flex; gap: 0; margin-top: 18px; padding-top: 18px; position: relative; flex-wrap: nowrap; justify-content: center; }
+  .children::before { content: ''; position: absolute; top: 0; left: 50%; margin-left: -1px; width: 2px; height: 9px; background: #cbd5e1; }
+  .children > .node { position: relative; padding: 0 12px; }
+  .children > .node::before { content: ''; position: absolute; top: -9px; left: 50%; margin-left: -1px; width: 2px; height: 9px; background: #cbd5e1; }
+  .children > .node::after { content: ''; position: absolute; top: -9px; left: 0; width: 100%; height: 2px; background: #cbd5e1; }
+  .children > .node:first-child::after { left: 50%; width: 50%; }
+  .children > .node:last-child::after { left: 0; width: 50%; }
+  .children > .node:only-child::after { display: none; }
   @media print { body { padding: 12px; } .tree { gap: 20px; } }
 </style></head><body>
   <h1>Hierarquia Organizacional</h1>
@@ -1029,7 +1235,7 @@ export class HierarchyPanelComponent {
       : '';
     const metaHtml = (metaText || pctHtml) ? `<span class="meta">${metaText}${pctHtml}</span>` : '';
     const crossHtml = this.ehCross(m) ? `<span class="cross">Cross</span>` : '';
-    const noFteHtml = !this.membroContaFte(m) ? `<span class="nofte">∅</span>` : '';
+    const noFteHtml = this.mostrarMarcacoesDeTime(node) && !this.membroContaFte(m) ? `<span class="nofte">∅</span>` : '';
     const alertaHtml = this.membroForaDaLo(node, m) ? `<span class="alerta">⚠</span>` : '';
     return `<div class="m${this.membroForaDaLo(node, m) ? ' fora-lo' : ''}">${av}<div class="m-info">${crossHtml}<span class="m-nome">${this.escapeHtml(m.nomePessoa)}</span>${metaHtml}</div>${noFteHtml}${alertaHtml}</div>`;
   }
@@ -1052,14 +1258,19 @@ export class HierarchyPanelComponent {
 
   private renderNodeHtml(node: HierarchyNode): string {
     const grupos = this.subgruposParaRender(node).map(sg => this.renderSubgrupoHtml(node, sg)).join('');
-    const filhos = this.filhosDe(node.id);
+    const filhos = this.filhosRenderVisiveisDe(node.id);
     const filhosHtml = filhos.length ? `<div class="children">${filhos.map(f => this.renderNodeHtml(f)).join('')}</div>` : '';
     const desc = node.descricao ? `<div class="desc">${this.escapeHtml(node.descricao)}</div>` : '';
     const membrosBlock = grupos ? `<div class="membros">${grupos}</div>` : '';
+    const pais = this.paisVisiveisDoNode(node);
+    const multiParentHtml = pais.length > 1
+      ? `<div class="multi-parent-export">${pais.map(p => `<span>${this.escapeHtml(p.nome)}</span>`).join('')}</div>`
+      : '';
     const valor = (this.temValorAgregado(node) && !this.ocultarValoresExport)
       ? `<div class="valor">Σ LOs: <strong>${this.escapeHtml(this.formatCompact(this.valorAgregado(node)))}</strong></div>`
       : '';
-    return `<div class="node t-${this.tipoClasse(node.tipo)}">
+    return `<div class="node t-${this.tipoClasse(node.tipo)}${pais.length > 1 ? ' multi-parent' : ''}">
+      ${multiParentHtml}
       <div class="card">
         <div class="tipo">${this.escapeHtml(this.tipoLabel(node.tipo))}</div>
         <div class="nome">${this.escapeHtml(node.nome)}</div>

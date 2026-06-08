@@ -1,11 +1,12 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 
 @Component({
   selector: 'app-project-budget-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SearchableSelectDirective],
   templateUrl: './project-budget-panel.component.html',
   styleUrl: './project-budget-panel.component.scss'
 })

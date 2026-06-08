@@ -2701,6 +2701,7 @@ app-project-detail {
   transform: translate(-50%, -50%);
   width: min(520px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
   overflow: auto;
   background: #fff;
   border: 1px solid #d9e6ff;
@@ -2708,6 +2709,78 @@ app-project-detail {
   padding: 14px;
   box-shadow: 0 20px 40px rgba(10, 42, 100, .28);
 }
+
+// Variante larga (formularios densos, ex.: hierarquia)
+.modal-card.modal-card-lg {
+  width: min(820px, calc(100vw - 24px));
+}
+
+// ── Validação de formulários (cadastros em modais) ───────────────────────────
+.form-validation {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 2px;
+}
+.form-validation p {
+  margin: 0;
+  font-size: .8rem;
+  color: #6d83a8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.form-validation p::before {
+  content: '○';
+  font-size: .68rem;
+}
+.form-validation p.ok { color: #1e8e4a; }
+.form-validation p.ok::before { content: '✓'; }
+.form-validation p.error { color: #b43030; }
+.form-validation p.error::before { content: '!'; font-weight: 700; }
+
+.req { color: #b43030; font-weight: 700; margin-left: 2px; }
+
+// ── Busca dentro de <select> (SearchableSelectDirective) ─────────────────────
+.ss-panel {
+  position: fixed;
+  z-index: 2000;
+  background: #fff;
+  border: 1px solid #c9d8f2;
+  border-radius: 10px;
+  box-shadow: 0 14px 32px rgba(10, 42, 100, .22);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  min-width: 160px;
+}
+.ss-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid #d3def3;
+  border-radius: 8px;
+  font-size: .88rem;
+  outline: none;
+  margin-bottom: 6px;
+}
+.ss-search:focus { border-color: #6f9bff; box-shadow: 0 0 0 2px rgba(111, 155, 255, .25); }
+.ss-list { overflow-y: auto; }
+.ss-opt {
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: .88rem;
+  color: #1f3a66;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ss-opt.active { background: #eef4ff; }
+.ss-opt.sel { font-weight: 700; color: #0f2d6b; }
+.ss-opt.sel::after { content: ' ✓'; color: #1e8e4a; }
+.ss-opt.disabled { color: #9bb0d0; cursor: default; }
+.ss-empty { padding: 10px; font-size: .85rem; color: #6d83a8; text-align: center; }
 
 .modal-backdrop-top {
   z-index: 1200;
@@ -2769,6 +2842,8 @@ app-project-detail {
   left: 50%;
   transform: translate(-50%, -50%);
   max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
 }
 
 // ── Transferência de dono (inline row) ───────────────────────────────────────

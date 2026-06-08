@@ -1,6 +1,7 @@
-﻿import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { PlannerApiService } from '../../core/planner-api.service';
 import { ToastService } from '../../core/toast.service';
 import { lastValueFrom } from 'rxjs';
@@ -30,7 +31,7 @@ interface BackupData {
 @Component({
   selector: 'app-data-transfer-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './data-transfer-panel.component.html',
   styleUrl: './data-transfer-panel.component.scss',

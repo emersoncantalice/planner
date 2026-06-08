@@ -1,10 +1,11 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 
 @Component({
   selector: 'app-project-create',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   styleUrl: './project-create.component.scss',
   templateUrl: './project-create.component.html'
@@ -55,6 +56,9 @@ export class ProjectCreateComponent {
     return this.forceExpanded || this.formExpanded;
   }
 
+  get nomeValido() { return (this.projeto.nome || '').trim().length > 0; }
+  get formValido() { return this.nomeValido; }
+
   onPercentualLoChange(value: number | string | null) {
     if (value === null || value === '') {
       this.projeto.percentualLo = null;
@@ -69,6 +73,7 @@ export class ProjectCreateComponent {
   }
 
   submit() {
+    if (!this.formValido) return;
     this.projeto.orcamentoPrevisto = this.orcamentoPrevistoDerivado();
     this.create.emit(this.projeto);
     this.projeto = {

@@ -671,11 +671,46 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   }
 
   // ── Atividades sem responsável ────────────────────────────────────────────
+  private startOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  private parseDateOnly(value: any): Date | null {
+    if (!value) return null;
+    const raw = String(value).slice(0, 10);
+    const parts = raw.split('-').map(Number);
+    if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      return Number.isNaN(d.getTime()) ? null : this.startOfDay(d);
+    }
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : this.startOfDay(d);
+  }
+
+  private atividadeSemResponsavelRelevante(a: any): boolean {
+    const status = String(a?.status || '').toUpperCase();
+    if (status === 'ATRASADO' || status === 'BLOQUEADO') return true;
+
+    const inicio = this.parseDateOnly(a?.inicioPlanejado);
+    if (!inicio) return false;
+
+    const hoje = this.startOfDay(new Date());
+    const limite = new Date(hoje);
+    limite.setDate(limite.getDate() + 7);
+    return inicio >= hoje && inicio <= limite;
+  }
+
   atividadesSemResponsavel(): any[] {
     return this.atividades.filter((a: any) => {
       const resp = (a.responsavel || '').trim();
       const status = (a.status || '').toUpperCase();
-      return !resp && status !== 'CONCLUIDO';
+      return !resp && status !== 'CONCLUIDO' && this.atividadeSemResponsavelRelevante(a);
+    }).sort((a: any, b: any) => {
+      const inicioA = this.parseDateOnly(a?.inicioPlanejado)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const inicioB = this.parseDateOnly(b?.inicioPlanejado)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      return inicioA - inicioB;
     });
   }
 

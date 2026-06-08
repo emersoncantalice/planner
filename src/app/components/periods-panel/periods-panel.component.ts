@@ -1,6 +1,7 @@
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { PlannerApiService } from '../../core/planner-api.service';
 
 type PeriodType = 'DIARIO' | 'SEMANAL' | 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL';
@@ -20,7 +21,7 @@ interface UpcomingPeriod {
 @Component({
   selector: 'app-periods-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SearchableSelectDirective],
   templateUrl: './periods-panel.component.html',
   styleUrl: './periods-panel.component.scss'
 })

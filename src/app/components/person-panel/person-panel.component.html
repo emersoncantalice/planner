@@ -6,162 +6,10 @@
         Importar CSV
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      <button class="warn" type="button" (click)="abrirNovo()">Nova pessoa</button>
     </div>
   </div>
   <small class="csv-hint">Exemplo: Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500</small>
-
-  @if (formExpanded) {
-    <div class="foto-form-row">
-      <button type="button" class="foto-btn foto-btn-lg" (click)="abrirFotoFormulario()" title="Incluir / alterar foto">
-        @if (fotoFormPreview()) {
-          <img class="foto-avatar" [src]="fotoFormPreview()" [alt]="pessoa.nome" />
-        } @else {
-          <span class="foto-iniciais">{{ pessoa.nome ? iniciais(pessoa.nome) : '+' }}</span>
-        }
-      </button>
-      <div class="foto-form-info">
-        <strong>Foto da pessoa</strong>
-        <button type="button" class="link-btn" (click)="abrirFotoFormulario()">
-          {{ fotoFormPreview() ? 'Alterar foto' : 'Adicionar foto' }}
-        </button>
-        @if (!editingId && fotoPendente) {
-          <small>A foto será salva ao cadastrar a pessoa.</small>
-        }
-      </div>
-    </div>
-    <label>Nome da pessoa</label>
-    <input [(ngModel)]="pessoa.nome" placeholder="Nome da pessoa" />
-    <label>Perfil</label>
-    <select [(ngModel)]="pessoa.perfilId" (ngModelChange)="onPerfilChange()">
-      <option value="">Selecione o perfil</option>
-      @for (p of perfis; track p.id) {
-        <option [value]="p.id">{{ p.nomePerfil }}</option>
-      }
-    </select>
-    <label>Tipo de vinculo</label>
-    <select [(ngModel)]="pessoa.tipoVinculo" (ngModelChange)="onTipoVinculoChange($event)">
-      <option value="BV">Folha</option>
-      <option value="TERCEIRO">Prestador de servico</option>
-    </select>
-    @if (perfilSelecionadoDebitaLo()) {
-      <label>Valor/hora da pessoa (sobrescreve o perfil)</label>
-      <input
-        [ngModel]="valorHoraMasked"
-        (ngModelChange)="onValorHoraChange($event)"
-        (keydown)="onValorKeydown($event)"
-        inputmode="numeric"
-        placeholder="Valor/hora (R$ 0,000)" />
-    }
-    @if (pessoa.tipoVinculo === 'TERCEIRO') {
-      <label>Prestador de servico</label>
-      <select [(ngModel)]="pessoa.consultoria">
-        <option value="">Selecione o prestador de servico</option>
-        @for (c of consultorias; track c.id) {
-          <option [value]="c.nome">{{ c.nome }}</option>
-        }
-      </select>
-      <label>URL da vaga (atual)</label>
-      <input [(ngModel)]="pessoa.vagaUrl" type="url" placeholder="URL da vaga (opcional)" />
-      <label>Alias da vaga (atual)</label>
-      <input [(ngModel)]="pessoa.vagaAlias" placeholder="Alias da vaga (ex: VAG0031164)" />
-
-      @if (editingId) {
-        
-        <button type="button" class="hist-toggle sec"
-                (click)="historicoExpanded = !historicoExpanded">
-          {{ historicoExpanded ? '▾' : '▸' }}
-          Histórico de vagas
-          @if (vagasAnteriores.length) {
-            <span class="hist-badge">{{ vagasAnteriores.length }}</span>
-          }
-        </button>
-
-        @if (historicoExpanded) {
-          <div class="hist-block">
-            
-            <div class="hist-add">
-              <div class="hist-add-row">
-                <div class="hist-field">
-                  <label>Alias</label>
-                  <input [(ngModel)]="novaVaga.alias" placeholder="Ex: VAG0031164" />
-                </div>
-                <div class="hist-field hist-field-wide">
-                  <label>URL</label>
-                  <input [(ngModel)]="novaVaga.url" type="url" placeholder="URL da vaga (opcional)" />
-                </div>
-              </div>
-              <div class="hist-add-row">
-                <div class="hist-field">
-                  <label>Início</label>
-                  <input [(ngModel)]="novaVaga.inicio" type="date" />
-                </div>
-                <div class="hist-field">
-                  <label>Fim</label>
-                  <input [(ngModel)]="novaVaga.fim" type="date" />
-                </div>
-                <button type="button" class="hist-add-btn"
-                        (click)="adicionarVagaHistorico()"
-                        [disabled]="!novaVaga.alias.trim() && !novaVaga.url.trim()">
-                  + Adicionar
-                </button>
-              </div>
-            </div>
-
-            
-            @if (vagasAnteriores.length === 0) {
-              <p class="hist-empty">Nenhuma vaga anterior registrada.</p>
-            } @else {
-              <ul class="hist-list">
-                @for (v of vagasAnteriores; track $index) {
-                  <li class="hist-item">
-                    <div class="hist-item-info">
-                      @if (v.url) {
-                        <a [href]="v.url" target="_blank" rel="noopener noreferrer" class="hist-alias">{{ v.alias || 'Abrir ↗' }}</a>
-                      } @else {
-                        <span class="hist-alias">{{ v.alias || '—' }}</span>
-                      }
-                      <span class="hist-dates">{{ fmtDate(v.inicio) }} → {{ fmtDate(v.fim) }}</span>
-                    </div>
-                    <button type="button" class="hist-del" title="Remover do histórico"
-                            (click)="removerVagaHistorico($index)">✕</button>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        }
-      }
-    }
-    <label>Data de nascimento (opcional)</label>
-    <input [(ngModel)]="pessoa.dataNascimento" type="date" placeholder="Data de nascimento" />
-    <label>Contato (telefone / e-mail, opcional)</label>
-    <input
-      [ngModel]="pessoa.contato"
-      (ngModelChange)="onContatoChange($event)"
-      placeholder="Ex: (11) 91234-5678 ou fulano@empresa.com" />
-    <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
-      <input type="checkbox" [(ngModel)]="pessoa.ativo" id="pessoa-ativo" style="width:auto" />
-      <label for="pessoa-ativo" style="margin:0">Pessoa ativa</label>
-    </div>
-    <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
-      <input type="checkbox" [(ngModel)]="pessoa.contaFte" id="pessoa-conta-fte" style="width:auto" />
-      <label for="pessoa-conta-fte" style="margin:0">Conta para o FTE (alocação na hierarquia)</label>
-    </div>
-    <label>Valor mensal medio</label>
-    <input
-      [value]="perfilSelecionadoDebitaLo() ? valorMensalMedioAtual() : 'Perfil não debita da LO, valor na alocação fica zerado.'"
-      readonly
-      aria-label="Valor mensal medio" />
-    @if (!editingId) {
-      <button (click)="submit()">Cadastrar pessoa</button>
-    } @else {
-      <div class="linha">
-        <button (click)="saveEdit()">Salvar edicao</button>
-        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
-      </div>
-    }
-  }
 
   <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center;">
     <input [(ngModel)]="searchTerm" (ngModelChange)="onPageFiltersChanged()" placeholder="Pesquisar na tabela..." style="flex:1;min-width:160px" />
@@ -169,6 +17,17 @@
       <option value="ativos">Só ativos</option>
       <option value="inativos">Só inativos</option>
       <option value="todos">Todos</option>
+    </select>
+    <select [(ngModel)]="filtroPerfilId" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:180px">
+      <option value="">Todos os perfis</option>
+      @for (perfil of perfis; track perfil.id) {
+        <option [value]="perfil.id">{{ perfil.nomePerfil }}</option>
+      }
+    </select>
+    <select [(ngModel)]="filtroVinculo" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:150px">
+      <option value="">Todos os vinculos</option>
+      <option value="FOLHA">Folha</option>
+      <option value="TERCEIRO">Prestador de servico</option>
     </select>
     <select [ngModel]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:auto">
       <option [ngValue]="10">10 por página</option>
@@ -262,6 +121,169 @@
   </div>
 
 </article></planner-card>
+
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar pessoa' : 'Nova pessoa' }}</h3>
+      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+    </div>
+
+    <div class="foto-form-row">
+      <button type="button" class="foto-btn foto-btn-lg" (click)="abrirFotoFormulario()" title="Incluir / alterar foto">
+        @if (fotoFormPreview()) {
+          <img class="foto-avatar" [src]="fotoFormPreview()" [alt]="pessoa.nome" />
+        } @else {
+          <span class="foto-iniciais">{{ pessoa.nome ? iniciais(pessoa.nome) : '+' }}</span>
+        }
+      </button>
+      <div class="foto-form-info">
+        <strong>Foto da pessoa</strong>
+        <button type="button" class="link-btn" (click)="abrirFotoFormulario()">
+          {{ fotoFormPreview() ? 'Alterar foto' : 'Adicionar foto' }}
+        </button>
+        @if (!editingId && fotoPendente) {
+          <small>A foto será salva ao cadastrar a pessoa.</small>
+        }
+      </div>
+    </div>
+    <label>Nome da pessoa <span class="req">*</span></label>
+    <input [(ngModel)]="pessoa.nome" placeholder="Nome da pessoa" />
+    <label>Perfil <span class="req">*</span></label>
+    <select [(ngModel)]="pessoa.perfilId" (ngModelChange)="onPerfilChange()">
+      <option value="">Selecione o perfil</option>
+      @for (p of perfis; track p.id) {
+        <option [value]="p.id">{{ p.nomePerfil }}</option>
+      }
+    </select>
+    <label>Tipo de vinculo</label>
+    <select [(ngModel)]="pessoa.tipoVinculo" (ngModelChange)="onTipoVinculoChange($event)">
+      <option value="BV">Folha</option>
+      <option value="TERCEIRO">Prestador de servico</option>
+    </select>
+    @if (perfilSelecionadoDebitaLo()) {
+      <label>Valor/hora da pessoa (sobrescreve o perfil)</label>
+      <input
+        [ngModel]="valorHoraMasked"
+        (ngModelChange)="onValorHoraChange($event)"
+        (keydown)="onValorKeydown($event)"
+        inputmode="numeric"
+        placeholder="Valor/hora (R$ 0,000)" />
+    }
+    @if (pessoa.tipoVinculo === 'TERCEIRO') {
+      <label>Prestador de servico</label>
+      <select [(ngModel)]="pessoa.consultoria">
+        <option value="">Selecione o prestador de servico</option>
+        @for (c of consultorias; track c.id) {
+          <option [value]="c.nome">{{ c.nome }}</option>
+        }
+      </select>
+      <label>URL da vaga (atual)</label>
+      <input [(ngModel)]="pessoa.vagaUrl" type="url" placeholder="URL da vaga (opcional)" />
+      <label>Alias da vaga (atual)</label>
+      <input [(ngModel)]="pessoa.vagaAlias" placeholder="Alias da vaga (ex: VAG0031164)" />
+
+      @if (editingId) {
+        <button type="button" class="hist-toggle sec"
+                (click)="historicoExpanded = !historicoExpanded">
+          {{ historicoExpanded ? '▾' : '▸' }}
+          Histórico de vagas
+          @if (vagasAnteriores.length) {
+            <span class="hist-badge">{{ vagasAnteriores.length }}</span>
+          }
+        </button>
+
+        @if (historicoExpanded) {
+          <div class="hist-block">
+            <div class="hist-add">
+              <div class="hist-add-row">
+                <div class="hist-field">
+                  <label>Alias</label>
+                  <input [(ngModel)]="novaVaga.alias" placeholder="Ex: VAG0031164" />
+                </div>
+                <div class="hist-field hist-field-wide">
+                  <label>URL</label>
+                  <input [(ngModel)]="novaVaga.url" type="url" placeholder="URL da vaga (opcional)" />
+                </div>
+              </div>
+              <div class="hist-add-row">
+                <div class="hist-field">
+                  <label>Início</label>
+                  <input [(ngModel)]="novaVaga.inicio" type="date" />
+                </div>
+                <div class="hist-field">
+                  <label>Fim</label>
+                  <input [(ngModel)]="novaVaga.fim" type="date" />
+                </div>
+                <button type="button" class="hist-add-btn"
+                        (click)="adicionarVagaHistorico()"
+                        [disabled]="!novaVaga.alias.trim() && !novaVaga.url.trim()">
+                  + Adicionar
+                </button>
+              </div>
+            </div>
+
+            @if (vagasAnteriores.length === 0) {
+              <p class="hist-empty">Nenhuma vaga anterior registrada.</p>
+            } @else {
+              <ul class="hist-list">
+                @for (v of vagasAnteriores; track $index) {
+                  <li class="hist-item">
+                    <div class="hist-item-info">
+                      @if (v.url) {
+                        <a [href]="v.url" target="_blank" rel="noopener noreferrer" class="hist-alias">{{ v.alias || 'Abrir ↗' }}</a>
+                      } @else {
+                        <span class="hist-alias">{{ v.alias || '—' }}</span>
+                      }
+                      <span class="hist-dates">{{ fmtDate(v.inicio) }} → {{ fmtDate(v.fim) }}</span>
+                    </div>
+                    <button type="button" class="hist-del" title="Remover do histórico"
+                            (click)="removerVagaHistorico($index)">✕</button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      }
+    }
+    <label>Data de nascimento (opcional)</label>
+    <input [(ngModel)]="pessoa.dataNascimento" type="date" placeholder="Data de nascimento" />
+    <label>Contato (telefone / e-mail, opcional)</label>
+    <input
+      [ngModel]="pessoa.contato"
+      (ngModelChange)="onContatoChange($event)"
+      placeholder="Ex: (11) 91234-5678 ou fulano@empresa.com" />
+    <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
+      <input type="checkbox" [(ngModel)]="pessoa.ativo" id="pessoa-ativo" style="width:auto" />
+      <label for="pessoa-ativo" style="margin:0">Pessoa ativa</label>
+    </div>
+    <div class="linha" style="align-items:center;gap:8px;margin-top:6px;">
+      <input type="checkbox" [(ngModel)]="pessoa.contaFte" id="pessoa-conta-fte" style="width:auto" />
+      <label for="pessoa-conta-fte" style="margin:0">Conta para o FTE (alocação na hierarquia)</label>
+    </div>
+    <label>Valor mensal medio</label>
+    <input
+      [value]="perfilSelecionadoDebitaLo() ? valorMensalMedioAtual() : 'Perfil não debita da LO, valor na alocação fica zerado.'"
+      readonly
+      aria-label="Valor mensal medio" />
+
+    <div class="form-validation">
+      <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome da pessoa é obrigatório</p>
+      <p [class.ok]="perfilValido" [class.error]="!perfilValido">Selecione um perfil</p>
+    </div>
+
+    @if (!editingId) {
+      <button (click)="submit()" [disabled]="!formValido">Cadastrar pessoa</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()" [disabled]="!formValido">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  </div>
+}
 
 <app-photo-upload
   [aberto]="fotoModalAberto"

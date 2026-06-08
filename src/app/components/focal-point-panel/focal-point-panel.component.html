@@ -6,25 +6,10 @@
         <span>Importar CSV</span>
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      <button class="warn" type="button" (click)="abrirNovo()">Novo ponto focal</button>
     </div>
   </div>
   <small class="csv-hint">Exemplo: Riscos e Controles,Gestao de riscos,risco@empresa.com,(11) 98888-7777</small>
-
-  @if (formExpanded) {
-    <input [(ngModel)]="pontoFocal.area" placeholder="Area" />
-    <input [(ngModel)]="pontoFocal.responsavelPor" placeholder="Responsavel por" />
-    <input [(ngModel)]="pontoFocal.email" placeholder="Email" />
-    <input [(ngModel)]="pontoFocal.telefone" (input)="onPhoneInput()" placeholder="Telefone" />
-    @if (!editingId) {
-      <button (click)="submit()">Cadastrar ponto focal</button>
-    } @else {
-      <div class="linha">
-        <button (click)="saveEdit()">Salvar edicao</button>
-        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
-      </div>
-    }
-  }
 
   <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
 
@@ -56,4 +41,33 @@
     </table>
   </div>
 </article></planner-card>
+
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar ponto focal' : 'Novo ponto focal' }}</h3>
+      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+    </div>
+
+    <label>Area <span class="req">*</span></label>
+    <input [(ngModel)]="pontoFocal.area" placeholder="Area" />
+    <input [(ngModel)]="pontoFocal.responsavelPor" placeholder="Responsavel por" />
+    <input [(ngModel)]="pontoFocal.email" placeholder="Email" />
+    <input [(ngModel)]="pontoFocal.telefone" (input)="onPhoneInput()" placeholder="Telefone" />
+
+    <div class="form-validation">
+      <p [class.ok]="areaValido" [class.error]="!areaValido">Area é obrigatória</p>
+    </div>
+
+    @if (!editingId) {
+      <button (click)="submit()" [disabled]="!formValido">Cadastrar ponto focal</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()" [disabled]="!formValido">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  </div>
+}
 

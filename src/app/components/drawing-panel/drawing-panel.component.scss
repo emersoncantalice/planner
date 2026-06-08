@@ -888,6 +888,10 @@
   padding: 24px 28px;
   z-index: 1001;
   min-width: 320px;
+  max-width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
   box-shadow: 0 8px 40px rgba(0,0,0,.18);
   display: flex; flex-direction: column; gap: 16px;
   h3 { margin: 0; font-size: 1rem; color: #1e293b; }

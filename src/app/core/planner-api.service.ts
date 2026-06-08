@@ -178,10 +178,10 @@ export class PlannerApiService {
   listHierarchy(token: string) {
     return this.http.get<any[]>(`${this.api}/hierarchy`, { headers: this.headers(token) });
   }
-  createHierarchyNode(token: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
+  createHierarchyNode(token: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
     return this.http.post<any>(`${this.api}/hierarchy`, payload, { headers: this.headers(token) });
   }
-  updateHierarchyNode(token: string, nodeId: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
+  updateHierarchyNode(token: string, nodeId: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
     return this.http.put<any>(`${this.api}/hierarchy/${nodeId}`, payload, { headers: this.headers(token) });
   }
   deleteHierarchyNode(token: string, nodeId: string) {

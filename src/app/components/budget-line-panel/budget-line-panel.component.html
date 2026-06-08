@@ -6,34 +6,10 @@
         <span>Importar CSV</span>
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      <button class="warn" type="button" (click)="abrirNovo()">Nova LO</button>
     </div>
   </div>
   <small class="csv-hint">Exemplo: LO-2026-001,Plataforma Core,2026,RUN,TI-DIGITAL,120000</small>
-  @if (formExpanded) {
-    <input [(ngModel)]="linha.codigo" placeholder="Codigo LO (Ex.: LO-2026-001)" />
-    <input [(ngModel)]="linha.nome" placeholder="Nome da linha orcamentaria" />
-    <input type="number" min="2000" max="2100" [(ngModel)]="linha.ano" placeholder="Ano (Ex.: 2026)" />
-    <select [(ngModel)]="linha.tipo">
-      <option value="CHANGE">CHANGE</option>
-      <option value="RUN">RUN</option>
-      <option value="RECURSOS">RECURSOS</option>
-    </select>
-    <input [(ngModel)]="linha.centroCusto" placeholder="Centro de custo (Ex.: TI-DIGITAL)" />
-    <input
-      [ngModel]="valorTotalMasked"
-      (ngModelChange)="onValorTotalChange($event)"
-      inputmode="numeric"
-      placeholder="R$ 0,00" />
-    @if (!editingId) {
-      <button (click)="createLine()">Cadastrar LO</button>
-    } @else {
-      <div class="linha">
-        <button (click)="saveEdit()">Salvar edicao</button>
-        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
-      </div>
-    }
-  }
 
   <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
   <div class="table-wrap">
@@ -82,6 +58,49 @@
     </table>
   </div>
 </article></planner-card>
+
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar LO' : 'Nova LO' }}</h3>
+      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+    </div>
+
+    <label>Codigo LO <span class="req">*</span></label>
+    <input [(ngModel)]="linha.codigo" placeholder="Codigo LO (Ex.: LO-2026-001)" />
+    <label>Nome <span class="req">*</span></label>
+    <input [(ngModel)]="linha.nome" placeholder="Nome da linha orcamentaria" />
+    <input type="number" min="2000" max="2100" [(ngModel)]="linha.ano" placeholder="Ano (Ex.: 2026)" />
+    <select [(ngModel)]="linha.tipo">
+      <option value="CHANGE">CHANGE</option>
+      <option value="RUN">RUN</option>
+      <option value="RECURSOS">RECURSOS</option>
+    </select>
+    <input [(ngModel)]="linha.centroCusto" placeholder="Centro de custo (Ex.: TI-DIGITAL)" />
+    <label>Orcamento base <span class="req">*</span></label>
+    <input
+      [ngModel]="valorTotalMasked"
+      (ngModelChange)="onValorTotalChange($event)"
+      inputmode="numeric"
+      placeholder="R$ 0,00" />
+
+    <div class="form-validation">
+      <p [class.ok]="codigoValido" [class.error]="!codigoValido">Codigo da LO é obrigatório</p>
+      <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome é obrigatório</p>
+      <p [class.ok]="valorValido" [class.error]="!valorValido">Orcamento base deve ser maior que zero</p>
+    </div>
+
+    @if (!editingId) {
+      <button (click)="createLine()" [disabled]="!formValido">Cadastrar LO</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()" [disabled]="!formValido">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  </div>
+}
 
 @if (movimentacaoModalAberto) {
   <div class="modal-backdrop" (click)="fecharMovimentacaoModal()"></div>

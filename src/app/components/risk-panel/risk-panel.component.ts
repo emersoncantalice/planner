@@ -1,6 +1,7 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 
 import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
@@ -8,7 +9,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 @Component({
   selector: 'app-risk-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './risk-panel.component.html',
   styleUrl: './risk-panel.component.scss'
@@ -88,12 +89,20 @@ export class RiskPanelComponent implements OnChanges {
     });
   }
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.risco = { titulo: '', descricao: '', planoAcao: '', status: 'PLANO_ACAO', dataFim: null, responsavel: null };
+    this.formExpanded = true;
   }
 
+  get tituloValido() { return (this.risco.titulo || '').trim().length > 0; }
+  get formValido() { return this.tituloValido; }
+
   submit() {
+    if (!this.formValido) return;
     this.create.emit(this.risco);
+    this.risco = { titulo: '', descricao: '', planoAcao: '', status: 'PLANO_ACAO', dataFim: null, responsavel: null };
+    this.formExpanded = false;
   }
 
   nextStatus(current: string): string {
@@ -122,7 +131,7 @@ export class RiskPanelComponent implements OnChanges {
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     this.update.emit({ id: this.editingId, ...this.risco });
     this.editingId = '';
     this.formExpanded = false;

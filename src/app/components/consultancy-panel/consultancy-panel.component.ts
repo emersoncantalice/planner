@@ -28,11 +28,17 @@ export class ConsultancyPanelComponent {
   sortKey: 'nome' | 'telefone' | 'email' | 'descricao' = 'nome';
   sortDirection: 'asc' | 'desc' = 'asc';
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.consultoria = { nome: '', descricao: '', telefone: '', email: '' };
+    this.formExpanded = true;
   }
 
+  get nomeValido() { return (this.consultoria.nome || '').trim().length > 0; }
+  get formValido() { return this.nomeValido; }
+
   submit() {
+    if (!this.formValido) return;
     this.create.emit(this.consultoria);
     this.consultoria = { nome: '', descricao: '', telefone: '', email: '' };
     this.formExpanded = false;
@@ -50,7 +56,7 @@ export class ConsultancyPanelComponent {
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     this.update.emit({ id: this.editingId, ...this.consultoria });
     this.cancelEdit();
   }

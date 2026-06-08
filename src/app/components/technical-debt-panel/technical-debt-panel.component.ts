@@ -1,6 +1,7 @@
 import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 
 import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
@@ -8,7 +9,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 @Component({
   selector: 'app-technical-debt-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   templateUrl: './technical-debt-panel.component.html',
   styleUrl: './technical-debt-panel.component.scss'
 })
@@ -94,10 +95,14 @@ export class TechnicalDebtPanelComponent {
   ];
 
   
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
-    if (this.formExpanded) { this.editingId = ''; this.form = this.emptyForm(); }
+  abrirNovo() {
+    this.editingId = '';
+    this.form = this.emptyForm();
+    this.formExpanded = true;
   }
+
+  get tituloValido() { return (this.form.titulo || '').trim().length > 0; }
+  get formValido() { return this.tituloValido; }
 
   startEdit(d: any) {
     this.editingId = d.id;
@@ -124,6 +129,7 @@ export class TechnicalDebtPanelComponent {
   }
 
   submit() {
+    if (!this.formValido) return;
     const payload = {
       ...this.form,
       esforcoEstimado: Number(this.form.esforcoEstimado) || 0,

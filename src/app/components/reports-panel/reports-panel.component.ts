@@ -1,13 +1,14 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 
 type Relatorio = 'lo' | 'pessoa' | 'prestador' | 'mensal' | 'nao_alocados';
 
 @Component({
   selector: 'app-reports-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './reports-panel.component.html',
   styleUrl: './reports-panel.component.scss'
@@ -20,6 +21,8 @@ export class ReportsPanelComponent {
   @Input() perfis: any[] = [];
   @Input() consultorias: any[] = [];
   @Input() horasMes: any[] = [];
+  @Input() estadosMensais: any[] = [];
+  @Input() ausencias: any[] = [];
 
   meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   relatorioAtivo: Relatorio = 'lo';
@@ -45,42 +48,54 @@ export class ReportsPanelComponent {
     return this.alocacoes.filter((a: any) => ids.has(a.linhaOrcamentariaId));
   }
 
-  private getValorHora(nomePessoa: string, fallback = 0): number {
+  private normalized(value: string): string {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  private pessoaPorNome(nomePessoa: string): any | null {
+    const nome = this.normalized(nomePessoa);
+    return this.pessoas.find((p: any) => this.normalized(p?.nome || '') === nome) || null;
+  }
+
+  private isPessoaPlanejada(a: any): boolean {
+    return typeof a?.nomePessoa === 'string' && a.nomePessoa.startsWith('Pessoa Planejada ');
+  }
+
+  private contaNoRelatorio(a: any): boolean {
+    return !this.isPessoaPlanejada(a) && !a?.draft;
+  }
+
+  private getValorHora(nomePessoa: string, fallback = 0, perfilId = ''): number {
     const p = this.pessoas.find(
-      (x: any) => (x?.nome || '').trim().toLowerCase() === (nomePessoa || '').trim().toLowerCase()
+      (x: any) => this.normalized(x?.nome || '') === this.normalized(nomePessoa || '')
     );
-    return p?.valorHora != null ? Number(p.valorHora) : Number(fallback);
+    if (p?.valorHora != null) return Number(p.valorHora);
+    const perfil = this.perfis.find((x: any) => x.id === (perfilId || p?.perfilId));
+    if (perfil?.valorHora != null) return Number(perfil.valorHora);
+    return Number(fallback);
   }
 
   private debitaLoDaAlocacao(a: any): boolean {
     if (a?.debitaLo != null) return !!a.debitaLo;
-    const pessoa = this.pessoas.find(
-      (x: any) => (x?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
-    );
+    const pessoa = this.pessoaPorNome(a?.nomePessoa || '');
     const perfilId = a?.perfilId || pessoa?.perfilId;
     if (!perfilId) return true;
     const perfil = this.perfis.find((x: any) => x.id === perfilId);
     return perfil ? !!perfil.debitaLo : true;
   }
 
-  private getTipoVinculo(nomePessoa: string): string {
-    const p = this.pessoas.find(
-      (x: any) => (x?.nome || '').trim().toLowerCase() === (nomePessoa || '').trim().toLowerCase()
-    );
-    return String(p?.tipoVinculo || '').toUpperCase();
+  private getCategoria(a: any): 'FOLHA' | 'TERCEIRO' {
+    const tv = String(this.pessoaPorNome(a?.nomePessoa || '')?.tipoVinculo || a?.tipoVinculo || '').toUpperCase();
+    return tv === 'TERCEIRO' || tv === 'PRESTADOR' ? 'TERCEIRO' : 'FOLHA';
   }
 
   private getConsultoria(nomePessoa: string): string {
-    const p = this.pessoas.find(
-      (x: any) => (x?.nome || '').trim().toLowerCase() === (nomePessoa || '').trim().toLowerCase()
-    );
+    const p = this.pessoaPorNome(nomePessoa);
     return p?.consultoria || '-';
   }
 
   private getPerfilNome(nomePessoa: string, fallback = ''): string {
-    const p = this.pessoas.find(
-      (x: any) => (x?.nome || '').trim().toLowerCase() === (nomePessoa || '').trim().toLowerCase()
-    );
+    const p = this.pessoaPorNome(nomePessoa);
     if (p?.perfilId) {
       const perf = this.perfis.find((x: any) => x.id === p.perfilId);
       if (perf?.nomePerfil) return perf.nomePerfil;
@@ -105,11 +120,65 @@ export class ReportsPanelComponent {
     return h > 0 ? h : 160;
   }
 
+  private diasAusenciaNoMes(nomePessoa: string, monthIndex: number): number {
+    const nomeNorm = this.normalized(nomePessoa || '');
+    if (!nomeNorm) return 0;
+    const pessoa = this.pessoaPorNome(nomePessoa);
+    const pessoaId = String(pessoa?.id || '').trim();
+    const monthStart = new Date(this.anoSelecionado, monthIndex, 1);
+    const monthEnd = new Date(this.anoSelecionado, monthIndex + 1, 0);
+    const dias = new Set<string>();
+
+    for (const ausencia of this.ausencias || []) {
+      const aid = String(ausencia?.pessoaId || '').trim();
+      const anome = this.normalized(ausencia?.pessoaNome || '');
+      if (!(pessoaId && aid === pessoaId) && anome !== nomeNorm) continue;
+
+      const inicioRaw = String(ausencia?.inicio || '');
+      const fimRaw = String(ausencia?.fim || '');
+      if (!inicioRaw || !fimRaw) continue;
+      const inicio = new Date((ausencia?.recorrente ? `${this.anoSelecionado}-${inicioRaw.slice(5)}` : inicioRaw) + 'T00:00:00');
+      const fim = new Date((ausencia?.recorrente ? `${this.anoSelecionado}-${fimRaw.slice(5)}` : fimRaw) + 'T00:00:00');
+      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) continue;
+
+      const clampStart = inicio > monthStart ? inicio : monthStart;
+      const clampEnd = fim < monthEnd ? fim : monthEnd;
+      if (clampStart > clampEnd) continue;
+
+      const cursor = new Date(clampStart.getTime());
+      while (cursor <= clampEnd) {
+        dias.add(cursor.toISOString().slice(0, 10));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
+    return dias.size;
+  }
+
+  private horasEfetivas(a: any, monthIndex: number): number {
+    if (this.getCategoria(a) !== 'TERCEIRO') return 168;
+    return Math.max(0, this.getHorasMes(monthIndex) - this.diasAusenciaNoMes(a?.nomePessoa || '', monthIndex) * 8);
+  }
+
+  private estadoMensal(allocationId: string, monthIndex: number): any | null {
+    return this.estadosMensais.find((s: any) =>
+      String(s?.allocationId || '') === String(allocationId || '') && Number(s?.month) === monthIndex
+    ) || null;
+  }
+
   private custoMensalAlloc(a: any, monthIndex: number): number {
+    if (!this.contaNoRelatorio(a)) return 0;
     if (!this.debitaLoDaAlocacao(a)) return 0;
-    const pct = this.getPercentual(a.id);
-    const vh = this.getValorHora(a.nomePessoa, Number(a.valorHora || 0));
-    return vh * this.getHorasMes(monthIndex) * (pct / 100);
+    if (a?.mesInicio != null && Number(a.mesInicio) > monthIndex) return 0;
+    const estado = this.estadoMensal(a?.id, monthIndex);
+    if (estado?.canceled === true) return 0;
+    if (estado?.manualValue != null && estado?.manualValue !== '') return Number(estado.manualValue || 0);
+    const pctBase = this.getPercentual(a.id);
+    const pct = estado?.manualPercent != null && estado?.manualPercent !== ''
+      ? Math.max(0, Math.min(100, Number(estado.manualPercent)))
+      : pctBase;
+    const vh = this.getValorHora(a.nomePessoa, Number(a.valorHora || 0), a?.perfilId || '');
+    return vh * this.horasEfetivas(a, monthIndex) * (pct / 100);
   }
 
   private custoAnualAlloc(a: any): number {
@@ -143,11 +212,11 @@ export class ReportsPanelComponent {
 
   relatorioLo(): any[] {
     return this.losDoAno().map(lo => {
-      const alocsLo = this.alocacoes.filter((a: any) => a.linhaOrcamentariaId === lo.id);
+      const alocsLo = this.alocacoes.filter((a: any) => a.linhaOrcamentariaId === lo.id && this.contaNoRelatorio(a));
       const comprometido = alocsLo.reduce((acc: number, a: any) => acc + this.custoAnualAlloc(a), 0);
-      const folha = alocsLo.filter((a: any) => this.getTipoVinculo(a.nomePessoa) !== 'TERCEIRO')
+      const folha = alocsLo.filter((a: any) => this.getCategoria(a) !== 'TERCEIRO')
         .reduce((acc: number, a: any) => acc + this.custoAnualAlloc(a), 0);
-      const terceiros = alocsLo.filter((a: any) => this.getTipoVinculo(a.nomePessoa) === 'TERCEIRO')
+      const terceiros = alocsLo.filter((a: any) => this.getCategoria(a) === 'TERCEIRO')
         .reduce((acc: number, a: any) => acc + this.custoAnualAlloc(a), 0);
       const orc = this.orcamentoLo(lo);
       return {
@@ -181,10 +250,10 @@ export class ReportsPanelComponent {
   // ── Relatório 2: Por Pessoa ────────────────────────────────────────────────
 
   relatorioPessoa(): any[] {
-    const alocAnno = this.alocacoesDoAno();
+    const alocAnno = this.alocacoesDoAno().filter((a: any) => this.contaNoRelatorio(a));
     const filtered = alocAnno.filter((a: any) => {
       if (!this.filtroTipo) return true;
-      const tipo = this.getTipoVinculo(a.nomePessoa);
+      const tipo = this.getCategoria(a);
       return this.filtroTipo === 'TERCEIRO' ? tipo === 'TERCEIRO' : tipo !== 'TERCEIRO';
     }).filter((a: any) => {
       if (!this.filtroLoId) return true;
@@ -195,13 +264,13 @@ export class ReportsPanelComponent {
     for (const a of filtered) {
       const nome = a.nomePessoa || '-';
       if (!byPessoa.has(nome)) {
-        const tipoVinculo = this.getTipoVinculo(nome);
+        const tipoVinculo = this.getCategoria(a);
         byPessoa.set(nome, {
           nome,
           perfil: this.getPerfilNome(nome, a.perfilNome || '-'),
           tipo: tipoVinculo === 'TERCEIRO' ? 'Prestador' : 'Folha',
           consultoria: this.getConsultoria(nome),
-          valorHora: this.getValorHora(nome, Number(a.valorHora || 0)),
+          valorHora: this.getValorHora(nome, Number(a.valorHora || 0), a?.perfilId || ''),
           los: new Set<string>(),
           custoAnual: 0,
           qtdAlocacoes: 0
@@ -226,15 +295,8 @@ export class ReportsPanelComponent {
 
   // ── Relatório 3: Por Prestador ─────────────────────────────────────────────
 
-  private _prestadorCache: any[] | null = null;
-  private _prestadorCacheAno = -1;
-
   relatorioPrestador(): any[] {
-    if (this._prestadorCacheAno !== this.anoSelecionado || !this._prestadorCache) {
-      this._prestadorCache = this._computePrestador();
-      this._prestadorCacheAno = this.anoSelecionado;
-    }
-    return this._prestadorCache;
+    return this._computePrestador();
   }
 
   totaisPrestador(): { totalCusto: number; totalPessoas: number } {
@@ -246,7 +308,7 @@ export class ReportsPanelComponent {
   }
 
   private _computePrestador(): any[] {
-    const alocAnno = this.alocacoesDoAno();
+    const alocAnno = this.alocacoesDoAno().filter((a: any) => this.contaNoRelatorio(a));
     const byPrestador = new Map<string, any>();
 
     
@@ -255,7 +317,7 @@ export class ReportsPanelComponent {
     }
 
     for (const a of alocAnno) {
-      if (this.getTipoVinculo(a.nomePessoa) !== 'TERCEIRO') continue;
+      if (this.getCategoria(a) !== 'TERCEIRO') continue;
       const cons = this.getConsultoria(a.nomePessoa);
       if (!byPrestador.has(cons)) byPrestador.set(cons, { nome: cons, pessoas: new Set<string>(), custoAnual: 0 });
       const row = byPrestador.get(cons)!;
@@ -271,13 +333,13 @@ export class ReportsPanelComponent {
   // ── Relatório 4: Visão Mensal ──────────────────────────────────────────────
 
   relatorioMensal() {
-    const alocAnno = this.alocacoesDoAno();
+    const alocAnno = this.alocacoesDoAno().filter((a: any) => this.contaNoRelatorio(a));
     const folha = this.meses.map((_, mi) =>
-      alocAnno.filter((a: any) => this.getTipoVinculo(a.nomePessoa) !== 'TERCEIRO')
+      alocAnno.filter((a: any) => this.getCategoria(a) !== 'TERCEIRO')
               .reduce((s: number, a: any) => s + this.custoMensalAlloc(a, mi), 0)
     );
     const terceiros = this.meses.map((_, mi) =>
-      alocAnno.filter((a: any) => this.getTipoVinculo(a.nomePessoa) === 'TERCEIRO')
+      alocAnno.filter((a: any) => this.getCategoria(a) === 'TERCEIRO')
               .reduce((s: number, a: any) => s + this.custoMensalAlloc(a, mi), 0)
     );
     const total = this.meses.map((_, mi) => folha[mi] + terceiros[mi]);
@@ -303,9 +365,14 @@ export class ReportsPanelComponent {
   // ── Relatório 5: Não Alocados ──────────────────────────────────────────────
 
   relatorioNaoAlocados(): any[] {
-    const nomeAlocados = new Set(this.alocacoesDoAno().map((a: any) => (a.nomePessoa || '').trim().toLowerCase()));
+    const nomeAlocados = new Set(
+      this.alocacoesDoAno()
+        .filter((a: any) => this.contaNoRelatorio(a))
+        .map((a: any) => this.normalized(a.nomePessoa || ''))
+    );
     return this.pessoas
-      .filter((p: any) => !nomeAlocados.has((p?.nome || '').trim().toLowerCase()))
+      .filter((p: any) => p?.ativo !== false)
+      .filter((p: any) => !nomeAlocados.has(this.normalized(p?.nome || '')))
       .map(p => ({
         nome: p.nome,
         perfil: this.getPerfilNome(p.nome, p.perfilNome || '-'),
@@ -320,7 +387,6 @@ export class ReportsPanelComponent {
 
   exportarCsv() {
     let rows: string[][] = [];
-    const h = (s: string) => s;
 
     if (this.relatorioAtivo === 'lo') {
       rows.push(['Código', 'Nome', 'Tipo', 'CC', 'Orçamento', 'Comprometido', 'Folha', 'Prestadores', 'Saldo', '% Utilizado', 'Alocações']);

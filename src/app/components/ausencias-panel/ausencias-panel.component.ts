@@ -1,6 +1,7 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 
 interface AbsRow {
   id: string;
@@ -31,7 +32,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 @Component({
   selector: 'app-ausencias-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './ausencias-panel.component.html',
   styleUrl: './ausencias-panel.component.scss'

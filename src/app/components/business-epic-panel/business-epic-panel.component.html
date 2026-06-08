@@ -7,27 +7,10 @@
         <span>Importar CSV</span>
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      <button class="warn" type="button" (click)="abrirNovo()">Novo Business Epic</button>
     </div>
   </div>
   <small class="csv-hint">Exemplo: Epic Pagamentos,Jira Epic,https://jira.exemplo/EPIC-123,2026-01-10,2026-03-30</small>
-  @if (formExpanded) {
-    <input [(ngModel)]="epic.nome" placeholder="Nome do Business Epic" />
-    <input [(ngModel)]="epic.aliasLink" placeholder="Alias do link (Ex.: Jira Epic)" />
-    <input [(ngModel)]="epic.jiraUrl" placeholder="Link Jira (Ex.: https://jira...)" />
-    <div class="linha">
-      <input [(ngModel)]="epic.inicio" type="date" placeholder="Inicio" />
-      <input [(ngModel)]="epic.fim" type="date" placeholder="Fim" />
-    </div>
-    @if (!editingId) {
-      <button (click)="submit()">Cadastrar Business Epic</button>
-    } @else {
-      <div class="linha">
-        <button (click)="saveEdit()">Salvar edicao</button>
-        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
-      </div>
-    }
-  }
   <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
   <div class="table-wrap">
     <table class="modern-table">
@@ -57,5 +40,37 @@
     </table>
   </div>
 </article></planner-card>
-  
+
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar Business Epic' : 'Novo Business Epic' }}</h3>
+      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+    </div>
+
+    <label>Nome <span class="req">*</span></label>
+    <input [(ngModel)]="epic.nome" placeholder="Nome do Business Epic" />
+    <input [(ngModel)]="epic.aliasLink" placeholder="Alias do link (Ex.: Jira Epic)" />
+    <input [(ngModel)]="epic.jiraUrl" placeholder="Link Jira (Ex.: https://jira...)" />
+    <div class="linha">
+      <input [(ngModel)]="epic.inicio" type="date" placeholder="Inicio" />
+      <input [(ngModel)]="epic.fim" type="date" placeholder="Fim" />
+    </div>
+
+    <div class="form-validation">
+      <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome do Business Epic é obrigatório</p>
+    </div>
+
+    @if (!editingId) {
+      <button (click)="submit()" [disabled]="!formValido">Cadastrar Business Epic</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()" [disabled]="!formValido">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  </div>
+}
+
 

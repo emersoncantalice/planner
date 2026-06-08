@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 import { PhotoUploadComponent } from '../photo-upload/photo-upload.component';
 
@@ -9,7 +10,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 @Component({
   selector: 'app-person-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, PhotoUploadComponent, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, PhotoUploadComponent, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './person-panel.component.html',
   styleUrl: './person-panel.component.scss'
@@ -82,6 +83,8 @@ export class PersonPanelComponent {
   formExpanded = false;
   editingId = '';
   filtroAtivo: 'todos' | 'ativos' | 'inativos' = 'ativos';
+  filtroPerfilId = '';
+  filtroVinculo: '' | 'FOLHA' | 'TERCEIRO' = '';
   pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
   vagasAnteriores: { alias: string; url: string; inicio: string; fim: string }[] = [];
   historicoExpanded = false;
@@ -94,9 +97,20 @@ export class PersonPanelComponent {
   sortKey: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal' = 'nome';
   sortDirection: 'asc' | 'desc' = 'asc';
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
+    this.vagasAnteriores = [];
+    this.historicoExpanded = false;
+    this.valorHoraMasked = '';
+    this.valorMensalMasked = '';
+    this.fotoPendente = '';
+    this.formExpanded = true;
   }
+
+  get nomeValido() { return (this.pessoa.nome || '').trim().length > 0; }
+  get perfilValido() { return !!(this.pessoa.perfilId || '').trim(); }
+  get formValido() { return this.nomeValido && this.perfilValido; }
 
   startEdit(p: any) {
     this.editingId = p.id;
@@ -126,7 +140,7 @@ export class PersonPanelComponent {
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     if (this.pessoa.tipoVinculo !== 'TERCEIRO') {
       this.pessoa.consultoria = '';
     }
@@ -169,6 +183,7 @@ export class PersonPanelComponent {
   }
 
   submit() {
+    if (!this.formValido) return;
     if (this.pessoa.tipoVinculo !== 'TERCEIRO') {
       this.pessoa.consultoria = '';
     }
@@ -235,6 +250,20 @@ export class PersonPanelComponent {
     return tipo === 'TERCEIRO' ? 'Prestador de servico' : 'Folha';
   }
 
+  tipoVinculoFiltro(p: any): 'FOLHA' | 'TERCEIRO' {
+    return String(p?.tipoVinculo || '').toUpperCase() === 'TERCEIRO' ? 'TERCEIRO' : 'FOLHA';
+  }
+
+  pessoaTemPerfilSelecionado(p: any): boolean {
+    if (!this.filtroPerfilId) return true;
+    if (String(p?.perfilId || '') === this.filtroPerfilId) return true;
+
+    const perfil = this.perfis.find((item: any) => String(item?.id || '') === this.filtroPerfilId);
+    const nomePerfil = String(perfil?.nomePerfil || '').trim().toLowerCase();
+    if (!nomePerfil) return false;
+    return String(p?.perfilNome || '').trim().toLowerCase() === nomePerfil;
+  }
+
   toggleSort(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal') {
     if (this.sortKey === key) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
@@ -253,6 +282,8 @@ export class PersonPanelComponent {
       .filter((p: any) => {
         if (this.filtroAtivo === 'ativos'   && p.ativo === false) return false;
         if (this.filtroAtivo === 'inativos' && p.ativo !== false) return false;
+        if (!this.pessoaTemPerfilSelecionado(p)) return false;
+        if (this.filtroVinculo && this.tipoVinculoFiltro(p) !== this.filtroVinculo) return false;
         if (!query) return true;
         return `${p?.nome ?? ''} ${p?.perfilNome ?? ''} ${this.labelTipoVinculo(p?.tipoVinculo)} ${p?.consultoria ?? ''} ${p?.valorHora ?? ''} ${this.calcularValorMensalMedio(p?.valorHora) ?? ''}`.toLowerCase().includes(query);
       })

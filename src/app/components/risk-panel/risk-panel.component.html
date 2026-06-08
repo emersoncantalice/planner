@@ -1,6 +1,5 @@
-﻿<planner-card><article class="rsk-wrap" [scrollIntoViewWhen]="editingId">
+<planner-card><article class="rsk-wrap" [scrollIntoViewWhen]="editingId">
 
-  
   <div class="rsk-header">
     <div class="rsk-header-info">
       <svg class="rsk-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -17,82 +16,18 @@
         <span>Importar CSV</span>
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button type="button" class="rsk-add-btn" (click)="toggleForm()">
-        @if (!formExpanded) {
-          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Novo risco
-        } @else {
-          <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
-          Retrair
-        }
+      <button type="button" class="rsk-add-btn" (click)="abrirNovo()">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Novo risco
       </button>
     </div>
   </div>
 
-  
-  @if (formExpanded) {
-    <div id="risco-form-anchor" class="rsk-form-card">
-      <p class="rsk-form-title">{{ editingId ? 'Editar apontamento' : 'Novo apontamento de risco' }}</p>
-      <div class="rsk-form-grid">
-        <div class="rsk-field rsk-field-full">
-          <label>Título</label>
-          <input [(ngModel)]="risco.titulo" placeholder="Título da demanda/risco" />
-        </div>
-        <div class="rsk-field">
-          <label>Status</label>
-          <select [(ngModel)]="risco.status">
-            <option value="PLANO_ACAO">Plano de ação</option>
-            <option value="DESENVOLVIMENTO">Desenvolvimento</option>
-            <option value="ENTREGA">Entrega</option>
-            <option value="CONCLUIDO">Concluído</option>
-          </select>
-        </div>
-        <div class="rsk-field">
-          <label>Data fim</label>
-          <input [(ngModel)]="risco.dataFim" type="date" />
-        </div>
-        <div class="rsk-field">
-          <label>Responsável</label>
-          <select [(ngModel)]="risco.responsavel">
-            <option [value]="null">— Sem responsável —</option>
-            @for (p of pessoasAtivas(); track p.id) {
-              <option [value]="p.nome">{{ p.nome }}</option>
-            }
-          </select>
-        </div>
-        <div class="rsk-field rsk-field-full">
-          <label>Descrição curta</label>
-          <input [(ngModel)]="risco.descricao" placeholder="Descrição resumida do risco" />
-        </div>
-        <div class="rsk-field rsk-field-full">
-          <label>Plano de ação</label>
-          <textarea [(ngModel)]="risco.planoAcao" rows="4" placeholder="Plano de ação detalhado"></textarea>
-        </div>
-      </div>
-      <div class="rsk-form-actions">
-        @if (!editingId) {
-          <button class="rsk-btn rsk-btn-primary" type="button" (click)="submit()">
-            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Cadastrar
-          </button>
-        } @else {
-          <button class="rsk-btn rsk-btn-primary" type="button" (click)="saveEdit()">
-            <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg>
-            Salvar edição
-          </button>
-          <button class="rsk-btn rsk-btn-sec" type="button" (click)="cancelEdit()">Cancelar</button>
-        }
-      </div>
-    </div>
-  }
-
-  
   <div class="rsk-search-row">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
     <input class="rsk-search" [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
   </div>
 
-  
   <div class="rsk-table-wrap">
     <table class="rsk-table">
       <thead>
@@ -109,7 +44,7 @@
       </thead>
       <tbody>
         @for (r of sortedRiscos(); track r.id) {
-          
+
           <tr [class]="vencimentoClass(r)">
             <td>
               <div class="rsk-title-cell">
@@ -168,7 +103,6 @@
             </tr>
           }
 
-
           @if (adiarRiskId === r.id) {
             <tr class="rsk-sub-row">
               <td colspan="8">
@@ -192,7 +126,6 @@
             </tr>
           }
 
-          
           @if (historySorted(r).length) {
             <tr class="rsk-hist-row">
               <td colspan="8">
@@ -238,3 +171,68 @@
 
 </article></planner-card>
 
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar apontamento' : 'Novo apontamento de risco' }}</h3>
+      <button class="rsk-modal-close" type="button" (click)="cancelEdit()" title="Fechar" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="rsk-form-grid">
+      <div class="rsk-field rsk-field-full">
+        <label>Título <span class="req">*</span></label>
+        <input [(ngModel)]="risco.titulo" placeholder="Título da demanda/risco" />
+      </div>
+      <div class="rsk-field">
+        <label>Status</label>
+        <select [(ngModel)]="risco.status">
+          <option value="PLANO_ACAO">Plano de ação</option>
+          <option value="DESENVOLVIMENTO">Desenvolvimento</option>
+          <option value="ENTREGA">Entrega</option>
+          <option value="CONCLUIDO">Concluído</option>
+        </select>
+      </div>
+      <div class="rsk-field">
+        <label>Data fim</label>
+        <input [(ngModel)]="risco.dataFim" type="date" />
+      </div>
+      <div class="rsk-field">
+        <label>Responsável</label>
+        <select [(ngModel)]="risco.responsavel">
+          <option [value]="null">— Sem responsável —</option>
+          @for (p of pessoasAtivas(); track p.id) {
+            <option [value]="p.nome">{{ p.nome }}</option>
+          }
+        </select>
+      </div>
+      <div class="rsk-field rsk-field-full">
+        <label>Descrição curta</label>
+        <input [(ngModel)]="risco.descricao" placeholder="Descrição resumida do risco" />
+      </div>
+      <div class="rsk-field rsk-field-full">
+        <label>Plano de ação</label>
+        <textarea [(ngModel)]="risco.planoAcao" rows="4" placeholder="Plano de ação detalhado"></textarea>
+      </div>
+    </div>
+
+    <div class="form-validation">
+      <p [class.ok]="tituloValido" [class.error]="!tituloValido">Título é obrigatório</p>
+    </div>
+
+    <div class="rsk-form-actions">
+      @if (!editingId) {
+        <button class="rsk-btn rsk-btn-primary" type="button" (click)="submit()" [disabled]="!formValido">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Cadastrar
+        </button>
+      } @else {
+        <button class="rsk-btn rsk-btn-primary" type="button" (click)="saveEdit()" [disabled]="!formValido">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg>
+          Salvar edição
+        </button>
+      }
+      <button class="rsk-btn rsk-btn-sec" type="button" (click)="cancelEdit()">Cancelar</button>
+    </div>
+  </div>
+}

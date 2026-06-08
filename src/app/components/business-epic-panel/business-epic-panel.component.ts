@@ -27,11 +27,17 @@ export class BusinessEpicPanelComponent {
   sortKey: 'nome' | 'jiraUrl' | 'inicio' | 'fim' = 'nome';
   sortDirection: 'asc' | 'desc' = 'asc';
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.epic = { nome: '', aliasLink: '', jiraUrl: '', inicio: null, fim: null };
+    this.formExpanded = true;
   }
 
+  get nomeValido() { return (this.epic.nome || '').trim().length > 0; }
+  get formValido() { return this.nomeValido; }
+
   submit() {
+    if (!this.formValido) return;
     this.create.emit(this.epic);
     this.epic = { nome: '', aliasLink: '', jiraUrl: '', inicio: null, fim: null };
     this.formExpanded = false;
@@ -50,7 +56,7 @@ export class BusinessEpicPanelComponent {
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     this.update.emit({ id: this.editingId, ...this.epic });
     this.editingId = '';
     this.formExpanded = false;

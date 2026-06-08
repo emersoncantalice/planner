@@ -6,25 +6,11 @@
         <span>Importar CSV</span>
         <input #csvInput type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" hidden />
       </button>
-      <button class="warn" type="button" (click)="toggleForm()">{{ formExpanded ? 'Retrair cadastro' : 'Mostrar cadastro' }}</button>
+      <button class="warn" type="button" (click)="abrirNovo()">Novo prestador</button>
     </div>
   </div>
   <small class="csv-hint">Exemplo: Consultoria XPTO,Bodyshop squad,(11) 99999-0000,contato@xpto.com</small>
 
-  @if (formExpanded) {
-    <input [(ngModel)]="consultoria.nome" placeholder="Nome do prestador" />
-    <input [(ngModel)]="consultoria.telefone" (input)="onPhoneInput()" placeholder="Telefone" />
-    <input [(ngModel)]="consultoria.email" placeholder="Email" />
-    <textarea [(ngModel)]="consultoria.descricao" placeholder="Descricao dos servicos"></textarea>
-    @if (!editingId) {
-      <button (click)="submit()">Cadastrar prestador</button>
-    } @else {
-      <div class="linha">
-        <button (click)="saveEdit()">Salvar edicao</button>
-        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
-      </div>
-    }
-  }
   <input [(ngModel)]="searchTerm" placeholder="Pesquisar na tabela..." />
 
   <div class="table-wrap">
@@ -65,4 +51,33 @@
     </table>
   </div>
 </article></planner-card>
+
+@if (formExpanded) {
+  <div class="modal-backdrop" (click)="cancelEdit()"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>{{ editingId ? 'Editar prestador' : 'Novo prestador' }}</h3>
+      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+    </div>
+
+    <label>Nome do prestador <span class="req">*</span></label>
+    <input [(ngModel)]="consultoria.nome" placeholder="Nome do prestador" />
+    <input [(ngModel)]="consultoria.telefone" (input)="onPhoneInput()" placeholder="Telefone" />
+    <input [(ngModel)]="consultoria.email" placeholder="Email" />
+    <textarea [(ngModel)]="consultoria.descricao" placeholder="Descricao dos servicos"></textarea>
+
+    <div class="form-validation">
+      <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome do prestador é obrigatório</p>
+    </div>
+
+    @if (!editingId) {
+      <button (click)="submit()" [disabled]="!formValido">Cadastrar prestador</button>
+    } @else {
+      <div class="linha">
+        <button (click)="saveEdit()" [disabled]="!formValido">Salvar edicao</button>
+        <button class="sec" type="button" (click)="cancelEdit()">Cancelar</button>
+      </div>
+    }
+  </div>
+}
 

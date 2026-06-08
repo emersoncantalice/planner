@@ -1,6 +1,7 @@
 import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 
 import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
@@ -8,7 +9,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 @Component({
   selector: 'app-incident-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   templateUrl: './incident-panel.component.html',
   styleUrl: './incident-panel.component.scss'
 })
@@ -101,10 +102,14 @@ export class IncidentPanelComponent {
   ];
 
   
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
-    if (this.formExpanded) { this.editingId = ''; this.form = this.emptyForm(); }
+  abrirNovo() {
+    this.editingId = '';
+    this.form = this.emptyForm();
+    this.formExpanded = true;
   }
+
+  get tituloValido() { return (this.form.titulo || '').trim().length > 0; }
+  get formValido() { return this.tituloValido; }
 
   startEdit(inc: any) {
     this.editingId = inc.id;
@@ -132,6 +137,7 @@ export class IncidentPanelComponent {
   }
 
   submit() {
+    if (!this.formValido) return;
     const payload = {
       ...this.form,
       dataOcorrencia: this.toISO(this.form.dataOcorrencia),

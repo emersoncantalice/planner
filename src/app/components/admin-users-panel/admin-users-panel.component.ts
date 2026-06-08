@@ -1,13 +1,14 @@
-﻿import { Component, Input, OnChanges, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { timeout } from 'rxjs/operators';
 import { PlannerApiService } from '../../core/planner-api.service';
 
 @Component({
   selector: 'app-admin-users-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SearchableSelectDirective],
   templateUrl: './admin-users-panel.component.html',
   styleUrl: './admin-users-panel.component.scss'
 })

@@ -1,6 +1,7 @@
-﻿import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 
 import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.directive";
@@ -8,7 +9,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 @Component({
   selector: 'app-budget-line-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective],
+  imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './budget-line-panel.component.html',
   styleUrl: './budget-line-panel.component.scss'
@@ -42,9 +43,16 @@ export class BudgetLinePanelComponent {
   ajuste = { budgetLineId: '', tipo: 'TASK', descricao: '', valor: null as number | null };
   ajusteValorMasked = '';
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.resetForm();
+    this.formExpanded = true;
   }
+
+  get codigoValido() { return (this.linha.codigo || '').trim().length > 0; }
+  get nomeValido() { return (this.linha.nome || '').trim().length > 0; }
+  get valorValido() { return (this.linha.valorTotal || 0) > 0; }
+  get formValido() { return this.codigoValido && this.nomeValido && this.valorValido; }
 
   startEdit(lo: any) {
     this.editingId = lo.id;
@@ -61,13 +69,14 @@ export class BudgetLinePanelComponent {
   }
 
   createLine() {
+    if (!this.formValido) return;
     this.create.emit({ ...this.linha, ano: Number(this.linha.ano || new Date().getFullYear()) });
     this.resetForm();
     this.formExpanded = false;
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     this.update.emit({ id: this.editingId, ...this.linha, ano: Number(this.linha.ano || new Date().getFullYear()) });
     this.editingId = '';
     this.resetForm();

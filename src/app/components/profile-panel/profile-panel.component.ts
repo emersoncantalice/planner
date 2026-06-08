@@ -28,9 +28,16 @@ export class ProfilePanelComponent {
   sortKey: 'nomePerfil' | 'debitaLo' | 'valorHora' = 'nomePerfil';
   sortDirection: 'asc' | 'desc' = 'asc';
 
-  toggleForm() {
-    this.formExpanded = !this.formExpanded;
+  abrirNovo() {
+    this.editingId = '';
+    this.perfil = { nomePerfil: '', valorHora: 0, nivel: '', departamento: '', observacoes: '', debitaLo: true };
+    this.valorHoraMasked = '';
+    this.formExpanded = true;
   }
+
+  get nomeValido() { return (this.perfil.nomePerfil || '').trim().length > 0; }
+  get valorValido() { return (this.perfil.valorHora || 0) > 0; }
+  get formValido() { return this.nomeValido && this.valorValido; }
 
   onValorHoraChange(value: string) {
     const digits = (value ?? '').replace(/\D/g, '');
@@ -40,6 +47,7 @@ export class ProfilePanelComponent {
   }
 
   submit() {
+    if (!this.formValido) return;
     this.create.emit(this.perfil);
     this.perfil = { nomePerfil: '', valorHora: 0, nivel: '', departamento: '', observacoes: '', debitaLo: true };
     this.valorHoraMasked = '';
@@ -82,7 +90,7 @@ export class ProfilePanelComponent {
   }
 
   saveEdit() {
-    if (!this.editingId) return;
+    if (!this.editingId || !this.formValido) return;
     const nomeComContexto = [
       this.perfil.nomePerfil?.trim() || '',
       this.perfil.nivel?.trim() || '',

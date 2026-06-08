@@ -1,4 +1,4 @@
-<planner-card><article class="card" [scrollIntoViewWhen]="editingId">
+﻿<planner-card><article class="card" [scrollIntoViewWhen]="editingId">
   <div class="panel-head">
     <div>
       <h2>Hierarquia organizacional</h2>
@@ -25,7 +25,181 @@
     </div>
   </div>
 
-  @if (gerarAberto) {
+  @if (nodes.length) {
+    <div class="resumo">
+      <span><strong>{{ nodes.length }}</strong> estruturas</span>
+      <span><strong>{{ totalPessoas() }}</strong> pessoas alocadas</span>
+      @if (totalOcultos() > 0) {
+        <span class="hidden-summary">
+          <strong>{{ totalOcultos() }}</strong> cadeia{{ totalOcultos() !== 1 ? 's' : '' }} oculta{{ totalOcultos() !== 1 ? 's' : '' }}
+          <button type="button" class="hidden-link" (click)="limparOcultos()">mostrar todas</button>
+        </span>
+      }
+    </div>
+  }
+
+  @if (!nodes.length) {
+    <p class="vazio">Nenhuma estrutura cadastrada. Comece criando a Presidência ou uma Diretoria.</p>
+  } @else {
+    @if (raizesOcultas().length) {
+      <div class="hidden-root-marker">
+        <span>{{ raizesOcultas().length }} cadeia{{ raizesOcultas().length !== 1 ? 's' : '' }} raiz oculta{{ raizesOcultas().length !== 1 ? 's' : '' }}</span>
+        @for (n of raizesOcultas(); track n.id) {
+          <button type="button" class="hidden-chip" (click)="mostrarCadeia(n.id)" [title]="'Mostrar ' + tipoLabel(n.tipo) + ' · ' + n.nome">
+            {{ tipoLabel(n.tipo) }} · {{ n.nome }}
+          </button>
+        }
+      </div>
+    }
+    <div class="tree-wrap">
+      <div class="tree">
+        @for (raiz of raizesVisiveis(); track raiz.id) {
+          <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: raiz, parentId: null }"></ng-container>
+        }
+      </div>
+    </div>
+  }
+
+  <ng-template #treeTpl let-node let-parentId="parentId">
+    <div class="node" [class]="'t-' + tipoClasse(node.tipo)" [class.multi-parent]="temMultiplosPais(node)">
+      @if (temMultiplosPais(node)) {
+        <div class="multi-parent-links" [title]="paisLabel(node)">
+          @for (pai of paisVisiveisDoNode(node); track pai.id) {
+            <span class="multi-parent-link" [class.current]="pai.id === parentId">
+              <span class="multi-parent-line"></span>
+              <span class="multi-parent-dot"></span>
+              <span class="multi-parent-text">{{ pai.nome }}</span>
+            </span>
+          }
+        </div>
+      }
+      <div class="node-card"
+           [class.drop-target]="dragOverNodeId === node.id"
+           (dragover)="onNodeDragOver(node, $event)"
+           (dragleave)="onNodeDragLeave(node)"
+           (drop)="onNodeDrop(node, $event)">
+        <div class="node-top">
+          <span class="node-tipo">{{ tipoLabel(node.tipo) }}</span>
+          <span class="node-acts">
+            @if (nodeQtdAlertas(node) > 0) {
+              <span class="node-alert" [title]="nodeQtdAlertas(node) + ' pessoa(s) fora das LOs vinculadas'">⚠ {{ nodeQtdAlertas(node) }}</span>
+            }
+            <button type="button" title="Adicionar sub-estrutura" (click)="abrirNovo(node.id)">＋</button>
+            <button type="button" title="Ocultar esta cadeia" (click)="ocultarCadeia(node, $event)">◐</button>
+            <button type="button" title="Editar" (click)="editar(node)">✎</button>
+            <button type="button" title="Excluir" (click)="excluir(node)">✕</button>
+          </span>
+        </div>
+        <div class="node-nome">{{ node.nome }}</div>
+        @if (node.descricao) { <div class="node-desc">{{ node.descricao }}</div> }
+
+        @if (losDoNode(node).length) {
+          <div class="node-los">
+            @for (loId of losDoNode(node); track loId) {
+              <span class="lo-chip" [title]="ocultarValoresExport ? loLabel(loId) : loLabel(loId) + ' · ' + currency(valorLoPorId(loId))">{{ loLabel(loId) }}</span>
+            }
+          </div>
+        }
+        @if (temValorAgregado(node) && !ocultarValoresExport) {
+          <div class="node-valor" [title]="(filhosVisiveisDe(node.id).length ? 'Soma das LOs desta estrutura e das estruturas filhas visíveis' : 'Soma das LOs desta estrutura') + ' · ' + currency(valorAgregado(node))">
+            Σ LOs: <strong>{{ formatCompact(valorAgregado(node)) }}</strong>
+          </div>
+        }
+
+        @if (node.membros?.length) {
+          @for (sg of subgruposParaRender(node); track sg.key) {
+            <div class="node-subgrupo" [class.flat]="sg.key === '__flat__'">
+            @if (sg.key !== '__flat__') {
+              <div class="node-subgrupo-head">{{ sg.label }}</div>
+            }
+            @for (grupo of grupoDefs; track grupo.key) {
+            @if (membrosPorGrupo(node, grupo.key, sg.filter).length) {
+              <div class="node-grupo" [class]="grupo.cls">
+                <div class="node-grupo-head count-only">
+                  <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
+                </div>
+                <div class="node-membros">
+                  @for (item of membrosPorGrupo(node, grupo.key, sg.filter); track item.idx) {
+                    <div class="node-m"
+                         [class.fora-lo]="membroForaDaLo(node, item.m)"
+                         [class.is-cross]="ehCross(item.m)"
+                         draggable="true"
+                         (dragstart)="onMembroDragStart(node, item.idx, $event)"
+                         (dragend)="onMembroDragEnd()"
+                         [title]="item.m.nomePessoa + (metaDoMembro(item.m) ? ' — ' + metaDoMembro(item.m) : '') + (membroForaDaLo(node, item.m) ? ' — fora da(s) LO(s) vinculada(s)' : '') + (mostrarMarcacoesDeTime(node) && !membroContaFte(item.m) ? ' — não conta para o FTE' : '')">
+                      <span class="av">
+                        @if (fotoDe(item.m.nomePessoa)) {
+                          <img [src]="fotoDe(item.m.nomePessoa)" [alt]="item.m.nomePessoa" />
+                        } @else {
+                          {{ iniciais(item.m.nomePessoa) }}
+                        }
+                      </span>
+                      <div class="node-m-info">
+                        @if (ehCross(item.m)) { <span class="node-m-cross" title="Cross (atua em mais de um time)">Cross</span> }
+                        <span class="node-m-nome">{{ item.m.nomePessoa }}</span>
+                        @if (metaDoMembro(item.m) || mostrarPercentual(node)) {
+                          <span class="node-m-meta">
+                            @if (metaDoMembro(item.m)) { <span class="node-m-metatext">{{ metaDoMembro(item.m) }}</span> }
+                            @if (mostrarPercentual(node)) {
+                              @if (editandoPct(node, item.idx)) {
+                                <input class="node-m-pct-input" type="number" min="0" max="100" step="1"
+                                       [(ngModel)]="pctEditValue"
+                                       (mousedown)="$event.stopPropagation()"
+                                       (click)="$event.stopPropagation()"
+                                       (blur)="salvarPct(node, item.idx)"
+                                       (keydown.enter)="salvarPct(node, item.idx)"
+                                       (keydown.escape)="cancelarEdicaoPct()"
+                                       autofocus />
+                              } @else {
+                                <span class="node-m-pct" [class.vazio]="percentualPessoa(item.m) == null"
+                                      [style.background]="percentualPessoa(item.m) != null ? corPercentual(percentualPessoa(item.m)) : null"
+                                      [style.color]="percentualPessoa(item.m) != null ? '#fff' : null"
+                                      title="Duplo clique para editar (cópia para o time — não altera a alocação por LO)"
+                                      (dblclick)="iniciarEdicaoPct(node, item.idx, item.m, $event)">
+                                  {{ percentualPessoa(item.m) != null ? percentualPessoa(item.m) + '%' : '—' }}
+                                </span>
+                              }
+                            }
+                          </span>
+                        }
+                      </div>
+                      @if (mostrarMarcacoesDeTime(node) && !membroContaFte(item.m)) { <span class="node-m-nofte" title="Não conta para o FTE">∅</span> }
+                      @if (membroForaDaLo(node, item.m)) { <span class="node-m-alert" title="Fora da(s) LO(s) vinculada(s)">⚠</span> }
+                      <button type="button" class="node-m-del" title="Remover pessoa desta estrutura" (click)="removerMembroDoNode(node, item.idx, $event)">✕</button>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+            }
+            </div>
+          }
+        }
+      </div>
+      @if (ocultosDiretosRenderDe(node.id).length) {
+        <div class="hidden-child-marker">
+          <span>{{ ocultosDiretosRenderDe(node.id).length }} cadeia{{ ocultosDiretosRenderDe(node.id).length !== 1 ? 's' : '' }} oculta{{ ocultosDiretosRenderDe(node.id).length !== 1 ? 's' : '' }}</span>
+          @for (filho of ocultosDiretosRenderDe(node.id); track filho.id) {
+            <button type="button" class="hidden-chip" (click)="mostrarCadeia(filho.id)" [title]="'Mostrar ' + tipoLabel(filho.tipo) + ' · ' + filho.nome + ' (' + countCadeia(filho) + ' estrutura(s))'">
+              {{ filho.nome }}
+            </button>
+          }
+        </div>
+      }
+      @if (filhosRenderVisiveisDe(node.id).length) {
+        <div class="node-children">
+          @for (filho of filhosRenderVisiveisDe(node.id); track filho.id) {
+            <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: filho, parentId: node.id }"></ng-container>
+          }
+        </div>
+      }
+    </div>
+  </ng-template>
+</article></planner-card>
+
+@if (gerarAberto) {
+  <div class="modal-backdrop hierarchy-modal-backdrop" (click)="cancelarGerar()"></div>
+  <div class="modal-card hierarchy-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <div class="form-box">
       <h3>Gerar squad a partir de uma LO</h3>
       <small class="sub">As pessoas alocadas (não rascunho) na LO serão importadas como membros do squad e a LO fica vinculada.</small>
@@ -57,16 +231,12 @@
         <button type="button" class="sec" (click)="cancelarGerar()">Cancelar</button>
       </div>
     </div>
-  }
+  </div>
+}
 
-  @if (nodes.length) {
-    <div class="resumo">
-      <span><strong>{{ nodes.length }}</strong> estruturas</span>
-      <span><strong>{{ totalPessoas() }}</strong> pessoas alocadas</span>
-    </div>
-  }
-
-  @if (formAberto) {
+@if (formAberto) {
+  <div class="modal-backdrop hierarchy-modal-backdrop" (click)="cancelar()"></div>
+  <div class="modal-card modal-card-lg hierarchy-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <div class="form-box">
       <h3>{{ editingId ? 'Editar estrutura' : 'Nova estrutura' }}</h3>
       <div class="grid2">
@@ -79,13 +249,20 @@
           </select>
         </div>
         <div>
-          <label>Estrutura superior (pai)</label>
-          <select [(ngModel)]="form.parentId">
-            <option value="">Nenhuma (raiz)</option>
-            @for (n of paisDisponiveis(); track n.id) {
-              <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
-            }
-          </select>
+          <label>Estruturas superiores (uma ou mais)</label>
+          @if (!paisDisponiveis().length) {
+            <small class="sub">Nenhuma estrutura disponível — esta será uma raiz.</small>
+          } @else {
+            <div class="lo-checklist">
+              @for (n of paisDisponiveis(); track n.id) {
+                <label class="lo-check" [class.on]="parentVinculado(n.id)">
+                  <input type="checkbox" [checked]="parentVinculado(n.id)" (change)="toggleParent(n.id)" />
+                  <span class="lo-check-cod">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</span>
+                </label>
+              }
+            </div>
+            <small class="sub">{{ form.parentIds.length ? 'Aparecerá sob cada estrutura marcada.' : 'Sem pai marcado — será uma estrutura raiz.' }}</small>
+          }
         </div>
       </div>
       <label>Nome</label>
@@ -163,143 +340,20 @@
                   <input type="checkbox" [(ngModel)]="m.cross" />
                   Cross
                 </label>
-                <button type="button" class="m-del" (click)="removerMembro($index)" title="Remover">✕</button>
+                <button type="button" class="m-del" (click)="removerMembro($index)" title="Remover">×</button>
               </li>
             }
           </ul>
         }
       </div>
 
+      <div class="form-validation">
+        <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome da estrutura é obrigatório</p>
+      </div>
       <div class="form-actions">
-        <button type="button" (click)="salvar()">{{ editingId ? 'Salvar' : 'Criar' }}</button>
+        <button type="button" (click)="salvar()" [disabled]="!formValido">{{ editingId ? 'Salvar' : 'Criar' }}</button>
         <button type="button" class="sec" (click)="cancelar()">Cancelar</button>
       </div>
     </div>
-  }
-
-  @if (!nodes.length) {
-    <p class="vazio">Nenhuma estrutura cadastrada. Comece criando a Presidência ou uma Diretoria.</p>
-  } @else {
-    <div class="tree-wrap">
-      <div class="tree">
-        @for (raiz of raizesVisiveis(); track raiz.id) {
-          <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: raiz }"></ng-container>
-        }
-      </div>
-    </div>
-  }
-
-  <ng-template #treeTpl let-node>
-    <div class="node" [class]="'t-' + tipoClasse(node.tipo)">
-      <div class="node-card"
-           [class.drop-target]="dragOverNodeId === node.id"
-           (dragover)="onNodeDragOver(node, $event)"
-           (dragleave)="onNodeDragLeave(node)"
-           (drop)="onNodeDrop(node, $event)">
-        <div class="node-top">
-          <span class="node-tipo">{{ tipoLabel(node.tipo) }}</span>
-          <span class="node-acts">
-            @if (nodeQtdAlertas(node) > 0) {
-              <span class="node-alert" [title]="nodeQtdAlertas(node) + ' pessoa(s) fora das LOs vinculadas'">⚠ {{ nodeQtdAlertas(node) }}</span>
-            }
-            <button type="button" title="Adicionar sub-estrutura" (click)="abrirNovo(node.id)">＋</button>
-            <button type="button" title="Editar" (click)="editar(node)">✎</button>
-            <button type="button" title="Excluir" (click)="excluir(node)">✕</button>
-          </span>
-        </div>
-        <div class="node-nome">{{ node.nome }}</div>
-        @if (node.descricao) { <div class="node-desc">{{ node.descricao }}</div> }
-
-        @if (losDoNode(node).length) {
-          <div class="node-los">
-            @for (loId of losDoNode(node); track loId) {
-              <span class="lo-chip" [title]="ocultarValoresExport ? loLabel(loId) : loLabel(loId) + ' · ' + currency(valorLoPorId(loId))">{{ loLabel(loId) }}</span>
-            }
-          </div>
-        }
-        @if (temValorAgregado(node) && !ocultarValoresExport) {
-          <div class="node-valor" [title]="(filhosDe(node.id).length ? 'Soma das LOs desta estrutura e das estruturas filhas' : 'Soma das LOs desta estrutura') + ' · ' + currency(valorAgregado(node))">
-            Σ LOs: <strong>{{ formatCompact(valorAgregado(node)) }}</strong>
-          </div>
-        }
-
-        @if (node.membros?.length) {
-          @for (sg of subgruposParaRender(node); track sg.key) {
-            <div class="node-subgrupo" [class.flat]="sg.key === '__flat__'">
-            @if (sg.key !== '__flat__') {
-              <div class="node-subgrupo-head">{{ sg.label }}</div>
-            }
-            @for (grupo of grupoDefs; track grupo.key) {
-            @if (membrosPorGrupo(node, grupo.key, sg.filter).length) {
-              <div class="node-grupo" [class]="grupo.cls">
-                <div class="node-grupo-head count-only">
-                  <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
-                </div>
-                <div class="node-membros">
-                  @for (item of membrosPorGrupo(node, grupo.key, sg.filter); track item.idx) {
-                    <div class="node-m"
-                         [class.fora-lo]="membroForaDaLo(node, item.m)"
-                         [class.is-cross]="ehCross(item.m)"
-                         draggable="true"
-                         (dragstart)="onMembroDragStart(node, item.idx, $event)"
-                         (dragend)="onMembroDragEnd()"
-                         [title]="item.m.nomePessoa + (metaDoMembro(item.m) ? ' — ' + metaDoMembro(item.m) : '') + (membroForaDaLo(node, item.m) ? ' — fora da(s) LO(s) vinculada(s)' : '') + (!membroContaFte(item.m) ? ' — não conta para o FTE' : '')">
-                      <span class="av">
-                        @if (fotoDe(item.m.nomePessoa)) {
-                          <img [src]="fotoDe(item.m.nomePessoa)" [alt]="item.m.nomePessoa" />
-                        } @else {
-                          {{ iniciais(item.m.nomePessoa) }}
-                        }
-                      </span>
-                      <div class="node-m-info">
-                        @if (ehCross(item.m)) { <span class="node-m-cross" title="Cross (atua em mais de um time)">Cross</span> }
-                        <span class="node-m-nome">{{ item.m.nomePessoa }}</span>
-                        @if (metaDoMembro(item.m) || mostrarPercentual(node)) {
-                          <span class="node-m-meta">
-                            @if (metaDoMembro(item.m)) { <span class="node-m-metatext">{{ metaDoMembro(item.m) }}</span> }
-                            @if (mostrarPercentual(node)) {
-                              @if (editandoPct(node, item.idx)) {
-                                <input class="node-m-pct-input" type="number" min="0" max="100" step="1"
-                                       [(ngModel)]="pctEditValue"
-                                       (mousedown)="$event.stopPropagation()"
-                                       (click)="$event.stopPropagation()"
-                                       (blur)="salvarPct(node, item.idx)"
-                                       (keydown.enter)="salvarPct(node, item.idx)"
-                                       (keydown.escape)="cancelarEdicaoPct()"
-                                       autofocus />
-                              } @else {
-                                <span class="node-m-pct" [class.vazio]="percentualPessoa(item.m) == null"
-                                      [style.background]="percentualPessoa(item.m) != null ? corPercentual(percentualPessoa(item.m)) : null"
-                                      [style.color]="percentualPessoa(item.m) != null ? '#fff' : null"
-                                      title="Duplo clique para editar (cópia para o time — não altera a alocação por LO)"
-                                      (dblclick)="iniciarEdicaoPct(node, item.idx, item.m, $event)">
-                                  {{ percentualPessoa(item.m) != null ? percentualPessoa(item.m) + '%' : '—' }}
-                                </span>
-                              }
-                            }
-                          </span>
-                        }
-                      </div>
-                      @if (!membroContaFte(item.m)) { <span class="node-m-nofte" title="Não conta para o FTE">∅</span> }
-                      @if (membroForaDaLo(node, item.m)) { <span class="node-m-alert" title="Fora da(s) LO(s) vinculada(s)">⚠</span> }
-                      <button type="button" class="node-m-del" title="Remover pessoa desta estrutura" (click)="removerMembroDoNode(node, item.idx, $event)">✕</button>
-                    </div>
-                  }
-                </div>
-              </div>
-            }
-            }
-            </div>
-          }
-        }
-      </div>
-      @if (filhosDe(node.id).length) {
-        <div class="node-children">
-          @for (filho of filhosDe(node.id); track filho.id) {
-            <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: filho }"></ng-container>
-          }
-        </div>
-      }
-    </div>
-  </ng-template>
-</article></planner-card>
+  </div>
+}

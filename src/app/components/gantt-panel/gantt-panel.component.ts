@@ -5,6 +5,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { dateToYmd } from '../../core/business-days';
 import { FeriadosService } from '../../core/feriados.service';
 import { PlannerApiService } from '../../core/planner-api.service';
@@ -44,7 +45,7 @@ type TimelineHeader = { label: string; left: number; width: number; isFirst: boo
 @Component({
   selector: 'app-gantt-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './gantt-panel.component.html',
   styleUrl: './gantt-panel.component.scss'
