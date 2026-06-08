@@ -1,4 +1,4 @@
-import { Component, Input, computed, signal } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, Input, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -18,6 +18,7 @@ interface WorkloadEntry {
   selector: 'app-person-activity-panel',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './person-activity-panel.component.html',
   styleUrl: './person-activity-panel.component.scss'
 })

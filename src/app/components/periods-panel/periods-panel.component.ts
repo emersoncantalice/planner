@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
+import { CUSTOM_ELEMENTS_SCHEMA, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
@@ -22,6 +22,7 @@ interface UpcomingPeriod {
   selector: 'app-periods-panel',
   standalone: true,
   imports: [CommonModule, FormsModule, SearchableSelectDirective],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './periods-panel.component.html',
   styleUrl: './periods-panel.component.scss'
 })

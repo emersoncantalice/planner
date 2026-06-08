@@ -50,7 +50,7 @@
     </div>
 
     
-    <div class="dash-kpi" [class.dash-kpi-green]="saldoTotal() >= 0" [class.dash-kpi-red]="saldoTotal() < 0">
+    <div class="dash-kpi" [class.dash-kpi-mint]="saldoTotal() >= 0" [class.dash-kpi-coral]="saldoTotal() < 0">
       <div class="dash-kpi-icon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
       </div>
@@ -86,7 +86,7 @@
     </div>
 
     
-    <div class="dash-kpi" [class.dash-kpi-red]="totalMonitoramento() > 0" [class.dash-kpi-gray]="totalMonitoramento() === 0">
+    <div class="dash-kpi" [class.dash-kpi-rose]="totalMonitoramento() > 0" [class.dash-kpi-slate]="totalMonitoramento() === 0">
       <div class="dash-kpi-icon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20zm1 6v5h-2V9zm0 7v2h-2v-2z"/></svg>
       </div>
@@ -98,7 +98,7 @@
     </div>
 
     
-    <div class="dash-kpi" [class.dash-kpi-teal]="indicadoresNaMeta() === indicadoresAtivos().length && indicadoresAtivos().length > 0" [class.dash-kpi-amber]="indicadoresNaMeta() < indicadoresAtivos().length && indicadoresAtivos().length > 0" [class.dash-kpi-gray]="!indicadoresAtivos().length">
+    <div class="dash-kpi" [class.dash-kpi-olive]="indicadoresNaMeta() === indicadoresAtivos().length && indicadoresAtivos().length > 0" [class.dash-kpi-gold]="indicadoresNaMeta() < indicadoresAtivos().length && indicadoresAtivos().length > 0" [class.dash-kpi-slate]="!indicadoresAtivos().length">
       <div class="dash-kpi-icon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
       </div>

@@ -2,13 +2,27 @@
   display: block;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Garante folga na base (rodapé) somando uma base ao inset do dispositivo. */
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
 .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .panel-head h2 { margin: 0; }
 .sub { color: #64748b; font-size: .8rem; }
 .panel-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Loading da geração da imagem */
+.export-spinner {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  margin-right: 4px;
+  animation: hier-spin .7s linear infinite;
+}
+@keyframes hier-spin { to { transform: rotate(360deg); } }
 .export-root-select {
   width: auto;
   min-width: 210px;
@@ -61,8 +75,13 @@
 
 .membros-edit { margin-top: 12px; }
 .membro-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.membro-add select { flex: 1; min-width: 160px; }
-.membro-add input { flex: 1; min-width: 120px; }
+/* anula o width:100% herdado de .form-box select/input para a linha fluir */
+.membro-add select, .membro-add input { width: auto; }
+.membro-add > select:first-of-type { flex: 2 1 200px; min-width: 180px; }  /* pessoa */
+.membro-add > input { flex: 1 1 150px; min-width: 130px; }
+.membro-add > select { flex: 0 0 auto; min-width: 110px; }                 /* vínculo (Folha/Terceiro) */
+.membro-add .cross-check { flex: 0 0 auto; }
+.membro-add > button { flex: 0 0 auto; }
 .cross-check, .m-cross {
   display: inline-flex; align-items: center; gap: 4px; color: #7c2d12;
   font-size: .74rem; font-weight: 800; white-space: nowrap;
@@ -75,6 +94,125 @@
 .membro-list .m-del { margin-left: auto; border: none; background: transparent; color: #b91c1c; cursor: pointer; }
 
 .form-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+.multi-select { position: relative; width: 100%; }
+.multi-select-trigger {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #bfd4fb;
+  background: #fbfdff;
+  color: #0f172a;
+  text-align: left;
+  box-shadow: none;
+}
+.multi-select-trigger:hover { filter: none; transform: none; border-color: #8fb5f4; background: #f6f9ff; }
+.multi-select-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .84rem;
+}
+.multi-select-summary.placeholder { color: #64748b; }
+.multi-select-count {
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e0eaff;
+  color: #1d4fa4;
+  font-size: .72rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+.multi-select-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #c7d8f5;
+  background: #fff;
+  box-shadow: 0 18px 38px rgba(15, 45, 90, .18);
+}
+.multi-select-search { margin: 0 !important; height: 36px; }
+.multi-select-list {
+  display: grid;
+  gap: 4px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.multi-select-option {
+  display: grid !important;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
+  padding: 7px 8px;
+  border-radius: 8px;
+  color: #1e293b !important;
+  cursor: pointer;
+}
+.multi-select-option:hover,
+.multi-select-option.on { background: #eef4ff; }
+.multi-select-option input {
+  position: absolute;
+  opacity: 0;
+  width: auto !important;
+  margin: 0 !important;
+  pointer-events: none;
+}
+.checkmark {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid #b8cff8;
+  background: #fff;
+}
+.multi-select-option.on .checkmark {
+  background: #1d63da;
+  border-color: #1d63da;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+.option-main {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.multi-select-empty { padding: 10px; color: #64748b; font-size: .82rem; }
+.multi-select-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid #eef2f8;
+  padding-top: 8px;
+}
+.link-btn {
+  border: 0;
+  background: transparent;
+  color: #475569;
+  padding: 4px 8px;
+  font-size: .78rem;
+  font-weight: 800;
+}
+.link-btn.primary { color: #1d63da; }
+.link-btn:hover { transform: none; filter: none; text-decoration: underline; }
 
 /* Vínculo de LOs no formulário */
 .los-edit { margin-top: 12px; }
@@ -144,6 +282,7 @@
 
 /* ── Árvore ───────────────────────────────────────────────────────────── */
 .tree-wrap {
+  position: relative;        /* âncora para o overlay SVG dos conectores */
   overflow-x: auto;
   padding: 10px calc(4px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) calc(4px + env(safe-area-inset-left, 0px));
   scroll-padding-left: calc(4px + env(safe-area-inset-left, 0px));
@@ -151,6 +290,8 @@
   scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 .tree {
+  position: relative;
+  z-index: 1;                /* cards acima das linhas */
   display: flex;
   justify-content: center;   /* árvore centralizada */
   align-items: flex-start;
@@ -158,6 +299,38 @@
   min-width: min-content;
   width: 100%;
 }
+
+/* Overlay SVG com as linhas de conexão pai → filho (clicáveis para destacar) */
+.conectores-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;                /* acima dos cards para captar o clique na linha */
+  overflow: visible;
+  pointer-events: none;      /* o svg deixa passar; só os .conector-hit capturam */
+}
+.conector-line {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: stroke .15s, stroke-width .15s, opacity .15s;
+}
+.conector-line.ativo {
+  stroke: #f59e0b;
+  stroke-width: 3.5;
+}
+.conectores-svg.tem-destaque .conector-line:not(.ativo) { opacity: .2; }
+.conector-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;    /* área de clique generosa sobre a linha fina */
+  cursor: pointer;
+}
+.node-card.vinc-origem  { box-shadow: 0 0 0 2px #f59e0b, 0 2px 8px rgba(15,23,42,.06); }
+.node-card.vinc-destino { box-shadow: 0 0 0 2px #38bdf8, 0 2px 8px rgba(15,23,42,.06); }
 
 .node { display: inline-flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
 
@@ -362,41 +535,14 @@
   padding-top: 22px;
   flex: 0 0 auto;
 }
-/* linha vertical descendo do pai até a barra horizontal dos filhos */
-.node-children::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 50%;
-  width: 0; height: 22px;
-  border-left: 2px solid #cbd5e1;
-}
+/* As linhas agora são desenhadas pelo overlay SVG (.conectores-svg); os
+   pseudo-conectores antigos ficam ocultos, mantendo apenas o espaçamento. */
 .node-children > .node {
   position: relative;
   padding: 22px 16px 0;
 }
-/* metades da barra horizontal + descida vertical até cada filho */
+.node-children::before,
 .node-children > .node::before,
 .node-children > .node::after {
-  content: '';
-  position: absolute;
-  top: 0; right: 50%;
-  width: 50%; height: 22px;
-  border-top: 2px solid #cbd5e1;
-}
-.node-children > .node::after {
-  right: auto; left: 50%;
-  border-left: 2px solid #cbd5e1;
-}
-/* filho único: linha reta vertical (sem barra horizontal) */
-.node-children > .node:only-child {
-  padding-top: 0;
-}
-.node-children > .node:only-child::before,
-.node-children > .node:only-child::after {
   display: none;
 }
-/* apara as pontas externas da barra horizontal */
-.node-children > .node:first-child::before { border: 0 none; }
-.node-children > .node:last-child::after { border: 0 none; }
-/* mantém a descida vertical do último filho (que perdeu o ::after) */
-.node-children > .node:last-child::before { border-right: 2px solid #cbd5e1; }

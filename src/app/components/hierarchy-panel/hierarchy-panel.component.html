@@ -5,18 +5,22 @@
       <small class="sub">Presidência, diretorias, tribos e squads — com pessoas alocadas e exportação para apresentações.</small>
     </div>
     <div class="panel-actions">
-      <select class="export-root-select" [(ngModel)]="exportRootId" [disabled]="!nodes.length" title="Escolher a estrutura raiz da exportação">
+      <select class="export-root-select" [(ngModel)]="exportRootId" (ngModelChange)="onExportRootChange()" [disabled]="!nodes.length" title="Escolher a estrutura raiz da exportação">
         <option value="">Árvore completa</option>
         @for (n of nodesParaExportar(); track n.id) {
           <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
         }
       </select>
       <label class="export-hide-toggle" title="Não mostrar os valores das LOs na imagem exportada">
-        <input type="checkbox" [(ngModel)]="ocultarValoresExport" />
+        <input type="checkbox" [(ngModel)]="ocultarValoresExport" (ngModelChange)="onHierarchyLayoutChange()" />
         Ocultar valores
       </label>
-      <button type="button" class="sec" (click)="exportar()" [disabled]="!nodes.length" title="Exportar a árvore selecionada para apresentação em PNG">
-        Exportar apresentação
+      <button type="button" class="sec" (click)="exportarComLoading()" [disabled]="!nodes.length || exportando" title="Exportar a árvore selecionada para apresentação em PNG">
+        @if (exportando) {
+          <span class="export-spinner" aria-hidden="true"></span> Gerando...
+        } @else {
+          Exportar apresentação
+        }
       </button>
       <button type="button" class="sec" (click)="abrirGerar()" [disabled]="!linhasOrcamentarias.length" title="Criar um squad importando as pessoas alocadas em uma LO">
         Gerar squad da LO
@@ -52,7 +56,15 @@
       </div>
     }
     <div class="tree-wrap">
-      <div class="tree">
+      <div class="tree" #treeContainer>
+        <svg class="conectores-svg" [attr.width]="svgW" [attr.height]="svgH" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" [class.tem-destaque]="!!vinculoDestacado">
+          @for (l of linhas; track l.id) {
+            <path class="conector-hit" [attr.d]="l.d" (click)="alternarVinculo(l.de, l.para, $event)">
+              <title>{{ nomePorId(l.de) }} → {{ nomePorId(l.para) }}</title>
+            </path>
+            <path class="conector-line" [class.ativo]="vinculoAtivo(l.de, l.para)" [attr.d]="l.d"></path>
+          }
+        </svg>
         @for (raiz of raizesVisiveis(); track raiz.id) {
           <ng-container *ngTemplateOutlet="treeTpl; context: { $implicit: raiz, parentId: null }"></ng-container>
         }
@@ -62,19 +74,11 @@
 
   <ng-template #treeTpl let-node let-parentId="parentId">
     <div class="node" [class]="'t-' + tipoClasse(node.tipo)" [class.multi-parent]="temMultiplosPais(node)">
-      @if (temMultiplosPais(node)) {
-        <div class="multi-parent-links" [title]="paisLabel(node)">
-          @for (pai of paisVisiveisDoNode(node); track pai.id) {
-            <span class="multi-parent-link" [class.current]="pai.id === parentId">
-              <span class="multi-parent-line"></span>
-              <span class="multi-parent-dot"></span>
-              <span class="multi-parent-text">{{ pai.nome }}</span>
-            </span>
-          }
-        </div>
-      }
       <div class="node-card"
+           [attr.data-node-id]="node.id"
            [class.drop-target]="dragOverNodeId === node.id"
+           [class.vinc-origem]="ehOrigemDestacada(node.id)"
+           [class.vinc-destino]="ehDestinoDestacado(node.id)"
            (dragover)="onNodeDragOver(node, $event)"
            (dragleave)="onNodeDragLeave(node)"
            (drop)="onNodeDrop(node, $event)">
@@ -253,12 +257,30 @@
           @if (!paisDisponiveis().length) {
             <small class="sub">Nenhuma estrutura disponível — esta será uma raiz.</small>
           } @else {
-            <div class="lo-checklist">
-              @for (n of paisDisponiveis(); track n.id) {
-                <label class="lo-check" [class.on]="parentVinculado(n.id)">
-                  <input type="checkbox" [checked]="parentVinculado(n.id)" (change)="toggleParent(n.id)" />
-                  <span class="lo-check-cod">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</span>
-                </label>
+            <div class="multi-select" [class.open]="parentDropdownOpen">
+              <button type="button" class="multi-select-trigger" (click)="parentDropdownOpen = !parentDropdownOpen">
+                <span class="multi-select-summary" [class.placeholder]="!form.parentIds.length">{{ parentResumo() }}</span>
+                <span class="multi-select-count">{{ form.parentIds.length || 0 }}</span>
+              </button>
+              @if (parentDropdownOpen) {
+                <div class="multi-select-panel" (click)="$event.stopPropagation()">
+                  <input class="multi-select-search" [(ngModel)]="parentSearchTerm" placeholder="Buscar estrutura..." autocomplete="off" />
+                  <div class="multi-select-list">
+                    @for (n of paisFiltrados(); track n.id) {
+                      <label class="multi-select-option" [class.on]="parentVinculado(n.id)">
+                        <input type="checkbox" [checked]="parentVinculado(n.id)" (change)="toggleParent(n.id)" />
+                        <span class="checkmark" aria-hidden="true"></span>
+                        <span class="option-main">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</span>
+                      </label>
+                    } @empty {
+                      <div class="multi-select-empty">Nenhuma estrutura encontrada.</div>
+                    }
+                  </div>
+                  <div class="multi-select-footer">
+                    <button type="button" class="link-btn" (click)="limparPais()">Limpar</button>
+                    <button type="button" class="link-btn primary" (click)="parentDropdownOpen = false">Concluir</button>
+                  </div>
+                </div>
               }
             </div>
             <small class="sub">{{ form.parentIds.length ? 'Aparecerá sob cada estrutura marcada.' : 'Sem pai marcado — será uma estrutura raiz.' }}</small>

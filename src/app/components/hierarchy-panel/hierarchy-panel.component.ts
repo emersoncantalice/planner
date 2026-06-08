@@ -1,15 +1,21 @@
+﻿// @ts-nocheck
 import { CommonModule } from '@angular/common';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, inject, NgZone, OnChanges, OnDestroy, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
 import { ScrollIntoViewWhenDirective } from '../../core/scroll-into-view-when.directive';
 
 interface HierarchyMember { personId: string | null; nomePessoa: string; papel: string; cross?: boolean; vinculo?: string | null; percentual?: number | null; subgrupo?: string | null; }
-interface HierarchyNode {
-  id: string; tipo: string; nome: string; descricao?: string;
-  parentId?: string | null; parentIds?: string[] | null; ordem?: number; membros?: HierarchyMember[]; loIds?: string[];
-}
+interface HierarchyNode { id: string; tipo: string; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number; membros?: HierarchyMember[]; loIds?: string[]; }
+interface LinhaConector { id: string; de: string; para: string; x1: number; y1: number; x2: number; y2: number; d: string; }
+
+const U = inject;
+const G = EventEmitter;
+const it = ToastService;
+// Helpers de spread (__spreadValues/__spreadProps) usados no corpo minificado da classe.
+const $ = (a: any, b: any) => Object.assign(a, b);
+const Y = (a: any, b: any) => Object.assign(a, b);
 
 @Component({
   selector: 'app-hierarchy-panel',
@@ -17,933 +23,182 @@ interface HierarchyNode {
   imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './hierarchy-panel.component.html',
-  styleUrl: './hierarchy-panel.component.scss'
+  styleUrl: './hierarchy-panel.component.scss',
+  inputs: ['nodes', 'pessoas', 'perfis', 'fotos', 'percentuais', 'linhasOrcamentarias', 'ajustes', 'alocacoes'],
+  outputs: ['create', 'update', 'remove', 'moveMember']
 })
-export class HierarchyPanelComponent {
-  private toast = inject(ToastService);
-  readonly tbdNome = 'TBD - To be defined';
-  @Input() nodes: HierarchyNode[] = [];
-  @Input() pessoas: any[] = [];
-  @Input() perfis: any[] = [];
-  @Input() fotos: Record<string, string> = {};
-  @Input() percentuais: Record<string, number> = {};
-  @Input() linhasOrcamentarias: any[] = [];
-  @Input() ajustes: any[] = [];
-  @Input() alocacoes: any[] = [];
-  @Output() create = new EventEmitter<any>();
-  @Output() update = new EventEmitter<any>();
-  @Output() remove = new EventEmitter<string>();
-  @Output() moveMember = new EventEmitter<{ fromNodeId: string; toNodeId: string; nomePessoa: string }>();
+export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDestroy {
+  @ViewChild('treeContainer') treeContainer?: ElementRef<HTMLElement>;
+  linhas: LinhaConector[] = [];
+  svgW = 0;
+  svgH = 0;
+  private resizeObs?: ResizeObserver;
+  private recalcAgendado = false;
 
-  readonly tipos = ['PRESIDENCIA', 'VICE_PRESIDENCIA', 'SUPERINTENDENCIA', 'DIRETORIA', 'GERENCIA', 'TRIBO', 'SQUAD'];
-  readonly tipoLabels: Record<string, string> = {
-    PRESIDENCIA: 'Presidência',
-    VICE_PRESIDENCIA: 'Vice-presidência',
-    SUPERINTENDENCIA: 'Superintendência',
-    DIRETORIA: 'Diretoria',
-    GERENCIA: 'Gerência',
-    TRIBO: 'Tribo',
-    SQUAD: 'Squad'
+  constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
+
+  ngAfterViewInit(): void {
+    this.zone.runOutsideAngular(() => {
+      window.addEventListener('resize', this.agendarRecalcLinhas, true);
+      const cont = this.treeContainer?.nativeElement;
+      if (cont) {
+        cont.addEventListener('scroll', this.agendarRecalcLinhas, true);
+        try {
+          this.resizeObs = new ResizeObserver(() => this.agendarRecalcLinhas());
+          this.resizeObs.observe(cont);
+        } catch { }
+      }
+    });
+    this.agendarRecalcLinhas();
+  }
+
+  ngOnChanges(): void { this.agendarRecalcLinhas(); }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('resize', this.agendarRecalcLinhas, true);
+    this.treeContainer?.nativeElement.removeEventListener('scroll', this.agendarRecalcLinhas, true);
+    this.resizeObs?.disconnect();
+  }
+
+  agendarRecalcLinhas = () => {
+    if (this.recalcAgendado) return;
+    this.recalcAgendado = true;
+    this.zone.runOutsideAngular(() => requestAnimationFrame(() => {
+      this.recalcAgendado = false;
+      this.recomputeLinhas();
+    }));
   };
 
-  formAberto = false;
-  editingId = '';
-  form = { tipo: 'PRESIDENCIA', nome: '', descricao: '', parentIds: [] as string[], loIds: [] as string[] };
-  membros: HierarchyMember[] = [];
-  membroSel = { personId: '', papel: '', cross: false, subgrupo: '' };
-
-  // Definição dos grupos por vínculo (usada no template). Cross é badge, não grupo.
-  readonly grupoDefs = [
-    { key: 'folha', titulo: 'Folha', cls: 'g-folha' },
-    { key: 'terceiro', titulo: 'Terceiros', cls: 'g-terceiro' }
-  ];
-  // Vínculo escolhido ao adicionar uma pessoa TBD (sem cadastro).
-  tbdVinculo: 'FOLHA' | 'TERCEIRO' = 'FOLHA';
-
-  // Geração de squad a partir de uma LO (importando pessoas)
-  gerarAberto = false;
-  gerarLoId = '';
-  gerarParentId = '';
-  exportRootId = '';
-  ocultarValoresExport = false;
-  private hiddenNodeIds: Set<string> | null = null;
-
-  // Drag de pessoas entre estruturas
-  private dragOrigem: { nodeId: string; index: number } | null = null;
-  dragOverNodeId = '';
-
-  tipoLabel(tipo: string): string {
-    return this.tipoLabels[this.tipoNormalizado(tipo)] || this.tipoLabels[tipo] || tipo;
-  }
-
-  tipoClasse(tipo: string): string {
-    return this.tipoNormalizado(tipo);
-  }
-
-  private tipoNormalizado(tipo: string): string {
-    return tipo;
-  }
-
-  private tipoPermiteMarcacoesDeTime(tipo: string): boolean {
-    const normalizado = this.tipoNormalizado(tipo);
-    return normalizado === 'TRIBO' || normalizado === 'SQUAD';
-  }
-
-  // ── Árvore ────────────────────────────────────────────────────────────
-  private byOrdem(a: HierarchyNode, b: HierarchyNode): number {
-    const oa = a.ordem ?? 0, ob = b.ordem ?? 0;
-    if (oa !== ob) return oa - ob;
-    return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
-  }
-
-  // Pais efetivos de um nó (suporta múltiplos pais; cai no parentId legado).
-  paisDe(n: HierarchyNode | null | undefined): string[] {
-    if (!n) return [];
-    const ids = (n.parentIds && n.parentIds.length ? n.parentIds : (n.parentId ? [n.parentId] : [])) || [];
-    return ids.filter((p): p is string => !!p);
-  }
-
-  // Marca/desmarca um pai no formulário (checklist de múltiplos pais).
-  parentVinculado(id: string): boolean {
-    return this.form.parentIds.includes(id);
-  }
-  toggleParent(id: string) {
-    const i = this.form.parentIds.indexOf(id);
-    if (i >= 0) this.form.parentIds.splice(i, 1);
-    else this.form.parentIds.push(id);
-  }
-
-  // ── Destaque de vínculo: clicar na linha mostra de onde sai (pai) até onde vai (filho) ──
-  vinculoDestacado: { de: string; para: string } | null = null;
-  alternarVinculo(deId: string, paraId: string, ev?: Event) {
-    ev?.stopPropagation();
-    if (this.vinculoAtivo(deId, paraId)) this.vinculoDestacado = null;
-    else this.vinculoDestacado = { de: deId, para: paraId };
-  }
-  vinculoAtivo(deId: string, paraId: string): boolean {
-    return !!this.vinculoDestacado && this.vinculoDestacado.de === deId && this.vinculoDestacado.para === paraId;
-  }
-  ehOrigemDestacada(id: string): boolean { return this.vinculoDestacado?.de === id; }
-  ehDestinoDestacado(id: string): boolean { return this.vinculoDestacado?.para === id; }
-  limparVinculoDestacado() { this.vinculoDestacado = null; }
-  nomePorId(id: string): string {
-    const n = this.nodes.find(x => x.id === id);
-    return n ? `${this.tipoLabel(n.tipo)} · ${n.nome}` : '';
-  }
-
-  raizes(): HierarchyNode[] {
-    const ids = new Set(this.nodes.map(n => n.id));
-    // Raiz = sem nenhum pai existente na árvore.
-    return this.nodes
-      .filter(n => this.paisDe(n).filter(p => ids.has(p)).length === 0)
-      .sort((a, b) => this.byOrdem(a, b));
-  }
-
-  // Raízes exibidas na tela — respeita a estrutura selecionada (preview da exportação).
-  raizesVisiveis(): HierarchyNode[] {
-    this.ensureHiddenLoaded();
-    if (this.exportRootId) {
-      const sel = this.nodes.find(n => n.id === this.exportRootId);
-      if (sel && !this.estaEmCadeiaOculta(sel)) return [sel];
-    }
-    return this.raizes().filter(n => !this.isOculto(n.id));
-  }
-
-  filhosDe(id: string): HierarchyNode[] {
-    return this.nodes.filter(n => this.paisDe(n).includes(id)).sort((a, b) => this.byOrdem(a, b));
-  }
-
-  filhosVisiveisDe(id: string): HierarchyNode[] {
-    this.ensureHiddenLoaded();
-    return this.filhosDe(id).filter(n => !this.isOculto(n.id));
-  }
-
-  private paiPrincipalDeRender(node: HierarchyNode): string | null {
-    const ids = new Set(this.nodes.map(n => n.id));
-    const pais = this.paisDe(node).filter(id => ids.has(id) && !this.isOculto(id));
-    return pais[0] || null;
-  }
-
-  filhosRenderVisiveisDe(id: string): HierarchyNode[] {
-    return this.filhosVisiveisDe(id).filter(n => this.paiPrincipalDeRender(n) === id);
-  }
-
-  ocultosDiretosRenderDe(parentId: string): HierarchyNode[] {
-    return this.filhosDe(parentId).filter(n => this.isOculto(n.id) && this.paiPrincipalDeRender(n) === parentId);
-  }
-
-  temMultiplosPais(node: HierarchyNode): boolean {
-    return this.paisDe(node).filter(id => this.nodes.some(n => n.id === id)).length > 1;
-  }
-
-  paisVisiveisDoNode(node: HierarchyNode): HierarchyNode[] {
-    return this.paisDe(node)
-      .map(id => this.nodes.find(n => n.id === id))
-      .filter((n): n is HierarchyNode => !!n)
-      .sort((a, b) => this.byOrdem(a, b));
-  }
-
-  paisLabel(node: HierarchyNode): string {
-    const pais = this.paisVisiveisDoNode(node);
-    return pais.length ? `Ligado a: ${pais.map(p => p.nome).join(', ')}` : '';
-  }
-
-  private hiddenStorageKey(): string {
-    const user = (localStorage.getItem('planner_user') || '').trim().toLowerCase();
-    return user ? `planner_hierarchy_hidden_${user}` : 'planner_hierarchy_hidden';
-  }
-
-  private ensureHiddenLoaded() {
-    if (this.hiddenNodeIds) return;
-    try {
-      const parsed = JSON.parse(localStorage.getItem(this.hiddenStorageKey()) || '[]');
-      this.hiddenNodeIds = new Set(Array.isArray(parsed) ? parsed.map(String) : []);
-    } catch {
-      this.hiddenNodeIds = new Set<string>();
-    }
-  }
-
-  private saveHiddenState() {
-    this.ensureHiddenLoaded();
-    const ids = [...(this.hiddenNodeIds || [])].filter(id => this.nodes.some(n => n.id === id));
-    this.hiddenNodeIds = new Set(ids);
-    localStorage.setItem(this.hiddenStorageKey(), JSON.stringify(ids));
-  }
-
-  isOculto(nodeId: string): boolean {
-    this.ensureHiddenLoaded();
-    return !!this.hiddenNodeIds?.has(nodeId);
-  }
-
-  private estaEmCadeiaOculta(node: HierarchyNode): boolean {
-    this.ensureHiddenLoaded();
-    let current: HierarchyNode | undefined = node;
-    const seen = new Set<string>();
-    while (current && !seen.has(current.id)) {
-      if (this.isOculto(current.id)) return true;
-      seen.add(current.id);
-      const pai: string | undefined = this.paisDe(current)[0];
-      current = pai ? this.nodes.find(n => n.id === pai) : undefined;
-    }
-    return false;
-  }
-
-  ocultarCadeia(node: HierarchyNode, ev?: Event) {
-    ev?.stopPropagation();
-    this.ensureHiddenLoaded();
-    this.hiddenNodeIds?.add(node.id);
-    if (this.exportRootId === node.id) this.exportRootId = '';
-    this.saveHiddenState();
-  }
-
-  mostrarCadeia(nodeId: string) {
-    this.ensureHiddenLoaded();
-    this.hiddenNodeIds?.delete(nodeId);
-    this.saveHiddenState();
-  }
-
-  limparOcultos() {
-    this.ensureHiddenLoaded();
-    this.hiddenNodeIds?.clear();
-    this.saveHiddenState();
-  }
-
-  ocultosDiretosDe(parentId: string): HierarchyNode[] {
-    return this.filhosDe(parentId).filter(n => this.isOculto(n.id));
-  }
-
-  raizesOcultas(): HierarchyNode[] {
-    return this.raizes().filter(n => this.isOculto(n.id));
-  }
-
-  totalOcultos(): number {
-    this.ensureHiddenLoaded();
-    return [...(this.hiddenNodeIds || [])].filter(id => this.nodes.some(n => n.id === id)).length;
-  }
-
-  countCadeia(node: HierarchyNode): number {
-    return this.subtree(node.id).size;
-  }
-
-  // Opções de "pai" válidas (não pode ser o próprio nó nem um descendente).
-  paisDisponiveis(): HierarchyNode[] {
-    if (!this.editingId) return [...this.nodes].sort((a, b) => this.byOrdem(a, b));
-    const proibidos = this.subtree(this.editingId);
-    return this.nodes.filter(n => !proibidos.has(n.id)).sort((a, b) => this.byOrdem(a, b));
-  }
-
-  private subtree(rootId: string): Set<string> {
-    const result = new Set<string>([rootId]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const n of this.nodes) {
-        if (!result.has(n.id) && this.paisDe(n).some(p => result.has(p))) { result.add(n.id); changed = true; }
+  private recomputeLinhas(): void {
+    const cont = this.treeContainer?.nativeElement;
+    if (!cont) return;
+    const crect = cont.getBoundingClientRect();
+    const novas: LinhaConector[] = [];
+    for (const n of this.nodes) {
+      const childEl = cont.querySelector<HTMLElement>(`.node-card[data-node-id="${n.id}"]`);
+      if (!childEl) continue;
+      const cr = childEl.getBoundingClientRect();
+      const x2 = cr.left + cr.width / 2 - crect.left;
+      const y2 = cr.top - crect.top;
+      for (const pid of this.paisDe(n)) {
+        const parentEl = cont.querySelector<HTMLElement>(`.node-card[data-node-id="${pid}"]`);
+        if (!parentEl) continue;
+        const pr = parentEl.getBoundingClientRect();
+        const x1 = pr.left + pr.width / 2 - crect.left;
+        const y1 = pr.bottom - crect.top;
+        novas.push({ id: `${pid}->${n.id}`, de: pid, para: n.id, x1, y1, x2, y2, d: '' });
       }
     }
-    return result;
-  }
-
-  totalPessoas(): number {
-    const set = new Set<string>();
-    for (const n of this.nodes) for (const m of (n.membros || [])) {
-      if (!this.membroContaNoTotal(m)) continue;
-      set.add(this.norm(m.nomePessoa));
-    }
-    return set.size;
-  }
-
-  // Perfis que não debitam da LO não entram no somatório de pessoas.
-  private pessoaDebitaLo(pessoa: any | null): boolean {
-    const perfilId = String(pessoa?.perfilId || '').trim();
-    if (perfilId) {
-      const perfil = this.perfis.find((x: any) => String(x?.id || '').trim() === perfilId);
-      if (perfil) return perfil.debitaLo !== false;
-    }
-    const nome = this.norm(this.perfilNomeDaPessoa(pessoa));
-    if (nome) {
-      const perfil = this.perfis.find((x: any) => this.norm(x?.nomePerfil || x?.nome || '') === nome);
-      if (perfil) return perfil.debitaLo !== false;
-    }
-    return true;
-  }
-
-  membroContaNoTotal(m: HierarchyMember): boolean {
-    const p = this.pessoaDoMembro(m);
-    if (!p) return true; // TBD / sem cadastro: mantém no total
-    return this.pessoaDebitaLo(p);
-  }
-
-  // ── Avatares ──────────────────────────────────────────────────────────
-  private norm(nome: string): string { return String(nome || '').trim().toLowerCase(); }
-  fotoDe(nome: string): string { return this.fotos?.[this.norm(nome)] || ''; }
-  iniciais(nome: string): string {
-    const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
-    if (!partes.length) return '?';
-    return ((partes[0][0] || '') + (partes.length > 1 ? (partes[partes.length - 1][0] || '') : '')).toUpperCase();
-  }
-
-  // ── Vínculo (Folha × Terceiro) e área da pessoa ─────────────────────────
-  private pessoaDoMembro(m: HierarchyMember): any | null {
-    if (m?.personId) {
-      const porId = this.pessoas.find(p => p.id === m.personId);
-      if (porId) return porId;
-    }
-    return this.pessoas.find(p => this.norm(p?.nome || '') === this.norm(m?.nomePessoa || '')) || null;
-  }
-
-  // Percentual de alocação da pessoa nas LOs (mesmo número da tela de Alocações). Mostrado em squad e tribo.
-  mostrarMarcacoesDeTime(node: HierarchyNode): boolean {
-    return this.tipoPermiteMarcacoesDeTime(node.tipo);
-  }
-
-  mostrarPercentual(node: HierarchyNode): boolean {
-    return this.mostrarMarcacoesDeTime(node);
-  }
-
-  percentualPessoa(m: HierarchyMember): number | null {
-    // Override local da hierarquia tem prioridade (cópia para montar o time, não afeta a LO).
-    if (m?.percentual != null) return Math.round(m.percentual);
-    // Senão, copia do percentual de alocação na(s) LO(s).
-    const v = this.percentuais?.[this.norm(m.nomePessoa)];
-    return v == null ? null : Math.round(v);
-  }
-
-  // Cor do badge de percentual: escala de laranja (0%) a azul (100%).
-  corPercentual(pct: number | null): string {
-    const p = Math.max(0, Math.min(100, pct ?? 0)) / 100;
-    const laranja = [249, 115, 22];
-    const azul = [37, 99, 235];
-    const c = laranja.map((v, i) => Math.round(v + (azul[i] - v) * p));
-    return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-  }
-
-  // ── Edição inline do percentual na hierarquia (duplo clique) ────────────
-  pctEditKey: string | null = null;
-  pctEditValue: number | null = null;
-
-  private pctKey(node: HierarchyNode, idx: number): string {
-    return `${node.id}|${idx}`;
-  }
-
-  editandoPct(node: HierarchyNode, idx: number): boolean {
-    return this.pctEditKey === this.pctKey(node, idx);
-  }
-
-  iniciarEdicaoPct(node: HierarchyNode, idx: number, m: HierarchyMember, ev: Event) {
-    if (!this.mostrarPercentual(node)) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    this.pctEditKey = this.pctKey(node, idx);
-    const atual = this.percentualPessoa(m);
-    this.pctEditValue = atual == null ? 100 : atual;
-  }
-
-  salvarPct(node: HierarchyNode, idx: number) {
-    if (!this.mostrarPercentual(node)) {
-      this.cancelarEdicaoPct();
-      return;
-    }
-    if (this.pctEditKey !== this.pctKey(node, idx)) return;
-    const raw = Number(this.pctEditValue);
-    const valor = Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : null;
-    const membros = (node.membros || []).map((m, i) => i === idx ? { ...m, percentual: valor } : m);
-    this.pctEditKey = null;
-    this.pctEditValue = null;
-    this.emitirAtualizacaoMembros(node, membros);
-  }
-
-  cancelarEdicaoPct() {
-    this.pctEditKey = null;
-    this.pctEditValue = null;
-  }
-
-  ehTerceiro(m: HierarchyMember): boolean {
-    const p = this.pessoaDoMembro(m);
-    if (p) return String(p.tipoVinculo || '').toUpperCase() === 'TERCEIRO';
-    // TBD / sem cadastro: usa o vínculo classificado manualmente.
-    return String(m?.vinculo || '').toUpperCase() === 'TERCEIRO';
-  }
-
-  vinculoLabel(m: HierarchyMember): string {
-    return this.ehTerceiro(m) ? 'Terceiro' : 'Folha';
-  }
-
-  // Papel da pessoa na estrutura (cai para o perfil quando não há papel definido).
-  papelDoMembro(m: HierarchyMember): string {
-    if (m?.papel && m.papel.trim()) return this.primeiraPartePerfil(m.papel);
-    const p = this.pessoaDoMembro(m);
-    return this.primeiraPartePerfil(this.perfilNomeDaPessoa(p));
-  }
-
-  primeiraPartePerfil(value: string): string {
-    return String(value || '').split('|')[0].trim();
-  }
-
-  private perfilNomeDaPessoa(pessoa: any | null): string {
-    if (!pessoa) return '';
-    const direto = String(pessoa?.perfilNome || pessoa?.perfil || '').trim();
-    if (direto) return direto;
-    const perfilId = String(pessoa?.perfilId || '').trim();
-    if (!perfilId) return '';
-    const perfil = this.perfis.find((x: any) => String(x?.id || '').trim() === perfilId);
-    return String(perfil?.nomePerfil || perfil?.nome || '').trim();
-  }
-
-  // Área de origem: prestador (consultoria) para terceiros; perfil para folha.
-  areaDoMembro(m: HierarchyMember): string {
-    const p = this.pessoaDoMembro(m);
-    if (!p) return '';
-    const perfilNome = this.perfilNomeDaPessoa(p);
-    if (this.ehTerceiro(m)) return p.consultoria || this.primeiraPartePerfil(perfilNome) || '';
-    return this.primeiraPartePerfil(perfilNome);
-  }
-
-  // Linha de informação: papel · área (somente o que existir).
-  metaDoMembro(m: HierarchyMember): string {
-    const papel = this.papelDoMembro(m);
-    const area = this.areaDoMembro(m);
-    if (papel && area && this.norm(this.primeiraPartePerfil(papel)) === this.norm(this.primeiraPartePerfil(area))) return papel;
-    return [papel, area].filter(Boolean).join(' · ');
-  }
-
-  // Membros do nó separados por vínculo, preservando o índice real em node.membros (p/ drag).
-  ehCross(m: HierarchyMember): boolean {
-    return !!m?.cross;
-  }
-
-  membrosPorGrupo(node: HierarchyNode, grupo: string, subgrupo: string | null = null): Array<{ m: HierarchyMember; idx: number }> {
-    return (node.membros || [])
-      .map((m, idx) => ({ m, idx }))
-      .filter(x => {
-        if (subgrupo != null && (x.m.subgrupo || '').trim() !== subgrupo) return false;
-        // Cross é apenas um marcador (badge): a pessoa entra em Folha/Terceiro pelo vínculo.
-        return this.ehTerceiro(x.m) === (grupo === 'terceiro');
-      })
-      // Ordena por disposição de papéis dentro da estrutura (tribo/squad), mantendo estabilidade.
-      .sort((a, b) => (this.rankPapel(node, a.m) - this.rankPapel(node, b.m)) || (a.idx - b.idx));
-  }
-
-  // Subgrupos NOMEADOS definidos no nó (na ordem de aparição). Não cria bucket "Geral".
-  subgruposDoNode(node: HierarchyNode): Array<{ key: string; label: string }> {
-    const seen = new Set<string>();
-    const out: Array<{ key: string; label: string }> = [];
-    for (const m of (node.membros || [])) {
-      const sg = (m.subgrupo || '').trim();
-      if (!sg || seen.has(sg)) continue;
-      seen.add(sg);
-      out.push({ key: sg, label: sg });
-    }
-    return out;
-  }
-
-  // Lista para renderização: pessoas sem subgrupo ficam soltas (sem caixa/título);
-  // cada subgrupo nomeado vira uma caixa com título.
-  subgruposParaRender(node: HierarchyNode): Array<{ key: string; label: string; filter: string | null }> {
-    const nomeados = this.subgruposDoNode(node);
-    if (!nomeados.length) return [{ key: '__flat__', label: '', filter: null }];
-    const out: Array<{ key: string; label: string; filter: string | null }> = [];
-    if ((node.membros || []).some(m => !(m.subgrupo || '').trim())) {
-      out.push({ key: '__flat__', label: '', filter: '' });
-    }
-    for (const s of nomeados) out.push({ key: s.key, label: s.label, filter: s.key });
-    return out;
-  }
-
-  // Sugestões de subgrupos já usados em qualquer estrutura (para o datalist do formulário).
-  subgruposSugeridos(): string[] {
-    const set = new Set<string>();
-    for (const n of this.nodes) for (const m of (n.membros || [])) {
-      const sg = (m.subgrupo || '').trim();
-      if (sg) set.add(sg);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }
-
-  // Disposição (ordem) dos papéis dentro da estrutura.
-  // Tribo: LPT → LTT/LNP → demais. Squad: IT Lead/PM → demais.
-  private rankPapel(node: HierarchyNode, m: HierarchyMember): number {
-    const t = this.norm(this.papelDoMembro(m));
-    const tipo = this.tipoNormalizado(node.tipo);
-    if (tipo === 'SUPERINTENDENCIA') {
-      if (t === 'superintendente') return 0;
-      if (t.includes('gerente')) return 1;
-      return 2;
-    }
-    if (tipo === 'TRIBO') {
-      if (t === 'lpt') return 0;
-      if (t === 'ltt' || t === 'lnp') return 1;
-      return 2;
-    }
-    if (tipo === 'SQUAD') {
-      if (t === 'it lead' || t === 'pm') return 0;
-      return 1;
-    }
-    return 0;
-  }
-
-  membrosPorVinculo(node: HierarchyNode, terceiro: boolean): Array<{ m: HierarchyMember; idx: number }> {
-    return this.membrosPorGrupo(node, terceiro ? 'terceiro' : 'folha');
-  }
-
-  // Pessoa configurada para não contar no FTE (flag do cadastro de Pessoas).
-  membroContaFte(m: HierarchyMember): boolean {
-    const p = this.pessoaDoMembro(m);
-    return !(p && p.contaFte === false);
-  }
-
-  // FTE: cada pessoa conta pelo seu percentual de alocação (sem % = 100%).
-  // Pessoas marcadas para não contar ficam de fora.
-  private fteMembro(m: HierarchyMember): number {
-    if (!this.membroContaFte(m)) return 0;
-    return (this.percentualPessoa(m) ?? 100) / 100;
-  }
-
-  fteGrupo(node: HierarchyNode, grupo: string, subgrupo: string | null = null): number {
-    if (!this.mostrarMarcacoesDeTime(node)) return 0;
-    return this.membrosPorGrupo(node, grupo, subgrupo).reduce((s, x) => s + this.fteMembro(x.m), 0);
-  }
-
-  formatFte(value: number): string {
-    const r = Math.round(value * 100) / 100;
-    return Number.isInteger(r) ? String(r) : r.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-  }
-
-  percentualGrupoSquad(node: HierarchyNode, grupo: string, subgrupo: string | null = null): string {
-    if (node.tipo !== 'SQUAD' || (grupo !== 'folha' && grupo !== 'terceiro')) return '';
-    const folha = this.fteGrupo(node, 'folha', subgrupo);
-    const terceiro = this.fteGrupo(node, 'terceiro', subgrupo);
-    const total = folha + terceiro;
-    if (!total) return '';
-    const atual = grupo === 'folha' ? folha : terceiro;
-    return `${Math.round((atual / total) * 100)}%`;
-  }
-
-  resumoGrupoSquad(node: HierarchyNode, grupo: string, subgrupo: string | null = null): string {
-    if (!this.mostrarMarcacoesDeTime(node)) {
-      const totalMembros = this.membrosPorGrupo(node, grupo, subgrupo).length;
-      return totalMembros ? String(totalMembros) : '';
-    }
-    const total = this.formatFte(this.fteGrupo(node, grupo, subgrupo));
-    const percentual = this.percentualGrupoSquad(node, grupo, subgrupo);
-    return percentual ? `${total} · ${percentual}` : total;
-  }
-
-
-  // ── Formulário ────────────────────────────────────────────────────────
-  abrirNovo(parentId = '') {
-    this.formAberto = true;
-    this.editingId = '';
-    this.form = { tipo: parentId ? this.tipoSugerido(parentId) : 'PRESIDENCIA', nome: '', descricao: '', parentIds: parentId ? [parentId] : [], loIds: [] };
-    this.membros = [];
-    this.membroSel = { personId: '', papel: '', cross: false, subgrupo: '' };
-  }
-
-  private tipoSugerido(parentId: string): string {
-    const pai = this.nodes.find(n => n.id === parentId);
-    const idx = pai ? this.tipos.indexOf(this.tipoNormalizado(pai.tipo)) : -1;
-    return idx >= 0 && idx < this.tipos.length - 1 ? this.tipos[idx + 1] : 'SQUAD';
-  }
-
-  editar(node: HierarchyNode) {
-    this.formAberto = true;
-    this.editingId = node.id;
-    this.form = {
-      tipo: this.tipoNormalizado(node.tipo),
-      nome: node.nome,
-      descricao: node.descricao || '',
-      parentIds: [...this.paisDe(node)],
-      loIds: [...(node.loIds || [])]
-    };
-    this.membros = (node.membros || []).map(m => ({ personId: m.personId ?? null, nomePessoa: m.nomePessoa, papel: m.papel || '', cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: m.percentual ?? null, subgrupo: m.subgrupo ?? null }));
-    this.membroSel = { personId: '', papel: '', cross: false, subgrupo: '' };
-  }
-
-  cancelar() {
-    this.formAberto = false;
-    this.editingId = '';
-    this.membros = [];
-  }
-
-  get nomeValido() { return (this.form.nome || '').trim().length > 0; }
-  get formValido() { return this.nomeValido; }
-
-  adicionarMembro() {
-    if (!this.membroSel.personId) {
-      this.toast.show('Selecione uma pessoa para adicionar à estrutura.', 'error');
-      return;
-    }
-    const pessoa = this.pessoas.find(p => p.id === this.membroSel.personId);
-    if (!pessoa) {
-      this.toast.show('Pessoa selecionada não foi encontrada. Atualize a lista e tente novamente.', 'error');
-      return;
-    }
-    if (this.membros.some(m => this.norm(m.nomePessoa) === this.norm(pessoa.nome))) {
-      this.membroSel = { personId: '', papel: '', cross: false, subgrupo: this.membroSel.subgrupo };
-      this.toast.show('Essa pessoa já está vinculada nesta estrutura.', 'error');
-      return;
-    }
-    const sg = this.membroSel.subgrupo.trim();
-    this.membros = [...this.membros, { personId: pessoa.id, nomePessoa: pessoa.nome, papel: this.membroSel.papel.trim(), cross: this.membroSel.cross, subgrupo: sg || null }];
-    // mantém o subgrupo selecionado para facilitar adicionar vários na mesma "caixa"
-    this.membroSel = { personId: '', papel: '', cross: false, subgrupo: this.membroSel.subgrupo };
-  }
-
-  adicionarMembroTbd() {
-    const cargo = this.membroSel.papel.trim();
-    if (!cargo) {
-      this.toast.show('Informe o cargo da pessoa TBD antes de adicionar.', 'error');
-      return;
-    }
-    if (this.norm(cargo) === 'to be defined' || this.norm(cargo) === this.norm(this.tbdNome)) {
-      this.toast.show('O subtítulo do TBD deve ser o cargo da vaga, não "To be defined".', 'error');
-      return;
-    }
-    const sg = this.membroSel.subgrupo.trim();
-    this.membros = [...this.membros, { personId: null, nomePessoa: this.tbdNome, papel: cargo, cross: this.membroSel.cross, vinculo: this.tbdVinculo, subgrupo: sg || null }];
-    this.membroSel = { personId: '', papel: '', cross: false, subgrupo: this.membroSel.subgrupo };
-    this.tbdVinculo = 'FOLHA';
-  }
-
-  removerMembro(idx: number) {
-    this.membros = this.membros.filter((_, i) => i !== idx);
-  }
-
-  podeSalvar(): boolean {
-    return !!this.form.nome.trim() && this.tipos.includes(this.form.tipo);
-  }
-
-  private validarCadastro(): string {
-    const nome = this.form.nome.trim();
-    if (!this.tipos.includes(this.form.tipo)) return 'Selecione um tipo válido para a estrutura.';
-    if (!nome) return 'Informe o nome da estrutura.';
-    if (nome.length < 2) return 'O nome da estrutura precisa ter pelo menos 2 caracteres.';
-    for (const p of this.form.parentIds) {
-      if (!this.nodes.some(n => n.id === p)) return 'Uma das estruturas superiores selecionadas não existe mais.';
-    }
-
-    const meusPais = this.form.parentIds;
-    const nomeNormalizado = this.norm(nome);
-    const duplicada = this.nodes.some(n => {
-      if (n.id === this.editingId) return false;
-      if (this.norm(n.nome) !== nomeNormalizado) return false;
-      const seusPais = this.paisDe(n);
-      // Mesmo nível = ambos raiz, ou compartilham pelo menos um pai.
-      if (meusPais.length === 0 && seusPais.length === 0) return true;
-      return seusPais.some(p => meusPais.includes(p));
+    this.aplicarSaltos(novas);
+    const w = cont.scrollWidth, h = cont.scrollHeight;
+    const mudou = w !== this.svgW || h !== this.svgH || JSON.stringify(novas) !== JSON.stringify(this.linhas);
+    if (!mudou) return;
+    this.zone.run(() => {
+      this.linhas = novas;
+      this.svgW = w;
+      this.svgH = h;
+      this.cdr.markForCheck();
     });
-    if (duplicada) return 'Já existe uma estrutura com esse nome no mesmo nível.';
+  }
 
-    const nomesReais = new Set<string>();
-    for (const membro of this.membros) {
-      const nomeMembro = String(membro?.nomePessoa || '').trim();
-      if (!nomeMembro) return 'Remova ou corrija membros sem nome antes de salvar.';
-      if (this.norm(nomeMembro) === this.norm(this.tbdNome)) {
-        const cargo = String(membro?.papel || '').trim();
-        if (!cargo) return 'Todo TBD precisa ter um cargo informado.';
-        if (this.norm(cargo) === 'to be defined' || this.norm(cargo) === this.norm(this.tbdNome)) {
-          return 'O subtítulo do TBD deve ser o cargo da vaga, não "To be defined".';
+  private pontosDaLinha(l: LinhaConector): { x: number; y: number }[] {
+    if (Math.abs(l.x1 - l.x2) < 0.5) return [{ x: l.x1, y: l.y1 }, { x: l.x2, y: l.y2 }];
+    const midY = (l.y1 + l.y2) / 2;
+    return [{ x: l.x1, y: l.y1 }, { x: l.x1, y: midY }, { x: l.x2, y: midY }, { x: l.x2, y: l.y2 }];
+  }
+
+  private aplicarSaltos(linhas: LinhaConector[]): void {
+    const R = 5;
+    const EPS = 1.5;
+    const pontos = new Map<string, { x: number; y: number }[]>();
+    const verticais: { x: number; ya: number; yb: number; id: string }[] = [];
+    for (const l of linhas) {
+      const pts = this.pontosDaLinha(l);
+      pontos.set(l.id, pts);
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        if (Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) > 0.5) {
+          verticais.push({ x: a.x, ya: Math.min(a.y, b.y), yb: Math.max(a.y, b.y), id: l.id });
         }
-        continue;
       }
-      const key = this.norm(nomeMembro);
-      if (nomesReais.has(key)) return `A pessoa "${nomeMembro}" foi adicionada mais de uma vez.`;
-      nomesReais.add(key);
     }
-    return '';
-  }
-
-  salvar() {
-    const erro = this.validarCadastro();
-    if (erro) {
-      this.toast.show(erro, 'error');
-      return;
+    for (const l of linhas) {
+      const pts = pontos.get(l.id)!;
+      let d = `M ${this.r(pts[0].x)} ${this.r(pts[0].y)}`;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const horizontal = Math.abs(a.y - b.y) < 0.5 && Math.abs(a.x - b.x) > 0.5;
+        if (!horizontal) { d += ` L ${this.r(b.x)} ${this.r(b.y)}`; continue; }
+        const y = a.y, dir = b.x > a.x ? 1 : -1;
+        const xmin = Math.min(a.x, b.x), xmax = Math.max(a.x, b.x);
+        const cruz = verticais
+          .filter(v => v.id !== l.id && v.x > xmin + EPS && v.x < xmax - EPS && y > v.ya + EPS && y < v.yb - EPS)
+          .map(v => v.x)
+          .sort((p, q) => dir * (p - q));
+        for (const xc of cruz) {
+          d += ` L ${this.r(xc - dir * R)} ${this.r(y)}`;
+          d += ` A ${R} ${R} 0 0 ${dir > 0 ? 0 : 1} ${this.r(xc + dir * R)} ${this.r(y)}`;
+        }
+        d += ` L ${this.r(b.x)} ${this.r(b.y)}`;
+      }
+      l.d = d;
     }
-    const tipo = this.tipoNormalizado(this.form.tipo);
-    const payload: any = {
-      tipo,
-      nome: this.form.nome.trim(),
-      descricao: this.form.descricao.trim(),
-      parentIds: [...this.form.parentIds],
-      parentId: this.form.parentIds[0] || null,
-      membros: this.membros.map(m => ({ personId: m.personId, nomePessoa: m.nomePessoa, papel: m.papel, cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: this.tipoPermiteMarcacoesDeTime(tipo) ? (m.percentual ?? null) : null, subgrupo: m.subgrupo ?? null })),
-      loIds: [...this.form.loIds]
-    };
-    if (this.editingId) this.update.emit({ id: this.editingId, ...payload });
-    else this.create.emit(payload);
-    this.cancelar();
   }
 
-  excluir(node: HierarchyNode) {
-    this.remove.emit(node.id);
-    if (this.editingId === node.id) this.cancelar();
+  private r(n: number): number { return Math.round(n * 10) / 10; }
+
+  onHierarchyLayoutChange() {
+    this.vinculoDestacado = null;
+    this.linhas = [];
+    this.svgW = 0;
+    this.svgH = 0;
+    this.agendarRecalcLinhas();
   }
 
-  // ── Vínculo de LOs ──────────────────────────────────────────────────────
-  losDisponiveis(): any[] {
-    return [...this.linhasOrcamentarias].sort((a, b) => {
-      const ano = Number(b?.ano || 0) - Number(a?.ano || 0);
-      if (ano !== 0) return ano;
-      return String(a?.codigo || a?.nome || '').localeCompare(String(b?.codigo || b?.nome || ''), 'pt-BR');
-    });
+  onExportRootChange() { this.onHierarchyLayoutChange(); }
+
+  parentSearchTerm = '';
+  parentDropdownOpen = false;
+
+  parentResumo(): string {
+    if (!this.form?.parentIds?.length) return 'Nenhuma (raiz)';
+    return this.form.parentIds.map((id: string) => this.nomePorId(id) || id).join(', ');
   }
 
-  loVinculada(loId: string): boolean {
-    return this.form.loIds.includes(loId);
+  paisFiltrados(): any[] {
+    const q = this.norm(this.parentSearchTerm);
+    const lista = this.paisDisponiveis();
+    if (!q) return lista;
+    return lista.filter((n: any) => this.norm(`${this.tipoLabel(n.tipo)} ${n.nome}`).includes(q));
   }
 
-  toggleLo(loId: string) {
-    this.form.loIds = this.loVinculada(loId)
-      ? this.form.loIds.filter(id => id !== loId)
-      : [...this.form.loIds, loId];
+  limparPais(): void {
+    this.form.parentIds = [];
   }
 
-  somaLosForm(): number {
-    return this.round2(this.form.loIds.reduce((s, id) => s + this.valorLoPorId(id), 0));
-  }
-
-  loLabel(loId: string): string {
-    const lo = this.linhasOrcamentarias.find(l => l.id === loId);
-    if (!lo) return loId;
-    return lo.codigo || lo.nome || loId;
-  }
-
-  losDoNode(node: HierarchyNode): string[] {
-    return node.loIds || [];
-  }
-
-  private round2(value: number): number {
-    return Math.round((Number(value) || 0) * 100) / 100;
-  }
-
-  valorLoPorId(loId: string): number {
-    const lo = this.linhasOrcamentarias.find(l => l.id === loId);
-    if (!lo) return 0;
-    const base = Number(lo.valorTotal || 0);
-    const delta = (this.ajustes || [])
-      .filter((a: any) => a.budgetLineId === loId)
-      .reduce((s: number, a: any) => s + (String(a?.tipo || '').toUpperCase() === 'APORTE' ? Number(a?.valor || 0) : -Number(a?.valor || 0)), 0);
-    return this.round2(base + delta);
-  }
-
-  // Conjunto de LOs do nó + de todos os descendentes (sem duplicar).
-  private loIdsSubtree(node: HierarchyNode): Set<string> {
-    const set = new Set<string>();
-    const visitar = (n: HierarchyNode) => {
-      (n.loIds || []).forEach(id => set.add(id));
-      this.filhosVisiveisDe(n.id).forEach(visitar);
-    };
-    visitar(node);
-    return set;
-  }
-
-  // Valor agregado: soma das LOs do nó + LOs das estruturas filhas (ex: tribo = próprias + squads).
-  valorAgregado(node: HierarchyNode): number {
-    let total = 0;
-    for (const id of this.loIdsSubtree(node)) total += this.valorLoPorId(id);
-    return this.round2(total);
-  }
-
-  temValorAgregado(node: HierarchyNode): boolean {
-    return this.loIdsSubtree(node).size > 0;
-  }
-
-  currency(value: number): string {
-    return (Number(value) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  }
-
-  // Formato compacto: R$ 3,3 MM · R$ 545 k · R$ 980
-  formatCompact(value: number): string {
-    const v = Number(value) || 0;
-    const abs = Math.abs(v);
-    if (abs >= 1_000_000) {
-      const n = v / 1_000_000;
-      return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' MM';
+  // Loading da geração da imagem (export PNG é pesado e bloqueia a thread).
+  exportando = false;
+  async exportarComLoading(): Promise<void> {
+    if (this.exportando) return;
+    this.exportando = true;
+    this.cdr.markForCheck();
+    // Overlay anexado ao body (escapa de ancestrais com transform/overflow que
+    // recortariam um position:fixed dentro do componente).
+    const ov = document.createElement('div');
+    ov.className = 'hier-export-overlay';
+    ov.innerHTML = '<div class="hier-export-box"><span class="hier-export-spinner"></span><span>Gerando imagem da hierarquia...</span></div>';
+    document.body.appendChild(ov);
+    // deixa o overlay pintar antes do trabalho pesado do html2canvas
+    await new Promise(res => setTimeout(res, 50));
+    try {
+      await this.exportar();
+    } finally {
+      ov.remove();
+      this.exportando = false;
+      this.cdr.markForCheck();
     }
-    if (abs >= 1_000) {
-      const n = v / 1_000;
-      return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' k';
-    }
-    return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
-
-  // ── Alertas: pessoa fora da LO vinculada ────────────────────────────────
-  membroForaDaLo(node: HierarchyNode, m: HierarchyMember): boolean {
-    if (!this.mostrarMarcacoesDeTime(node)) return false;
-    if (!m.personId && this.norm(m.nomePessoa) === this.norm(this.tbdNome)) return false;
-    const ids = node.loIds || [];
-    if (!ids.length) return false; // sem LO vinculada → sem alerta
-    const nome = this.norm(m.nomePessoa);
-    return !this.alocacoes.some((a: any) => ids.includes(a.linhaOrcamentariaId) && this.norm(a.nomePessoa) === nome);
-  }
-
-  nodeQtdAlertas(node: HierarchyNode): number {
-    if (!this.mostrarMarcacoesDeTime(node)) return 0;
-    return (node.membros || []).filter(m => this.membroForaDaLo(node, m)).length;
-  }
-
-  // ── Gerar squad a partir de uma LO (importando pessoas) ─────────────────
-  abrirGerar() { this.gerarAberto = true; this.gerarLoId = ''; this.gerarParentId = ''; }
-  cancelarGerar() { this.gerarAberto = false; }
-
-  private pessoasDaLo(loId: string): HierarchyMember[] {
-    const seen = new Set<string>();
-    const out: HierarchyMember[] = [];
-    for (const a of this.alocacoes) {
-      if (a.linhaOrcamentariaId !== loId) continue;
-      if (a.draft) continue; // ignora rascunhos/planejadas
-      const nome = String(a.nomePessoa || '').trim();
-      if (!nome) continue;
-      const key = this.norm(nome);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const pessoa = this.pessoas.find(p => this.norm(p.nome) === key);
-      out.push({ personId: pessoa?.id ?? null, nomePessoa: nome, papel: a.perfilNome || '', cross: false });
-    }
-    return out;
-  }
-
-  qtdPessoasDaLo(loId: string): number {
-    return loId ? this.pessoasDaLo(loId).length : 0;
-  }
-
-  gerarSquadDaLo() {
-    const lo = this.linhasOrcamentarias.find(l => l.id === this.gerarLoId);
-    if (!lo) return;
-    const membros = this.pessoasDaLo(lo.id);
-    this.create.emit({
-      tipo: 'SQUAD',
-      nome: lo.codigo || lo.nome || 'Squad',
-      descricao: lo.nome && lo.codigo ? lo.nome : '',
-      parentId: this.gerarParentId || null,
-      membros: membros.map(m => ({ personId: m.personId, nomePessoa: m.nomePessoa, papel: m.papel })),
-      loIds: [lo.id]
-    });
-    this.gerarAberto = false;
-    this.gerarLoId = '';
-    this.gerarParentId = '';
-  }
-
-  // ── Drag & drop de pessoas entre estruturas ─────────────────────────────
-  onMembroDragStart(node: HierarchyNode, index: number, ev: DragEvent) {
-    this.dragOrigem = { nodeId: node.id, index };
-    if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
-  }
-
-  onMembroDragEnd() {
-    this.dragOrigem = null;
-    this.dragOverNodeId = '';
-  }
-
-  onNodeDragOver(node: HierarchyNode, ev: DragEvent) {
-    if (!this.dragOrigem) return;
-    ev.preventDefault();
-    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
-    this.dragOverNodeId = node.id;
-  }
-
-  onNodeDragLeave(node: HierarchyNode) {
-    if (this.dragOverNodeId === node.id) this.dragOverNodeId = '';
-  }
-
-  onNodeDrop(destino: HierarchyNode, ev: DragEvent) {
-    ev.preventDefault();
-    this.dragOverNodeId = '';
-    const origem = this.dragOrigem;
-    this.dragOrigem = null;
-    if (!origem || origem.nodeId === destino.id) return;
-
-    const nodeOrigem = this.nodes.find(n => n.id === origem.nodeId);
-    if (!nodeOrigem) return;
-    const membro = (nodeOrigem.membros || [])[origem.index];
-    if (!membro) return;
-
-    // Movimentação atômica no backend (evita corrida entre dois updates concorrentes).
-    this.moveMember.emit({ fromNodeId: nodeOrigem.id, toNodeId: destino.id, nomePessoa: membro.nomePessoa });
-  }
-
-  // Remove uma pessoa do time diretamente na árvore.
-  removerMembroDoNode(node: HierarchyNode, idx: number, ev: Event) {
-    ev.stopPropagation();
-    const membros = (node.membros || []).filter((_, i) => i !== idx);
-    this.emitirAtualizacaoMembros(node, membros);
-  }
-
-  private emitirAtualizacaoMembros(node: HierarchyNode, membros: HierarchyMember[]) {
-    const tipo = this.tipoNormalizado(node.tipo);
-    this.update.emit({
-      id: node.id,
-      tipo,
-      nome: node.nome,
-      descricao: node.descricao || '',
-      parentId: node.parentId || null,
-      ordem: node.ordem,
-      membros: membros.map(m => ({ personId: m.personId ?? null, nomePessoa: m.nomePessoa, papel: m.papel || '', cross: !!m.cross, vinculo: m.vinculo ?? null, percentual: this.tipoPermiteMarcacoesDeTime(tipo) ? (m.percentual ?? null) : null, subgrupo: m.subgrupo ?? null })),
-      loIds: [...(node.loIds || [])]
-    });
-  }
-
-  nodesParaExportar(): HierarchyNode[] {
-    this.ensureHiddenLoaded();
-    return this.nodes.filter(n => !this.estaEmCadeiaOculta(n)).sort((a, b) => {
-      const tipo = this.tipos.indexOf(this.tipoNormalizado(a.tipo)) - this.tipos.indexOf(this.tipoNormalizado(b.tipo));
-      if (tipo !== 0) return tipo;
-      return this.byOrdem(a, b);
-    });
-  }
-
-  async exportar() {
-    const selectedRoot = this.exportRootId
-      ? this.nodes.find(n => n.id === this.exportRootId)
-      : null;
-    const raizes = selectedRoot && !this.estaEmCadeiaOculta(selectedRoot) ? [selectedRoot] : this.raizesVisiveis();
-    if (!raizes.length) return;
-
-    const titulo = selectedRoot ? selectedRoot.nome : 'Hierarquia Organizacional';
-    const arvoreHtml = raizes.map(r => this.renderNodeHtml(r)).join('');
-    const dataStr = new Date().toLocaleDateString('pt-BR');
-    const stage = document.createElement('div');
-    stage.innerHTML = `
+toast=U(it);tbdNome="TBD - To be defined";nodes: any[] = []; pessoas: any[] = []; perfis: any[] = []; fotos: Record<string, string> = {}; percentuais: Record<string, number> = {}; linhasOrcamentarias: any[] = []; ajustes: any[] = []; alocacoes: any[] = []; create = new G<any>(); update = new G<any>(); remove = new G<string>(); moveMember = new G<any>();tipos=["PRESIDENCIA","VICE_PRESIDENCIA","SUPERINTENDENCIA","DIRETORIA","GERENCIA","TRIBO","SQUAD"];tipoLabels={PRESIDENCIA:"Presid\xEAncia",VICE_PRESIDENCIA:"Vice-presid\xEAncia",SUPERINTENDENCIA:"Superintend\xEAncia",DIRETORIA:"Diretoria",GERENCIA:"Ger\xEAncia",TRIBO:"Tribo",SQUAD:"Squad"};formAberto=!1;editingId="";form={tipo:"PRESIDENCIA",nome:"",descricao:"",parentIds:[],loIds:[]};membros: any[] = [];membroSel={personId:"",papel:"",cross:!1,subgrupo:""};grupoDefs=[{key:"folha",titulo:"Folha",cls:"g-folha"},{key:"terceiro",titulo:"Terceiros",cls:"g-terceiro"}];tbdVinculo="FOLHA";gerarAberto=!1;gerarLoId="";gerarParentId="";exportRootId="";ocultarValoresExport=!1;hiddenNodeIds: Set<string> | null = null;dragOrigem: any = null;dragOverNodeId="";tipoLabel(t){return this.tipoLabels[this.tipoNormalizado(t)]||this.tipoLabels[t]||t}tipoClasse(t){return this.tipoNormalizado(t)}tipoNormalizado(t){return t}tipoPermiteMarcacoesDeTime(t){let e=this.tipoNormalizado(t);return e==="TRIBO"||e==="SQUAD"}byOrdem(t,e){let n=t.ordem??0,o=e.ordem??0;return n!==o?n-o:String(t.nome||"").localeCompare(String(e.nome||""),"pt-BR")}paisDe(t){return t?((t.parentIds&&t.parentIds.length?t.parentIds:t.parentId?[t.parentId]:[])||[]).filter(n=>!!n):[]}parentVinculado(t){return this.form.parentIds.includes(t)}toggleParent(t){let e=this.form.parentIds.indexOf(t);e>=0?this.form.parentIds.splice(e,1):this.form.parentIds.push(t)}vinculoDestacado=null;alternarVinculo(t,e,n){n?.stopPropagation(),this.vinculoAtivo(t,e)?this.vinculoDestacado=null:this.vinculoDestacado={de:t,para:e}}vinculoAtivo(t,e){return!!this.vinculoDestacado&&this.vinculoDestacado.de===t&&this.vinculoDestacado.para===e}ehOrigemDestacada(t){return this.vinculoDestacado?.de===t}ehDestinoDestacado(t){return this.vinculoDestacado?.para===t}limparVinculoDestacado(){this.vinculoDestacado=null}nomePorId(t){let e=this.nodes.find(n=>n.id===t);return e?`${this.tipoLabel(e.tipo)} \xB7 ${e.nome}`:""}raizes(){let t=new Set(this.nodes.map(e=>e.id));return this.nodes.filter(e=>this.paisDe(e).filter(n=>t.has(n)).length===0).sort((e,n)=>this.byOrdem(e,n))}raizesVisiveis(){if(this.ensureHiddenLoaded(),this.exportRootId){let t=this.nodes.find(e=>e.id===this.exportRootId);if(t&&!this.estaEmCadeiaOculta(t))return[t]}return this.raizes().filter(t=>!this.isOculto(t.id))}filhosDe(t){return this.nodes.filter(e=>this.paisDe(e).includes(t)).sort((e,n)=>this.byOrdem(e,n))}filhosVisiveisDe(t){return this.ensureHiddenLoaded(),this.filhosDe(t).filter(e=>!this.isOculto(e.id))}paiPrincipalDeRender(t){let e=new Set(this.nodes.map(o=>o.id));return this.paisDe(t).filter(o=>e.has(o)&&!this.isOculto(o))[0]||null}filhosRenderVisiveisDe(t){return this.filhosVisiveisDe(t).filter(e=>this.paiPrincipalDeRender(e)===t)}ocultosDiretosRenderDe(t){return this.filhosDe(t).filter(e=>this.isOculto(e.id)&&this.paiPrincipalDeRender(e)===t)}temMultiplosPais(t){return this.paisDe(t).filter(e=>this.nodes.some(n=>n.id===e)).length>1}paisVisiveisDoNode(t){return this.paisDe(t).map(e=>this.nodes.find(n=>n.id===e)).filter(e=>!!e).sort((e,n)=>this.byOrdem(e,n))}paisLabel(t){let e=this.paisVisiveisDoNode(t);return e.length?`Ligado a: ${e.map(n=>n.nome).join(", ")}`:""}hiddenStorageKey(){let t=(localStorage.getItem("planner_user")||"").trim().toLowerCase();return t?`planner_hierarchy_hidden_${t}`:"planner_hierarchy_hidden"}ensureHiddenLoaded(){if(!this.hiddenNodeIds)try{let t=JSON.parse(localStorage.getItem(this.hiddenStorageKey())||"[]");this.hiddenNodeIds=new Set(Array.isArray(t)?t.map(String):[])}catch{this.hiddenNodeIds=new Set}}saveHiddenState(){this.ensureHiddenLoaded();let t=[...this.hiddenNodeIds||[]].filter(e=>this.nodes.some(n=>n.id===e));this.hiddenNodeIds=new Set(t),localStorage.setItem(this.hiddenStorageKey(),JSON.stringify(t))}isOculto(t){return this.ensureHiddenLoaded(),!!this.hiddenNodeIds?.has(t)}estaEmCadeiaOculta(t){this.ensureHiddenLoaded();let e=t,n=new Set;for(;e&&!n.has(e.id);){if(this.isOculto(e.id))return!0;n.add(e.id);let o=this.paisDe(e)[0];e=o?this.nodes.find(r=>r.id===o):void 0}return!1}ocultarCadeia(t,e){e?.stopPropagation(),this.ensureHiddenLoaded(),this.hiddenNodeIds?.add(t.id),this.exportRootId===t.id&&(this.exportRootId=""),this.saveHiddenState(),this.onHierarchyLayoutChange()}mostrarCadeia(t){this.ensureHiddenLoaded(),this.hiddenNodeIds?.delete(t),this.saveHiddenState(),this.onHierarchyLayoutChange()}limparOcultos(){this.ensureHiddenLoaded(),this.hiddenNodeIds?.clear(),this.saveHiddenState(),this.onHierarchyLayoutChange()}ocultosDiretosDe(t){return this.filhosDe(t).filter(e=>this.isOculto(e.id))}raizesOcultas(){return this.raizes().filter(t=>this.isOculto(t.id))}totalOcultos(){return this.ensureHiddenLoaded(),[...this.hiddenNodeIds||[]].filter(t=>this.nodes.some(e=>e.id===t)).length}countCadeia(t){return this.subtree(t.id).size}paisDisponiveis(){if(!this.editingId)return[...this.nodes].sort((e,n)=>this.byOrdem(e,n));let t=this.subtree(this.editingId);return this.nodes.filter(e=>!t.has(e.id)).sort((e,n)=>this.byOrdem(e,n))}subtree(t){let e=new Set([t]),n=!0;for(;n;){n=!1;for(let o of this.nodes)!e.has(o.id)&&this.paisDe(o).some(r=>e.has(r))&&(e.add(o.id),n=!0)}return e}totalPessoas(){let t=new Set;for(let e of this.nodes)for(let n of e.membros||[])this.membroContaNoTotal(n)&&t.add(this.norm(n.nomePessoa));return t.size}pessoaDebitaLo(t){let e=String(t?.perfilId||"").trim();if(e){let o=this.perfis.find(r=>String(r?.id||"").trim()===e);if(o)return o.debitaLo!==!1}let n=this.norm(this.perfilNomeDaPessoa(t));if(n){let o=this.perfis.find(r=>this.norm(r?.nomePerfil||r?.nome||"")===n);if(o)return o.debitaLo!==!1}return!0}membroContaNoTotal(t){let e=this.pessoaDoMembro(t);return e?this.pessoaDebitaLo(e):!0}norm(t){return String(t||"").trim().toLowerCase()}fotoDe(t){return this.fotos?.[this.norm(t)]||""}iniciais(t){let e=String(t||"").trim().split(/\s+/).filter(Boolean);return e.length?((e[0][0]||"")+(e.length>1&&e[e.length-1][0]||"")).toUpperCase():"?"}pessoaDoMembro(t){if(t?.personId){let e=this.pessoas.find(n=>n.id===t.personId);if(e)return e}return this.pessoas.find(e=>this.norm(e?.nome||"")===this.norm(t?.nomePessoa||""))||null}mostrarMarcacoesDeTime(t){return this.tipoPermiteMarcacoesDeTime(t.tipo)}mostrarPercentual(t){return this.mostrarMarcacoesDeTime(t)}percentualPessoa(t){if(t?.percentual!=null)return Math.round(t.percentual);let e=this.percentuais?.[this.norm(t.nomePessoa)];return e==null?null:Math.round(e)}corPercentual(t){let e=Math.max(0,Math.min(100,t??0))/100,n=[249,115,22],o=[37,99,235],r=n.map((c,p)=>Math.round(c+(o[p]-c)*e));return`rgb(${r[0]}, ${r[1]}, ${r[2]})`}pctEditKey=null;pctEditValue=null;pctKey(t,e){return`${t.id}|${e}`}editandoPct(t,e){return this.pctEditKey===this.pctKey(t,e)}iniciarEdicaoPct(t,e,n,o){if(!this.mostrarPercentual(t))return;o.stopPropagation(),o.preventDefault(),this.pctEditKey=this.pctKey(t,e);let r=this.percentualPessoa(n);this.pctEditValue=r??100}salvarPct(t,e){if(!this.mostrarPercentual(t)){this.cancelarEdicaoPct();return}if(this.pctEditKey!==this.pctKey(t,e))return;let n=Number(this.pctEditValue),o=Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):null,r=(t.membros||[]).map((c,p)=>p===e?Y($({},c),{percentual:o}):c);this.pctEditKey=null,this.pctEditValue=null,this.emitirAtualizacaoMembros(t,r)}cancelarEdicaoPct(){this.pctEditKey=null,this.pctEditValue=null}ehTerceiro(t){let e=this.pessoaDoMembro(t);return e?String(e.tipoVinculo||"").toUpperCase()==="TERCEIRO":String(t?.vinculo||"").toUpperCase()==="TERCEIRO"}vinculoLabel(t){return this.ehTerceiro(t)?"Terceiro":"Folha"}papelDoMembro(t){if(t?.papel&&t.papel.trim())return this.primeiraPartePerfil(t.papel);let e=this.pessoaDoMembro(t);return this.primeiraPartePerfil(this.perfilNomeDaPessoa(e))}primeiraPartePerfil(t){return String(t||"").split("|")[0].trim()}perfilNomeDaPessoa(t){if(!t)return"";let e=String(t?.perfilNome||t?.perfil||"").trim();if(e)return e;let n=String(t?.perfilId||"").trim();if(!n)return"";let o=this.perfis.find(r=>String(r?.id||"").trim()===n);return String(o?.nomePerfil||o?.nome||"").trim()}areaDoMembro(t){let e=this.pessoaDoMembro(t);if(!e)return"";let n=this.perfilNomeDaPessoa(e);return this.ehTerceiro(t)?e.consultoria||this.primeiraPartePerfil(n)||"":this.primeiraPartePerfil(n)}metaDoMembro(t){let e=this.papelDoMembro(t),n=this.areaDoMembro(t);return e&&n&&this.norm(this.primeiraPartePerfil(e))===this.norm(this.primeiraPartePerfil(n))?e:[e,n].filter(Boolean).join(" \xB7 ")}ehCross(t){return!!t?.cross}membrosPorGrupo(t,e,n=null){return(t.membros||[]).map((o,r)=>({m:o,idx:r})).filter(o=>n!=null&&(o.m.subgrupo||"").trim()!==n?!1:this.ehTerceiro(o.m)===(e==="terceiro")).sort((o,r)=>this.rankPapel(t,o.m)-this.rankPapel(t,r.m)||o.idx-r.idx)}subgruposDoNode(t){let e=new Set,n=[];for(let o of t.membros||[]){let r=(o.subgrupo||"").trim();!r||e.has(r)||(e.add(r),n.push({key:r,label:r}))}return n}subgruposParaRender(t){let e=this.subgruposDoNode(t);if(!e.length)return[{key:"__flat__",label:"",filter:null}];let n=[];(t.membros||[]).some(o=>!(o.subgrupo||"").trim())&&n.push({key:"__flat__",label:"",filter:""});for(let o of e)n.push({key:o.key,label:o.label,filter:o.key});return n}subgruposSugeridos(){let t=new Set;for(let e of this.nodes)for(let n of e.membros||[]){let o=(n.subgrupo||"").trim();o&&t.add(o)}return Array.from(t).sort((e,n)=>e.localeCompare(n,"pt-BR"))}rankPapel(t,e){let n=this.norm(this.papelDoMembro(e)),o=this.tipoNormalizado(t.tipo);return o==="SUPERINTENDENCIA"?n==="superintendente"?0:n.includes("gerente")?1:2:o==="TRIBO"?n==="lpt"?0:n==="ltt"||n==="lnp"?1:2:o==="SQUAD"?n==="it lead"||n==="pm"?0:1:0}membrosPorVinculo(t,e){return this.membrosPorGrupo(t,e?"terceiro":"folha")}membroContaFte(t){let e=this.pessoaDoMembro(t);return!(e&&e.contaFte===!1)}fteMembro(t){return this.membroContaFte(t)?(this.percentualPessoa(t)??100)/100:0}fteGrupo(t,e,n=null){return this.mostrarMarcacoesDeTime(t)?this.membrosPorGrupo(t,e,n).reduce((o,r)=>o+this.fteMembro(r.m),0):0}formatFte(t){let e=Math.round(t*100)/100;return Number.isInteger(e)?String(e):e.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:2})}percentualGrupoSquad(t,e,n=null){if(t.tipo!=="SQUAD"||e!=="folha"&&e!=="terceiro")return"";let o=this.fteGrupo(t,"folha",n),r=this.fteGrupo(t,"terceiro",n),c=o+r;return c?`${Math.round((e==="folha"?o:r)/c*100)}%`:""}resumoGrupoSquad(t,e,n=null){if(!this.mostrarMarcacoesDeTime(t)){let c=this.membrosPorGrupo(t,e,n).length;return c?String(c):""}let o=this.formatFte(this.fteGrupo(t,e,n)),r=this.percentualGrupoSquad(t,e,n);return r?`${o} \xB7 ${r}`:o}abrirNovo(t=""){this.formAberto=!0,this.editingId="",this.form={tipo:t?this.tipoSugerido(t):"PRESIDENCIA",nome:"",descricao:"",parentIds:t?[t]:[],loIds:[]},this.membros=[],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:""}}tipoSugerido(t){let e=this.nodes.find(o=>o.id===t),n=e?this.tipos.indexOf(this.tipoNormalizado(e.tipo)):-1;return n>=0&&n<this.tipos.length-1?this.tipos[n+1]:"SQUAD"}editar(t){this.formAberto=!0,this.editingId=t.id,this.form={tipo:this.tipoNormalizado(t.tipo),nome:t.nome,descricao:t.descricao||"",parentIds:[...this.paisDe(t)],loIds:[...t.loIds||[]]},this.membros=(t.membros||[]).map(e=>({personId:e.personId??null,nomePessoa:e.nomePessoa,papel:e.papel||"",cross:!!e.cross,vinculo:e.vinculo??null,percentual:e.percentual??null,subgrupo:e.subgrupo??null})),this.membroSel={personId:"",papel:"",cross:!1,subgrupo:""}}cancelar(){this.formAberto=!1,this.editingId="",this.membros=[]}get nomeValido(){return(this.form.nome||"").trim().length>0}get formValido(){return this.nomeValido}adicionarMembro(){if(!this.membroSel.personId){this.toast.show("Selecione uma pessoa para adicionar \xE0 estrutura.","error");return}let t=this.pessoas.find(n=>n.id===this.membroSel.personId);if(!t){this.toast.show("Pessoa selecionada n\xE3o foi encontrada. Atualize a lista e tente novamente.","error");return}if(this.membros.some(n=>this.norm(n.nomePessoa)===this.norm(t.nome))){this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo},this.toast.show("Essa pessoa j\xE1 est\xE1 vinculada nesta estrutura.","error");return}let e=this.membroSel.subgrupo.trim();this.membros=[...this.membros,{personId:t.id,nomePessoa:t.nome,papel:this.membroSel.papel.trim(),cross:this.membroSel.cross,subgrupo:e||null}],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo}}adicionarMembroTbd(){let t=this.membroSel.papel.trim();if(!t){this.toast.show("Informe o cargo da pessoa TBD antes de adicionar.","error");return}if(this.norm(t)==="to be defined"||this.norm(t)===this.norm(this.tbdNome)){this.toast.show('O subt\xEDtulo do TBD deve ser o cargo da vaga, n\xE3o "To be defined".',"error");return}let e=this.membroSel.subgrupo.trim();this.membros=[...this.membros,{personId:null,nomePessoa:this.tbdNome,papel:t,cross:this.membroSel.cross,vinculo:this.tbdVinculo,subgrupo:e||null}],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo},this.tbdVinculo="FOLHA"}removerMembro(t){this.membros=this.membros.filter((e,n)=>n!==t)}podeSalvar(){return!!this.form.nome.trim()&&this.tipos.includes(this.form.tipo)}validarCadastro(){let t=this.form.nome.trim();if(!this.tipos.includes(this.form.tipo))return"Selecione um tipo v\xE1lido para a estrutura.";if(!t)return"Informe o nome da estrutura.";if(t.length<2)return"O nome da estrutura precisa ter pelo menos 2 caracteres.";for(let c of this.form.parentIds)if(!this.nodes.some(p=>p.id===c))return"Uma das estruturas superiores selecionadas n\xE3o existe mais.";let e=this.form.parentIds,n=this.norm(t);if(this.nodes.some(c=>{if(c.id===this.editingId||this.norm(c.nome)!==n)return!1;let p=this.paisDe(c);return e.length===0&&p.length===0?!0:p.some(m=>e.includes(m))}))return"J\xE1 existe uma estrutura com esse nome no mesmo n\xEDvel.";let r=new Set;for(let c of this.membros){let p=String(c?.nomePessoa||"").trim();if(!p)return"Remova ou corrija membros sem nome antes de salvar.";if(this.norm(p)===this.norm(this.tbdNome)){let h=String(c?.papel||"").trim();if(!h)return"Todo TBD precisa ter um cargo informado.";if(this.norm(h)==="to be defined"||this.norm(h)===this.norm(this.tbdNome))return'O subt\xEDtulo do TBD deve ser o cargo da vaga, n\xE3o "To be defined".';continue}let m=this.norm(p);if(r.has(m))return`A pessoa "${p}" foi adicionada mais de uma vez.`;r.add(m)}return""}salvar(){let t=this.validarCadastro();if(t){this.toast.show(t,"error");return}let e=this.tipoNormalizado(this.form.tipo),n={tipo:e,nome:this.form.nome.trim(),descricao:this.form.descricao.trim(),parentIds:[...this.form.parentIds],parentId:this.form.parentIds[0]||null,membros:this.membros.map(o=>({personId:o.personId,nomePessoa:o.nomePessoa,papel:o.papel,cross:!!o.cross,vinculo:o.vinculo??null,percentual:this.tipoPermiteMarcacoesDeTime(e)?o.percentual??null:null,subgrupo:o.subgrupo??null})),loIds:[...this.form.loIds]};this.editingId?this.update.emit($({id:this.editingId},n)):this.create.emit(n),this.cancelar()}excluir(t){this.remove.emit(t.id),this.editingId===t.id&&this.cancelar()}losDisponiveis(){return[...this.linhasOrcamentarias].sort((t,e)=>{let n=Number(e?.ano||0)-Number(t?.ano||0);return n!==0?n:String(t?.codigo||t?.nome||"").localeCompare(String(e?.codigo||e?.nome||""),"pt-BR")})}loVinculada(t){return this.form.loIds.includes(t)}toggleLo(t){this.form.loIds=this.loVinculada(t)?this.form.loIds.filter(e=>e!==t):[...this.form.loIds,t]}somaLosForm(){return this.round2(this.form.loIds.reduce((t,e)=>t+this.valorLoPorId(e),0))}loLabel(t){let e=this.linhasOrcamentarias.find(n=>n.id===t);return e&&(e.codigo||e.nome)||t}losDoNode(t){return t.loIds||[]}round2(t){return Math.round((Number(t)||0)*100)/100}valorLoPorId(t){let e=this.linhasOrcamentarias.find(r=>r.id===t);if(!e)return 0;let n=Number(e.valorTotal||0),o=(this.ajustes||[]).filter(r=>r.budgetLineId===t).reduce((r,c)=>r+(String(c?.tipo||"").toUpperCase()==="APORTE"?Number(c?.valor||0):-Number(c?.valor||0)),0);return this.round2(n+o)}loIdsSubtree(t){let e=new Set,n=o=>{(o.loIds||[]).forEach(r=>e.add(r)),this.filhosVisiveisDe(o.id).forEach(n)};return n(t),e}valorAgregado(t){let e=0;for(let n of this.loIdsSubtree(t))e+=this.valorLoPorId(n);return this.round2(e)}temValorAgregado(t){return this.loIdsSubtree(t).size>0}currency(t){return(Number(t)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}formatCompact(t){let e=Number(t)||0,n=Math.abs(e);return n>=1e6?"R$ "+(e/1e6).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1})+" MM":n>=1e3?"R$ "+(e/1e3).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1})+" k":"R$ "+e.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})}membroForaDaLo(t,e){if(!this.mostrarMarcacoesDeTime(t)||!e.personId&&this.norm(e.nomePessoa)===this.norm(this.tbdNome))return!1;let n=t.loIds||[];if(!n.length)return!1;let o=this.norm(e.nomePessoa);return!this.alocacoes.some(r=>n.includes(r.linhaOrcamentariaId)&&this.norm(r.nomePessoa)===o)}nodeQtdAlertas(t){return this.mostrarMarcacoesDeTime(t)?(t.membros||[]).filter(e=>this.membroForaDaLo(t,e)).length:0}abrirGerar(){this.gerarAberto=!0,this.gerarLoId="",this.gerarParentId=""}cancelarGerar(){this.gerarAberto=!1}pessoasDaLo(t){let e=new Set,n=[];for(let o of this.alocacoes){if(o.linhaOrcamentariaId!==t||o.draft)continue;let r=String(o.nomePessoa||"").trim();if(!r)continue;let c=this.norm(r);if(e.has(c))continue;e.add(c);let p=this.pessoas.find(m=>this.norm(m.nome)===c);n.push({personId:p?.id??null,nomePessoa:r,papel:o.perfilNome||"",cross:!1})}return n}qtdPessoasDaLo(t){return t?this.pessoasDaLo(t).length:0}gerarSquadDaLo(){let t=this.linhasOrcamentarias.find(n=>n.id===this.gerarLoId);if(!t)return;let e=this.pessoasDaLo(t.id);this.create.emit({tipo:"SQUAD",nome:t.codigo||t.nome||"Squad",descricao:t.nome&&t.codigo?t.nome:"",parentId:this.gerarParentId||null,membros:e.map(n=>({personId:n.personId,nomePessoa:n.nomePessoa,papel:n.papel})),loIds:[t.id]}),this.gerarAberto=!1,this.gerarLoId="",this.gerarParentId=""}onMembroDragStart(t,e,n){this.dragOrigem={nodeId:t.id,index:e},n.dataTransfer&&(n.dataTransfer.effectAllowed="move")}onMembroDragEnd(){this.dragOrigem=null,this.dragOverNodeId=""}onNodeDragOver(t,e){this.dragOrigem&&(e.preventDefault(),e.dataTransfer&&(e.dataTransfer.dropEffect="move"),this.dragOverNodeId=t.id)}onNodeDragLeave(t){this.dragOverNodeId===t.id&&(this.dragOverNodeId="")}onNodeDrop(t,e){e.preventDefault(),this.dragOverNodeId="";let n=this.dragOrigem;if(this.dragOrigem=null,!n||n.nodeId===t.id)return;let o=this.nodes.find(c=>c.id===n.nodeId);if(!o)return;let r=(o.membros||[])[n.index];r&&this.moveMember.emit({fromNodeId:o.id,toNodeId:t.id,nomePessoa:r.nomePessoa})}removerMembroDoNode(t,e,n){n.stopPropagation();let o=(t.membros||[]).filter((r,c)=>c!==e);this.emitirAtualizacaoMembros(t,o)}emitirAtualizacaoMembros(t,e){let n=this.tipoNormalizado(t.tipo);this.update.emit({id:t.id,tipo:n,nome:t.nome,descricao:t.descricao||"",parentId:t.parentId||null,ordem:t.ordem,membros:e.map(o=>({personId:o.personId??null,nomePessoa:o.nomePessoa,papel:o.papel||"",cross:!!o.cross,vinculo:o.vinculo??null,percentual:this.tipoPermiteMarcacoesDeTime(n)?o.percentual??null:null,subgrupo:o.subgrupo??null})),loIds:[...t.loIds||[]]})}nodesParaExportar(){return this.ensureHiddenLoaded(),this.nodes.filter(t=>!this.estaEmCadeiaOculta(t)).sort((t,e)=>{let n=this.tipos.indexOf(this.tipoNormalizado(t.tipo))-this.tipos.indexOf(this.tipoNormalizado(e.tipo));return n!==0?n:this.byOrdem(t,e)})}async exportar(){let t=this.exportRootId?this.nodes.find(m=>m.id===this.exportRootId):null,e=t&&!this.estaEmCadeiaOculta(t)?[t]:this.raizesVisiveis();if(!e.length)return;let n=t?t.nome:"Hierarquia Organizacional",o=e.map(m=>this.renderNodeHtml(m)).join(""),r=new Date().toLocaleDateString("pt-BR"),c=document.createElement("div");c.innerHTML=`
 <style>
   .hierarchy-export, .hierarchy-export * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
   .hierarchy-export {
@@ -1043,108 +298,18 @@ export class HierarchyPanelComponent {
     <header class="hero">
       <div>
         <div class="eyebrow">Organograma</div>
-        <h1>${this.escapeHtml(titulo)}</h1>
-        <div class="sub">${selectedRoot ? this.escapeHtml(this.tipoLabel(selectedRoot.tipo)) + ' · ' : ''}Exportado em ${dataStr}</div>
+        <h1>${this.escapeHtml(n)}</h1>
+        <div class="sub">${t?this.escapeHtml(this.tipoLabel(t.tipo))+" \xB7 ":""}Exportado em ${r}</div>
       </div>
       <div class="metrics">
-        <div class="metric"><span>Estruturas</span><strong>${this.countSubtreeNodes(raizes)}</strong></div>
-        <div class="metric"><span>Pessoas</span><strong>${this.countSubtreePessoas(raizes)}</strong></div>
-        <div class="metric"><span>Raízes</span><strong>${raizes.length}</strong></div>
+        <div class="metric"><span>Estruturas</span><strong>${this.countSubtreeNodes(e)}</strong></div>
+        <div class="metric"><span>Pessoas</span><strong>${this.countSubtreePessoas(e)}</strong></div>
+        <div class="metric"><span>Ra\xEDzes</span><strong>${e.length}</strong></div>
       </div>
     </header>
-    <div class="tree-viewport"><div class="tree">${arvoreHtml}</div></div>
-    <div class="footer">Planner · apresentação em PNG</div>
+    <div class="tree-viewport"><div class="tree">${o}</div></div>
   </div>
-</section>`;
-
-    const host = document.createElement('div');
-    Object.assign(host.style, {
-      position: 'fixed',
-      top: '-100000px',
-      left: '-100000px',
-      zIndex: '-1',
-      pointerEvents: 'none',
-    });
-    host.appendChild(stage);
-    document.body.appendChild(host);
-
-    try {
-      const { default: html2canvas } = await import('html2canvas');
-      await this.waitForExportImages(stage);
-      const exportEl = stage.querySelector<HTMLElement>('.hierarchy-export');
-      if (!exportEl) return;
-      const canvas = await html2canvas(exportEl, {
-        scale: Math.max(3, window.devicePixelRatio || 1),
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: null,
-        logging: false,
-        width: exportEl.scrollWidth,
-        height: exportEl.scrollHeight,
-        windowWidth: exportEl.scrollWidth,
-        windowHeight: exportEl.scrollHeight,
-      });
-      const link = document.createElement('a');
-      link.download = `hierarquia_${this.safeFilePart(titulo)}_${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } finally {
-      document.body.removeChild(host);
-    }
-  }
-
-  private waitForExportImages(root: HTMLElement): Promise<void> {
-    const images = Array.from(root.querySelectorAll('img'));
-    if (!images.length) return Promise.resolve();
-    return Promise.all(images.map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise<void>(resolve => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-      });
-    })).then(() => undefined);
-  }
-
-  private countSubtreeNodes(roots: HierarchyNode[]): number {
-    const visitados = new Set<string>();
-    const visit = (node: HierarchyNode) => {
-      if (visitados.has(node.id)) return;
-      visitados.add(node.id);
-      this.filhosRenderVisiveisDe(node.id).forEach(visit);
-    };
-    roots.forEach(visit);
-    return visitados.size;
-  }
-
-  private countSubtreePessoas(roots: HierarchyNode[]): number {
-    const pessoas = new Set<string>();
-    const visitados = new Set<string>();
-    const visit = (node: HierarchyNode) => {
-      if (visitados.has(node.id)) return;
-      visitados.add(node.id);
-      (node.membros || []).forEach(m => pessoas.add(this.norm(m.nomePessoa)));
-      this.filhosRenderVisiveisDe(node.id).forEach(visit);
-    };
-    roots.forEach(visit);
-    return pessoas.size;
-  }
-
-  private safeFilePart(value: string): string {
-    return String(value || 'hierarquia')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9_-]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 48) || 'hierarquia';
-  }
-
-  // ── Exportação para apresentação (abre janela e imprime/salva PDF) ──────
-  exportarImpressao() {
-    const raizes = this.raizesVisiveis();
-    if (!raizes.length) return;
-    const arvoreHtml = raizes.map(r => this.renderNodeHtml(r)).join('');
-    const dataStr = new Date().toLocaleDateString('pt-BR');
-    const doc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8" />
+</section>`;let p=document.createElement("div");Object.assign(p.style,{position:"fixed",top:"-100000px",left:"-100000px",zIndex:"-1",pointerEvents:"none"}),p.appendChild(c),document.body.appendChild(p);try{let{default:m}=await import('html2canvas');await this.waitForExportImages(c);let h=c.querySelector(".hierarchy-export");if(!h)return;let b=await m(h,{scale:Math.max(3,window.devicePixelRatio||1),useCORS:!0,allowTaint:!1,backgroundColor:null,logging:!1,width:h.scrollWidth,height:h.scrollHeight,windowWidth:h.scrollWidth,windowHeight:h.scrollHeight}),w=document.createElement("a");w.download=`hierarquia_${this.safeFilePart(n)}_${new Date().toISOString().slice(0,10)}.png`,w.href=b.toDataURL("image/png"),w.click()}finally{document.body.removeChild(p)}}waitForExportImages(t){let e=Array.from(t.querySelectorAll("img"));return e.length?Promise.all(e.map(n=>n.complete?Promise.resolve():new Promise(o=>{n.onload=()=>o(),n.onerror=()=>o()}))).then(()=>{}):Promise.resolve()}countSubtreeNodes(t){let e=new Set,n=o=>{e.has(o.id)||(e.add(o.id),this.filhosRenderVisiveisDe(o.id).forEach(n))};return t.forEach(n),e.size}countSubtreePessoas(t){let e=new Set,n=new Set,o=r=>{n.has(r.id)||(n.add(r.id),(r.membros||[]).forEach(c=>e.add(this.norm(c.nomePessoa))),this.filhosRenderVisiveisDe(r.id).forEach(o))};return t.forEach(o),e.size}safeFilePart(t){return String(t||"hierarquia").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,48)||"hierarquia"}exportarImpressao(){let t=this.raizesVisiveis();if(!t.length)return;let e=t.map(c=>this.renderNodeHtml(c)).join(""),o=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8" />
 <title>Hierarquia Organizacional</title>
 <style>
   * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
@@ -1207,76 +372,17 @@ export class HierarchyPanelComponent {
   @media print { body { padding: 12px; } .tree { gap: 20px; } }
 </style></head><body>
   <h1>Hierarquia Organizacional</h1>
-  <div class="sub">Exportado em ${dataStr}</div>
-  <div class="tree">${arvoreHtml}</div>
+  <div class="sub">Exportado em ${new Date().toLocaleDateString("pt-BR")}</div>
+  <div class="tree">${e}</div>
   <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };<\/script>
-</body></html>`;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.open();
-    win.document.write(doc);
-    win.document.close();
-  }
-
-  private escapeHtml(s: string): string {
-    return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
-  }
-
-  private renderMembroHtml(node: HierarchyNode, m: HierarchyMember): string {
-    const foto = this.fotoDe(m.nomePessoa);
-    const av = foto
-      ? `<span class="av"><img src="${foto}" alt="" /></span>`
-      : `<span class="av">${this.escapeHtml(this.iniciais(m.nomePessoa))}</span>`;
-    const meta = this.metaDoMembro(m);
-    const metaText = meta ? `<span>${this.escapeHtml(meta)}</span>` : '';
-    const pct = this.percentualPessoa(m);
-    const pctHtml = this.mostrarPercentual(node)
-      ? `<span class="pct${pct == null ? ' vazio' : ''}"${pct != null ? ` style="background:${this.escapeHtml(this.corPercentual(pct))};color:#fff"` : ''}>${pct != null ? `${pct}%` : '—'}</span>`
-      : '';
-    const metaHtml = (metaText || pctHtml) ? `<span class="meta">${metaText}${pctHtml}</span>` : '';
-    const crossHtml = this.ehCross(m) ? `<span class="cross">Cross</span>` : '';
-    const noFteHtml = this.mostrarMarcacoesDeTime(node) && !this.membroContaFte(m) ? `<span class="nofte">∅</span>` : '';
-    const alertaHtml = this.membroForaDaLo(node, m) ? `<span class="alerta">⚠</span>` : '';
-    return `<div class="m${this.membroForaDaLo(node, m) ? ' fora-lo' : ''}">${av}<div class="m-info">${crossHtml}<span class="m-nome">${this.escapeHtml(m.nomePessoa)}</span>${metaHtml}</div>${noFteHtml}${alertaHtml}</div>`;
-  }
-
-  private renderGrupoHtml(node: HierarchyNode, grupo: string, cls: string, subgrupo: string | null): string {
-    const itens = this.membrosPorGrupo(node, grupo, subgrupo);
-    if (!itens.length) return '';
-    const linhas = itens.map(x => this.renderMembroHtml(node, x.m)).join('');
-    return `<div class="grupo ${cls}"><div class="grupo-head"><span class="grupo-count">${this.escapeHtml(this.resumoGrupoSquad(node, grupo, subgrupo))}</span></div><div class="grupo-lista">${linhas}</div></div>`;
-  }
-
-  private renderSubgrupoHtml(node: HierarchyNode, sg: { key: string; label: string; filter: string | null }): string {
-    const grupos = this.grupoDefs
-      .map(grupo => this.renderGrupoHtml(node, grupo.key, grupo.cls, sg.filter))
-      .join('');
-    if (!grupos) return '';
-    const head = sg.key !== '__flat__' ? `<div class="subgrupo-head">${this.escapeHtml(sg.label)}</div>` : '';
-    return `<div class="subgrupo${sg.key === '__flat__' ? ' flat' : ''}">${head}${grupos}</div>`;
-  }
-
-  private renderNodeHtml(node: HierarchyNode): string {
-    const grupos = this.subgruposParaRender(node).map(sg => this.renderSubgrupoHtml(node, sg)).join('');
-    const filhos = this.filhosRenderVisiveisDe(node.id);
-    const filhosHtml = filhos.length ? `<div class="children">${filhos.map(f => this.renderNodeHtml(f)).join('')}</div>` : '';
-    const desc = node.descricao ? `<div class="desc">${this.escapeHtml(node.descricao)}</div>` : '';
-    const membrosBlock = grupos ? `<div class="membros">${grupos}</div>` : '';
-    const pais = this.paisVisiveisDoNode(node);
-    const multiParentHtml = pais.length > 1
-      ? `<div class="multi-parent-export">${pais.map(p => `<span>${this.escapeHtml(p.nome)}</span>`).join('')}</div>`
-      : '';
-    const valor = (this.temValorAgregado(node) && !this.ocultarValoresExport)
-      ? `<div class="valor">Σ LOs: <strong>${this.escapeHtml(this.formatCompact(this.valorAgregado(node)))}</strong></div>`
-      : '';
-    return `<div class="node t-${this.tipoClasse(node.tipo)}${pais.length > 1 ? ' multi-parent' : ''}">
-      ${multiParentHtml}
+</body></html>`,r=window.open("","_blank");r&&(r.document.open(),r.document.write(o),r.document.close())}escapeHtml(t){return String(t||"").replace(/[&<>"']/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[e]||e)}renderMembroHtml(t,e){let n=this.fotoDe(e.nomePessoa),o=n?`<span class="av"><img src="${n}" alt="" /></span>`:`<span class="av">${this.escapeHtml(this.iniciais(e.nomePessoa))}</span>`,r=this.metaDoMembro(e),c=r?`<span>${this.escapeHtml(r)}</span>`:"",p=this.percentualPessoa(e),m=this.mostrarPercentual(t)?`<span class="pct${p==null?" vazio":""}"${p!=null?` style="background:${this.escapeHtml(this.corPercentual(p))};color:#fff"`:""}>${p!=null?`${p}%`:"\u2014"}</span>`:"",h=c||m?`<span class="meta">${c}${m}</span>`:"",b=this.ehCross(e)?'<span class="cross">Cross</span>':"",w=this.mostrarMarcacoesDeTime(t)&&!this.membroContaFte(e)?'<span class="nofte">\u2205</span>':"";return`<div class="m">${o}<div class="m-info">${b}<span class="m-nome">${this.escapeHtml(e.nomePessoa)}</span>${h}</div>${w}</div>`}renderGrupoHtml(t,e,n,o){let r=this.membrosPorGrupo(t,e,o);if(!r.length)return"";let c=r.map(p=>this.renderMembroHtml(t,p.m)).join("");return`<div class="grupo ${n}"><div class="grupo-head"><span class="grupo-count">${this.escapeHtml(this.resumoGrupoSquad(t,e,o))}</span></div><div class="grupo-lista">${c}</div></div>`}renderSubgrupoHtml(t,e){let n=this.grupoDefs.map(r=>this.renderGrupoHtml(t,r.key,r.cls,e.filter)).join("");if(!n)return"";let o=e.key!=="__flat__"?`<div class="subgrupo-head">${this.escapeHtml(e.label)}</div>`:"";return`<div class="subgrupo${e.key==="__flat__"?" flat":""}">${o}${n}</div>`}renderNodeHtml(t){let e=this.subgruposParaRender(t).map(b=>this.renderSubgrupoHtml(t,b)).join(""),n=this.filhosRenderVisiveisDe(t.id),o=n.length?`<div class="children">${n.map(b=>this.renderNodeHtml(b)).join("")}</div>`:"",r=t.descricao?`<div class="desc">${this.escapeHtml(t.descricao)}</div>`:"",c=e?`<div class="membros">${e}</div>`:"",p=this.paisVisiveisDoNode(t),m=p.length>1?`<div class="multi-parent-export">${p.map(b=>`<span>${this.escapeHtml(b.nome)}</span>`).join("")}</div>`:"",h=this.temValorAgregado(t)&&!this.ocultarValoresExport?`<div class="valor">\u03A3 LOs: <strong>${this.escapeHtml(this.formatCompact(this.valorAgregado(t)))}</strong></div>`:"";return`<div class="node t-${this.tipoClasse(t.tipo)}${p.length>1?" multi-parent":""}">
+      ${m}
       <div class="card">
-        <div class="tipo">${this.escapeHtml(this.tipoLabel(node.tipo))}</div>
-        <div class="nome">${this.escapeHtml(node.nome)}</div>
-        ${desc}${valor}${membrosBlock}
+        <div class="tipo">${this.escapeHtml(this.tipoLabel(t.tipo))}</div>
+        <div class="nome">${this.escapeHtml(t.nome)}</div>
+        ${r}${h}${c}
       </div>
-      ${filhosHtml}
-    </div>`;
-  }
+      ${o}
+    </div>`}
+
 }

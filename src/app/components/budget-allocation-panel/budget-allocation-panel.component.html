@@ -658,7 +658,7 @@
                 } @else if (isPessoaPlaneada(a)) {
                   <span class="pessoa-badge badge-planejada" style="font-size:.72rem">Planejada</span>
                 } @else {
-                  @if (getCategoriaDaPessoa(a) === 'TERCEIRO') { Prestador de serviço } @else { Folha }
+                  @if (getCategoriaDaPessoa(a) === 'TERCEIRO') { Prestador } @else { Folha }
                   @if (getCategoriaDaPessoa(a) === 'TERCEIRO' && teamsUrlPrestador(a.nomePessoa)) {
                     <a
                       class="teams-link"
@@ -921,11 +921,11 @@
     </select>
     <select [(ngModel)]="pessoaRapida.tipoVinculo">
       <option value="BV">Folha</option>
-      <option value="TERCEIRO">Prestador de serviço</option>
+      <option value="TERCEIRO">Prestador</option>
     </select>
     @if (pessoaRapida.tipoVinculo === 'TERCEIRO') {
       <select [(ngModel)]="pessoaRapida.consultoria">
-        <option value="">Selecione o prestador de serviço</option>
+        <option value="">Selecione o Prestador</option>
         @for (c of consultorias; track c.id) {
           <option [value]="c.nome">{{ c.nome }}</option>
         }

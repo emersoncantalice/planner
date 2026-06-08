@@ -7,7 +7,7 @@
 
 .dashboard {
   display: grid;
-  gap: 14px;
+  gap: 18px;
   min-width: 0;
 }
 
@@ -33,55 +33,143 @@
 :host(.dashboard-only) .card.dashboard {
   border: 0;
   box-shadow: none;
+  padding: 2px 0 0;
 }
 
 .dash-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 16px;
+  padding: 2px 0 4px;
+  min-width: 0;
+}
+
+.dash-head h2 {
+  margin: 0;
+  color: #082a5e;
+  font-size: 1.28rem;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: 0;
 }
 
 .dash-year {
   display: grid;
-  gap: 4px;
-  min-width: 120px;
+  gap: 5px;
+  min-width: 132px;
+  flex: 0 0 auto;
 }
 
 .dash-year span {
-  font-size: .75rem;
-  color: #3a5b90;
-  font-weight: 700;
+  font-size: .72rem;
+  color: #214d8f;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .dash-year select {
   margin: 0;
+  height: 42px;
+  border-radius: 12px;
+  background: #ffffff;
+  border-color: #b8d0fb;
+  color: #082a5e;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(29, 99, 218, .08);
 }
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
   min-width: 0;
 }
 
 .kpi {
-  border: 1px solid #cfe0ff;
-  border-radius: 10px;
-  padding: 10px;
-  background: #f8fbff;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d8e6ff;
+  border-radius: 12px;
+  padding: 13px 14px 12px;
+  background: #ffffff;
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  min-height: 78px;
+  align-content: center;
+  box-shadow: 0 8px 20px rgba(25, 75, 160, .07);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--kpi-accent, #1d63da);
+}
+
+.kpi::after {
+  content: "";
+  position: absolute;
+  right: -28px;
+  top: -32px;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--kpi-accent, #1d63da) 12%, transparent);
+  pointer-events: none;
+}
+
+.kpi:hover {
+  border-color: color-mix(in srgb, var(--kpi-accent, #1d63da) 45%, #d8e6ff);
+  box-shadow: 0 12px 26px rgba(25, 75, 160, .11);
+  transform: translateY(-1px);
 }
 
 .kpi span {
-  font-size: .75rem;
-  color: #3a5b90;
+  position: relative;
+  z-index: 1;
+  font-size: .69rem;
+  line-height: 1.2;
+  color: #315c96;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 
 .kpi strong {
-  font-size: 1rem;
-  color: #0d2f67;
+  position: relative;
+  z-index: 1;
+  font-size: 1.12rem;
+  line-height: 1.1;
+  color: #082a5e;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.kpi-blue { --kpi-accent: #1d63da; background: linear-gradient(135deg, #ffffff, #f4f8ff); }
+.kpi-green { --kpi-accent: #16a34a; background: linear-gradient(135deg, #ffffff, #f2fbf6); }
+.kpi-sky { --kpi-accent: #0ea5e9; background: linear-gradient(135deg, #ffffff, #f0f9ff); }
+.kpi-indigo { --kpi-accent: #4f46e5; background: linear-gradient(135deg, #ffffff, #f4f5ff); }
+.kpi-amber { --kpi-accent: #d97706; background: linear-gradient(135deg, #ffffff, #fff8eb); }
+
+.kpi-balance {
+  --kpi-accent: #16a34a;
+  background: linear-gradient(135deg, #ffffff, #f2fbf6);
+}
+
+.kpi-balance.negative {
+  --kpi-accent: #dc2626;
+  background: linear-gradient(135deg, #ffffff, #fff1f1);
+}
+
+.kpi-balance.negative strong {
+  color: #9f1239;
+}
+
+.kpi-balance.positive strong {
+  color: #0f6b3a;
 }
 
 .chart, .proj-list {
@@ -302,7 +390,7 @@
 
 @media (max-width: 900px) {
   .kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   }
 
   .proj-list-actions {
@@ -320,7 +408,7 @@
   .dash-head {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 10px;
   }
 
   .dash-year {
@@ -329,7 +417,16 @@
 
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 9px;
+  }
+
+  .kpi {
+    min-height: 74px;
+    padding: 11px 12px 10px;
+  }
+
+  .kpi strong {
+    font-size: 1rem;
   }
 
   .proj-list-head {
@@ -358,7 +455,7 @@
 
 @media (max-width: 480px) {
   .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 6px;
   }
 

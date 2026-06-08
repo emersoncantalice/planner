@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
@@ -7,6 +7,7 @@ import { SearchableSelectDirective } from '../../core/searchable-select.directiv
   selector: 'app-indicators-panel',
   standalone: true,
   imports: [CommonModule, FormsModule, SearchableSelectDirective],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './indicators-panel.component.html',
   styleUrl: './indicators-panel.component.scss'
 })

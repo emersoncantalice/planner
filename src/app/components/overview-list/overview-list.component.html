@@ -13,12 +13,12 @@
     </div>
 
     <div class="kpi-grid">
-      <div class="kpi"><span>Total projetos</span><strong>{{ resumo.length }}</strong></div>
-      <div class="kpi"><span>Concluidos</span><strong>{{ projetosConcluidos() }}</strong></div>
-      <div class="kpi"><span>Progresso medio</span><strong>{{ progressoMedio() }}%</strong></div>
-      <div class="kpi"><span>Total LO ({{ anoSelecionado }})</span><strong>{{ currency(totalLo()) }}</strong></div>
-      <div class="kpi"><span>Comprometido LO ({{ anoSelecionado }})</span><strong>{{ currency(totalComprometidoLo()) }}</strong></div>
-      <div class="kpi"><span>Saldo LO ({{ anoSelecionado }})</span><strong>{{ currency(saldoLo()) }}</strong></div>
+      <div class="kpi kpi-blue"><span>Total projetos</span><strong>{{ resumo.length }}</strong></div>
+      <div class="kpi kpi-green"><span>Concluidos</span><strong>{{ projetosConcluidos() }}</strong></div>
+      <div class="kpi kpi-sky"><span>Progresso medio</span><strong>{{ progressoMedio() }}%</strong></div>
+      <div class="kpi kpi-indigo"><span>Total LO ({{ anoSelecionado }})</span><strong>{{ currency(totalLo()) }}</strong></div>
+      <div class="kpi kpi-amber"><span>Comprometido LO ({{ anoSelecionado }})</span><strong>{{ currency(totalComprometidoLo()) }}</strong></div>
+      <div class="kpi kpi-balance" [class.negative]="saldoLo() < 0" [class.positive]="saldoLo() >= 0"><span>Saldo LO ({{ anoSelecionado }})</span><strong>{{ currency(saldoLo()) }}</strong></div>
     </div>
   }
 

@@ -18,13 +18,13 @@
       <option value="inativos">Só inativos</option>
       <option value="todos">Todos</option>
     </select>
-    <select [(ngModel)]="filtroPerfilId" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:180px">
+    <select [(ngModel)]="filtroPerfilId" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:145px">
       <option value="">Todos os perfis</option>
       @for (perfil of perfis; track perfil.id) {
         <option [value]="perfil.id">{{ perfil.nomePerfil }}</option>
       }
     </select>
-    <select [(ngModel)]="filtroVinculo" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:150px">
+    <select [(ngModel)]="filtroVinculo" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:130px">
       <option value="">Todos os vinculos</option>
       <option value="FOLHA">Folha</option>
       <option value="TERCEIRO">Prestador de servico</option>
@@ -41,17 +41,35 @@
       <thead>
         <tr>
           <th>Foto</th>
-          <th (click)="toggleSort('nome')">Nome{{ sortIndicator('nome') }}</th>
+          <th class="sortable" (click)="toggleSort('nome')">
+            <span>Nome</span>
+            <span class="sort-icon" [class.active]="sortKey === 'nome'" [class.desc]="sortKey === 'nome' && sortDirection === 'desc'">▲</span>
+          </th>
           <th>Status</th>
           <th>Vaga</th>
-          <th (click)="toggleSort('perfilNome')">Perfil{{ sortIndicator('perfilNome') }}</th>
-          <th (click)="toggleSort('tipoVinculo')">Vinculo{{ sortIndicator('tipoVinculo') }}</th>
-          <th (click)="toggleSort('consultoria')">Prestador de servico{{ sortIndicator('consultoria') }}</th>
-          <th (click)="toggleSort('valorHora')">Valor hora{{ sortIndicator('valorHora') }}</th>
-          <th (click)="toggleSort('valorMensal')">Valor mensal medio{{ sortIndicator('valorMensal') }}</th>
-          <th>Aniversario</th>
+          <th class="sortable" (click)="toggleSort('perfilNome')">
+            <span>Perfil</span>
+            <span class="sort-icon" [class.active]="sortKey === 'perfilNome'" [class.desc]="sortKey === 'perfilNome' && sortDirection === 'desc'">▲</span>
+          </th>
+          <th class="sortable" (click)="toggleSort('tipoVinculo')">
+            <span>Vínculo</span>
+            <span class="sort-icon" [class.active]="sortKey === 'tipoVinculo'" [class.desc]="sortKey === 'tipoVinculo' && sortDirection === 'desc'">▲</span>
+          </th>
+          <th class="sortable" (click)="toggleSort('consultoria')">
+            <span>Prestador</span>
+            <span class="sort-icon" [class.active]="sortKey === 'consultoria'" [class.desc]="sortKey === 'consultoria' && sortDirection === 'desc'">▲</span>
+          </th>
+          <th class="sortable" (click)="toggleSort('valorHora')">
+            <span>Valor hora</span>
+            <span class="sort-icon" [class.active]="sortKey === 'valorHora'" [class.desc]="sortKey === 'valorHora' && sortDirection === 'desc'">▲</span>
+          </th>
+          <th class="sortable" (click)="toggleSort('valorMensal')">
+            <span>Valor mensal médio</span>
+            <span class="sort-icon" [class.active]="sortKey === 'valorMensal'" [class.desc]="sortKey === 'valorMensal' && sortDirection === 'desc'">▲</span>
+          </th>
+          <th>Aniversário</th>
           <th>Contato</th>
-          <th>Acoes</th>
+          <th>Ações</th>
         </tr>
       </thead>
       <tbody>
@@ -89,8 +107,14 @@
             <td>{{ fmtNascimento(p.dataNascimento) }}</td>
             <td>{{ formatContato(p.contato) || '-' }}</td>
             <td class="actions">
-              <button class="sec" type="button" (click)="startEdit(p)">Editar</button>
-              <button type="button" (click)="remove.emit(p.id)">Excluir</button>
+              <div class="actions-wrap">
+                <button class="sec action-icon-btn" type="button" (click)="startEdit(p)" title="Editar" aria-label="Editar pessoa">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+                <button class="action-icon-btn action-delete-btn" type="button" (click)="remove.emit(p.id)" title="Excluir" aria-label="Excluir pessoa">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+              </div>
             </td>
           </tr>
         } @empty {
@@ -127,7 +151,7 @@
   <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <div class="panel-head">
       <h3>{{ editingId ? 'Editar pessoa' : 'Nova pessoa' }}</h3>
-      <button class="sec" type="button" (click)="cancelEdit()">Fechar</button>
+      <button class="person-modal-close" type="button" (click)="cancelEdit()" title="Fechar" aria-label="Fechar">×</button>
     </div>
 
     <div class="foto-form-row">

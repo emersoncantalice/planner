@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
@@ -10,6 +10,7 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
   selector: 'app-incident-panel',
   standalone: true,
   imports: [CommonModule, FormsModule, ScrollIntoViewWhenDirective, SearchableSelectDirective],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './incident-panel.component.html',
   styleUrl: './incident-panel.component.scss'
 })

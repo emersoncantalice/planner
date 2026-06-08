@@ -1,4 +1,16 @@
-.periods-wrap { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.periods-wrap {
+  padding: 4px 2px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
 
 .periods-header {
   display: flex; align-items: center; justify-content: space-between;

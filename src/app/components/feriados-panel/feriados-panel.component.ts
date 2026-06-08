@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
@@ -25,6 +25,7 @@ interface FederalForm {
   selector: 'app-feriados-panel',
   standalone: true,
   imports: [CommonModule, FormsModule, SearchableSelectDirective],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './feriados-panel.component.html',
   styleUrl: './feriados-panel.component.scss'
 })
