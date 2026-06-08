@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
 import { ToastService } from '../../core/toast.service';
+import { uid as genUid } from '../../core/uid';
 
 export type Tool = 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'triangle' | 'diamond' | 'star';
 type AnchorId = 'top' | 'right' | 'bottom' | 'left';
@@ -444,7 +445,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     };
   }
 
-  private uid() { return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2); }
+  private uid() { return genUid(); }
 
   // ── Zoom / Pan ────────────────────────────────────────────────────────────
   onWheel(e: WheelEvent) {

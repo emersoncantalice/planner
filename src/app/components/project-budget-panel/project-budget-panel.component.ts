@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
+import { uid } from '../../core/uid';
 
 @Component({
   selector: 'app-project-budget-panel',
@@ -266,7 +267,7 @@ export class ProjectBudgetPanelComponent {
       if (idx >= 0) atividades[idx] = { ...atividades[idx], ...this.atividadeForm };
     } else {
       atividades.push({
-        id: crypto.randomUUID(),
+        id: uid(),
         ...this.atividadeForm,
         cor: this.ganttColors[atividades.length % this.ganttColors.length],
       });

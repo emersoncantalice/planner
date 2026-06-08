@@ -2,6 +2,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { dateToYmd } from './business-days';
 import { PlannerApiService } from './planner-api.service';
+import { uid } from './uid';
 
 export interface FeriadoCustom {
   id: string;
@@ -136,7 +137,7 @@ export class FeriadosService {
 
   
   addFeriado(f: Omit<FeriadoCustom, 'id'>): void {
-    this.feriados.update(list => [...list, { ...f, id: crypto.randomUUID() }]);
+    this.feriados.update(list => [...list, { ...f, id: uid() }]);
     this._saveFeriados();
   }
 

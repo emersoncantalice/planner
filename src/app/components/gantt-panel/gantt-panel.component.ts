@@ -9,6 +9,7 @@ import { SearchableSelectDirective } from '../../core/searchable-select.directiv
 import { dateToYmd } from '../../core/business-days';
 import { FeriadosService } from '../../core/feriados.service';
 import { PlannerApiService } from '../../core/planner-api.service';
+import { uid } from '../../core/uid';
 
   
 type GStatus = 'PLANEJADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'ATRASADO' | 'BLOQUEADO';
@@ -725,7 +726,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   addNewEtapa() {
     const label = this.editForm.newEtapaLabel.trim();
     if (!label) return;
-    this.editForm.etapas.push({ id: crypto.randomUUID(), label, done: false });
+    this.editForm.etapas.push({ id: uid(), label, done: false });
     this.editForm.newEtapaLabel = '';
   }
 
@@ -1021,7 +1022,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     }
     const label = this.markerLabel.trim() || 'Marco';
     const description = this.markerDescription.trim();
-    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`);
+    const id = uid();
     const exists = this.timelineMarkers.some(m => m.date === this.markerDate && m.label.toLowerCase() === label.toLowerCase());
     if (exists) {
       this.markerMessage = 'Marcador já existe para esta data.';

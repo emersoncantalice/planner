@@ -6,6 +6,7 @@ import { ToastService } from './core/toast.service';
 import { NotificationService } from './core/notification.service';
 import { concatMap, finalize, timeout } from 'rxjs';
 import { dateToYmd } from './core/business-days';
+import { uid } from './core/uid';
 import { AuthPanelComponent } from './components/auth-panel/auth-panel.component';
 import { ProfilePanelComponent } from './components/profile-panel/profile-panel.component';
 import { ProjectCreateComponent } from './components/project-create/project-create.component';
@@ -484,11 +485,11 @@ export class App {
           };
 
           const etapasAns = JSON.stringify([
-            { id: crypto.randomUUID(), label: 'Desenho de Contexto',  done: false },
-            { id: crypto.randomUUID(), label: 'Desenho de Container', done: false },
+            { id: uid(), label: 'Desenho de Contexto',  done: false },
+            { id: uid(), label: 'Desenho de Container', done: false },
           ]);
           const etapasAsw = JSON.stringify([
-            { id: crypto.randomUUID(), label: 'Desenho Técnico', done: false },
+            { id: uid(), label: 'Desenho Técnico', done: false },
           ]);
 
           
