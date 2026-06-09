@@ -9,11 +9,21 @@
         <option [value]="ano">{{ ano }}</option>
       }
     </select>
+    <label for="loPessoa">LO</label>
+    <select id="loPessoa" [ngModel]="loSelecionadaId" (ngModelChange)="selecionarLo($event)">
+      <option value="">Todas as LOs do ano</option>
+      @for (lo of losDisponiveisAno(); track lo.id) {
+        <option [value]="lo.id">{{ lo.codigo || lo.nome }}</option>
+      }
+    </select>
   </div>
 
   <input [(ngModel)]="searchTerm" placeholder="Pesquisar pessoa, mes ou LO..." />
 
   <div class="people-grid">
+    @if (!pessoasAno().length) {
+      <p class="empty-state">Nenhuma pessoa com alocação que debita LO{{ loSelecionadaId ? ' em ' + loLabel(loSelecionadaId) : '' }}.</p>
+    }
     @for (p of pessoasAno(); track p.nomePessoa) {
       <section class="person-card">
         <header class="person-head">

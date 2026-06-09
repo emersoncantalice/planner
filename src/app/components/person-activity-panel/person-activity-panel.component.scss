@@ -52,6 +52,16 @@
   background: #f9fafb;
   &:focus { outline: none; border-color: #1d63da; background: #fff; }
 }
+.pa-lo-select {
+  min-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: .85rem;
+  background: #f9fafb;
+
+  &:focus { outline: none; border-color: #1d63da; background: #fff; }
+}
 .pa-sort-btns { display: flex; gap: 6px; }
 .pa-sort-btn {
   padding: 6px 14px;

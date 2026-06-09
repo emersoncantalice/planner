@@ -1458,6 +1458,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       this.pessoaNovaNome = '';
       return;
     }
+    // Pessoa real selecionada => alocação real (desliga o rascunho auto-ativado ao digitar).
+    if (!this.loSelecionadaEhDraft()) this.draftMode = false;
     this.preencherPessoaNoForm(pessoaId);
   }
 
@@ -1824,11 +1826,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     }
 
     this.novaPessoaSelecionadaId = '';
-    if (this.draftMode || this.loSelecionadaEhDraft()) {
-      this.form.nomePessoa = nome;
-    } else {
-      this.form.nomePessoa = '';
-      this.form.perfilId = '';
+    // Nome fora do cadastro é mantido como pessoa fictícia (rascunho).
+    this.form.nomePessoa = nome;
+    if (this.normalized(nome) && !this.draftMode && !this.loSelecionadaEhDraft()) {
+      // ativa o modo rascunho para liberar o seletor de perfil da pessoa fictícia
+      this.draftMode = true;
     }
   }
 

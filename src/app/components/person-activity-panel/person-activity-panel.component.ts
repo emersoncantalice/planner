@@ -25,6 +25,8 @@ interface WorkloadEntry {
 export class PersonActivityPanelComponent {
   @Input() pessoas: any[] = [];
   @Input() fotos: Record<string, string> = {};
+  @Input() linhasOrcamentarias: any[] = [];
+  @Input() alocacoes: any[] = [];
   @Input() riscos: any[] = [];
   @Input() incidentes: any[] = [];
   @Input() debitos: any[] = [];
@@ -47,8 +49,37 @@ export class PersonActivityPanelComponent {
   }
 
   searchTerm = '';
+  loSelecionadaId = '';
   sortKey: 'nome' | 'total' = 'total';
   sortDir: 'asc' | 'desc' = 'desc';
+
+  selecionarLo(loId: string) {
+    this.loSelecionadaId = String(loId || '');
+    if (this.expandedNome && !this.pessoaElegivel(this.expandedNome)) {
+      this.expandedNome = '';
+    }
+  }
+
+  losDisponiveis(): any[] {
+    const idsComCobranca = new Set(
+      this.alocacoes
+        .filter((a: any) => this.alocacaoDebitaLo(a))
+        .map((a: any) => a?.linhaOrcamentariaId)
+        .filter(Boolean)
+    );
+    return [...this.linhasOrcamentarias]
+      .filter((lo: any) => idsComCobranca.has(lo?.id))
+      .sort((a: any, b: any) => {
+        const ano = Number(b?.ano || 0) - Number(a?.ano || 0);
+        if (ano !== 0) return ano;
+        return String(a?.codigo || a?.nome || '').localeCompare(String(b?.codigo || b?.nome || ''), 'pt-BR');
+      });
+  }
+
+  loLabel(loId: string): string {
+    const lo = this.linhasOrcamentarias.find((x: any) => x.id === loId);
+    return lo?.codigo || lo?.nome || loId;
+  }
 
   workload(): WorkloadEntry[] {
     const byKey = new Map<string, WorkloadEntry>();
@@ -56,6 +87,7 @@ export class PersonActivityPanelComponent {
     const ensure = (nomeRaw: any): WorkloadEntry | null => {
       const nome = String(nomeRaw ?? '').trim();
       if (!nome) return null;
+      if (!this.pessoaElegivel(nome)) return null;
       const key = this.norm(nome);
       let found = byKey.get(key);
       if (!found) {
@@ -193,5 +225,18 @@ export class PersonActivityPanelComponent {
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
+  }
+
+  private alocacaoDebitaLo(a: any): boolean {
+    return a?.debitaLo !== false;
+  }
+
+  private pessoaElegivel(nomePessoa: string): boolean {
+    const nome = this.norm(nomePessoa);
+    return this.alocacoes.some((a: any) => {
+      if (!this.alocacaoDebitaLo(a)) return false;
+      if (this.loSelecionadaId && a?.linhaOrcamentariaId !== this.loSelecionadaId) return false;
+      return this.norm(a?.nomePessoa || '') === nome;
+    });
   }
 }

@@ -21,6 +21,12 @@
 
   <!-- Search + Sort -->
   <div class="pa-toolbar">
+    <select class="pa-lo-select" [ngModel]="loSelecionadaId" (ngModelChange)="selecionarLo($event)" title="Filtrar por LO">
+      <option value="">Todas as LOs</option>
+      @for (lo of losDisponiveis(); track lo.id) {
+        <option [value]="lo.id">{{ lo.codigo || lo.nome }}{{ lo.ano ? ' · ' + lo.ano : '' }}</option>
+      }
+    </select>
     <input class="pa-search" [(ngModel)]="searchTerm" placeholder="Buscar pessoa…" />
     <div class="pa-sort-btns">
       <button class="pa-sort-btn" [class.active]="sortKey === 'total'" (click)="toggleSort('total')">
@@ -35,7 +41,7 @@
   <!-- Cards -->
   <div class="pa-list">
     @if (!filtered().length) {
-      <div class="pa-empty">Nenhuma pessoa ativa encontrada.</div>
+      <div class="pa-empty">Nenhuma pessoa com alocação que debita LO{{ loSelecionadaId ? ' em ' + loLabel(loSelecionadaId) : '' }}.</div>
     }
     @for (entry of filtered(); track entry.nome) {
       <div class="pa-card" [class]="workloadClass(entry.total)">

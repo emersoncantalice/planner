@@ -662,6 +662,8 @@
         <app-ausencias-panel
           [pessoas]="pessoas()"
           [ausencias]="ausencias()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [alocacoes]="alocacoesLo()"
           (create)="criarAusencia($event)"
           (update)="atualizarAusencia($event)"
           (remove)="excluirAusencia($event)">
@@ -700,6 +702,8 @@
         <app-person-activity-panel
           [pessoas]="pessoas()"
           [fotos]="fotosPorNome()"
+          [linhasOrcamentarias]="linhasOrcamentarias()"
+          [alocacoes]="alocacoesLo()"
           [riscos]="riscos()"
           [incidentes]="incidentes()"
           [debitos]="debitosTecnicos()"

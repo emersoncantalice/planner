@@ -40,6 +40,8 @@ import { ScrollIntoViewWhenDirective } from "../../core/scroll-into-view-when.di
 export class AusenciasPanelComponent implements OnChanges {
   @Input() pessoas: any[] = [];
   @Input() ausencias: AbsRow[] = [];
+  @Input() linhasOrcamentarias: any[] = [];
+  @Input() alocacoes: any[] = [];
   @Output() create = new EventEmitter<Omit<AbsRow, 'id' | 'criadoEm'>>();
   @Output() update = new EventEmitter<AbsRow>();
   @Output() remove = new EventEmitter<string>();
@@ -136,11 +138,39 @@ export class AusenciasPanelComponent implements OnChanges {
   
   searchPessoa = '';
   filterTipo = '';
+  filterLoId = '';
+
+  private normNome(v: string): string {
+    return String(v || '').trim().toLowerCase();
+  }
+
+  /** LOs disponíveis para filtro, ordenadas por ano (desc) e código. */
+  losDisponiveis(): any[] {
+    return [...(this.linhasOrcamentarias || [])].sort((a, b) => {
+      const ano = Number(b?.ano || 0) - Number(a?.ano || 0);
+      return ano !== 0 ? ano : this.normNome(a?.codigo || a?.nome).localeCompare(this.normNome(b?.codigo || b?.nome), 'pt-BR');
+    });
+  }
+
+  loLabel(lo: any): string {
+    return lo?.codigo || lo?.nome || lo?.id || '';
+  }
+
+  /** Nomes (normalizados) das pessoas alocadas na LO selecionada. */
+  private nomesAlocadosNaLo(loId: string): Set<string> {
+    const set = new Set<string>();
+    for (const a of (this.alocacoes || [])) {
+      if (a?.linhaOrcamentariaId === loId) set.add(this.normNome(a?.nomePessoa));
+    }
+    return set;
+  }
 
   pessoasFiltradas(): any[] {
     const q = this.searchPessoa.trim().toLowerCase();
+    const nomesLo = this.filterLoId ? this.nomesAlocadosNaLo(this.filterLoId) : null;
     return this.pessoas.filter(p => {
       if (q && !p.nome.toLowerCase().includes(q)) return false;
+      if (nomesLo && !nomesLo.has(this.normNome(p.nome))) return false;
       if (this.filterTipo) {
         return this.ausenciasDoAno().some(a => a.pessoaId === p.id && a.tipo === this.filterTipo);
       }

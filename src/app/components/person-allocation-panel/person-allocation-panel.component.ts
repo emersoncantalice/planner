@@ -33,6 +33,7 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
 
   searchTerm = '';
   anoSelecionado = new Date().getFullYear();
+  loSelecionadaId = '';
   readonly meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
   private api = inject(PlannerApiService);
@@ -126,6 +127,24 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
 
   selecionarAno(ano: number) {
     this.anoSelecionado = Number(ano || new Date().getFullYear());
+    if (this.loSelecionadaId && !this.losDisponiveisAno().some((lo: any) => lo.id === this.loSelecionadaId)) {
+      this.loSelecionadaId = '';
+    }
+  }
+
+  selecionarLo(loId: string) {
+    this.loSelecionadaId = String(loId || '');
+  }
+
+  losDisponiveisAno(): any[] {
+    return [...this.linhasOrcamentarias]
+      .filter((lo: any) => Number(lo?.ano) === Number(this.anoSelecionado))
+      .sort((a: any, b: any) => String(a?.codigo || a?.nome || '').localeCompare(String(b?.codigo || b?.nome || ''), 'pt-BR'));
+  }
+
+  loLabel(loId: string): string {
+    const lo = this.linhasOrcamentarias.find((x: any) => x.id === loId);
+    return lo?.codigo || lo?.nome || loId;
   }
 
   pessoasAno() {
@@ -150,11 +169,12 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
     for (const p of this.pessoas) {
       const nome = String(p?.nome || '').trim();
       if (!nome) continue;
+      if (!this.temAlocacaoValidaNaSelecao(nome, idsAno)) continue;
       if (!map.has(nome)) map.set(nome, buildEmptyRow(nome));
     }
 
     for (const a of this.alocacoes) {
-      if (!idsAno.has(a?.linhaOrcamentariaId)) continue;
+      if (!this.alocacaoNaSelecao(a, idsAno)) continue;
       const nome = String(a?.nomePessoa || '').trim();
       if (!nome) continue;
       if (!map.has(nome)) map.set(nome, buildEmptyRow(nome));
@@ -162,7 +182,7 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
 
     for (const row of map.values()) {
       const alocsPessoaAno = this.alocacoes.filter((a: any) =>
-        idsAno.has(a?.linhaOrcamentariaId) && this.normalized(a?.nomePessoa || '') === this.normalized(row.nomePessoa)
+        this.alocacaoNaSelecao(a, idsAno) && this.normalized(a?.nomePessoa || '') === this.normalized(row.nomePessoa)
       );
 
       for (let month = 0; month < 12; month++) {
@@ -277,6 +297,24 @@ export class PersonAllocationPanelComponent implements OnChanges, OnDestroy {
 
   private getValorHoraDaAlocacao(a: any): number {
     return a?.debitaLo === false ? 0 : Number(a?.valorHora || 0);
+  }
+
+  private alocacaoDebitaLo(a: any): boolean {
+    return a?.debitaLo !== false;
+  }
+
+  private alocacaoNaSelecao(a: any, idsAno: Set<any>): boolean {
+    if (!this.alocacaoDebitaLo(a)) return false;
+    if (!idsAno.has(a?.linhaOrcamentariaId)) return false;
+    if (this.loSelecionadaId && a?.linhaOrcamentariaId !== this.loSelecionadaId) return false;
+    return true;
+  }
+
+  private temAlocacaoValidaNaSelecao(nomePessoa: string, idsAno: Set<any>): boolean {
+    const nome = this.normalized(nomePessoa || '');
+    return this.alocacoes.some((a: any) =>
+      this.alocacaoNaSelecao(a, idsAno) && this.normalized(a?.nomePessoa || '') === nome
+    );
   }
 
   currency(value: number): string {

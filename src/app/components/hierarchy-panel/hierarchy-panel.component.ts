@@ -1,6 +1,6 @@
 ﻿// @ts-nocheck
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, inject, NgZone, OnChanges, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, inject, NgZone, OnChanges, OnDestroy, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { ToastService } from '../../core/toast.service';
@@ -195,6 +195,17 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
       this.mostrarProjetos(n) && (n.projetoIds || []).includes(id)).length > 1;
   }
 
+  /** Fecha os multi-selects (estruturas/LOs/projetos) ao clicar fora deles. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(ev: MouseEvent): void {
+    if (!this.parentDropdownOpen && !this.loDropdownOpen && !this.projDropdownOpen) return;
+    const alvo = ev.target as HTMLElement | null;
+    if (alvo && alvo.closest('.multi-select')) return; // clique dentro de algum multi-select
+    this.parentDropdownOpen = false;
+    this.loDropdownOpen = false;
+    this.projDropdownOpen = false;
+  }
+
   parentResumo(): string {
     if (!this.form?.parentIds?.length) return 'Nenhuma (raiz)';
     return this.form.parentIds.map((id: string) => this.nomePorId(id) || id).join(', ');
@@ -305,23 +316,23 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   /** Soma o FTE da estrutura e de todas as descendentes (tribo agrega seus squads). */
   fteTotalNode(node: any): number {
     if (!this.mostrarMarcacoesDeTime(node)) return 0;
-    // Total geral = soma dos grupos de perfil (mesma regra: Dev Team filtra contaFte).
+    // Total geral = soma dos grupos de perfil (mesma regra: Team Member filtra contaFte).
     return this.ftePorPerfilNode(node).reduce((s, g) => s + g.fte, 0);
   }
   /**
    * Classifica o perfil/papel do membro em um grupo de contagem de FTE.
-   * IT Lead, PM, QA e Arquitetura contam isoladamente; os demais somam em "Demais".
+   * IT Lead, PM, QA e Arquitetura contam isoladamente; os demais somam em "Team Member".
    */
   classificaPerfilFte(m: any): string {
     const p = this.norm(this.papelDoMembro(m));
-    if (!p) return 'Dev Team';
+    if (!p) return 'Team Member';
     if (p.includes('it lead') || p.includes('itlead') || p.includes('tech lead')) return 'IT Lead';
     if (p === 'pm' || p.startsWith('pm ') || p.includes('product manager')) return 'PM';
     if (p === 'qa' || p.startsWith('qa ') || p.startsWith('qa-') || p.includes('quality')) return 'QA';
     // Arquitetura = perfis ASW e ANS
     if (p === 'asw' || p === 'ans' || p.startsWith('asw ') || p.startsWith('ans ')
         || p.startsWith('asw-') || p.startsWith('ans-') || p.includes('arquitet')) return 'Arquitetura';
-    return 'Dev Team';
+    return 'Team Member';
   }
 
   /** Apenas squads contam para o FTE — tribos agregam os squads abaixo, sem somar seus próprios membros. */
@@ -329,24 +340,24 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
 
   /**
    * Contribuição de FTE de um membro (alocação ponderada).
-   * Dev Team só conta quem conta FTE no cadastro; papéis nomeados contam sempre.
+   * Team Member só conta quem conta FTE no cadastro; papéis nomeados contam sempre.
    */
   fteContribuicaoMembro(m: any): number {
     const g = this.classificaPerfilFte(m);
     const base = (this.percentualPessoa(m) ?? 100) / 100; // alocação
-    return (g === 'Dev Team') ? (this.membroContaFte(m) ? base : 0) : base;
+    return (g === 'Team Member') ? (this.membroContaFte(m) ? base : 0) : base;
   }
 
   /** FTE por grupo de perfil na estrutura (agrega a subárvore, como o FTE Total). */
   ftePorPerfilNode(node: any): Array<{ label: string; fte: number }> {
     if (!this.mostrarMarcacoesDeTime(node)) return [];
     const ids = this.subtree(node.id);
-    const acc: Record<string, number> = { 'IT Lead': 0, 'PM': 0, 'QA': 0, 'Arquitetura': 0, 'Dev Team': 0 };
+    const acc: Record<string, number> = { 'IT Lead': 0, 'PM': 0, 'QA': 0, 'Arquitetura': 0, 'Team Member': 0 };
     for (const n of this.nodes) {
       if (!ids.has(n.id) || !this.ehSquad(n)) continue;
       for (const m of (n.membros || [])) acc[this.classificaPerfilFte(m)] += this.fteContribuicaoMembro(m);
     }
-    return ['IT Lead', 'PM', 'QA', 'Arquitetura', 'Dev Team']
+    return ['IT Lead', 'PM', 'QA', 'Arquitetura', 'Team Member']
       .filter(k => acc[k] > 0)
       .map(k => ({ label: k, fte: acc[k] }));
   }
@@ -375,30 +386,85 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     ].filter(v => v.fte > 0);
   }
 
-  /** Lista de pessoas (subárvore) com perfil, vínculo, estrutura, alocação e FTE. */
+  /** Nomes fictícios para os TBD (To Be Defined). */
+  private readonly tbdNomesPool = ['Fulano', 'Beltrano', 'Sicrano', 'Fulana', 'Beltrana', 'Sicrana', 'Deltrano', 'Zacarias', 'Joana', 'Mévio'];
+  private nomeTbdFicticio(i: number): string {
+    const base = this.tbdNomesPool[i % this.tbdNomesPool.length];
+    const ciclo = Math.floor(i / this.tbdNomesPool.length);
+    return ciclo > 0 ? `${base} ${ciclo + 1}` : base;
+  }
+
+  /**
+   * Lista de pessoas do detalhamento de FTE (subárvore, só squads):
+   * agrupa pessoas reais por nome + cargo; cada TBD vira uma "pessoa" com nome fictício editável;
+   * sinaliza quem tem alocação total ≠ 100%.
+   */
   fteDetalhePessoas(node: any): Array<any> {
     if (!this.mostrarMarcacoesDeTime(node)) return [];
     const ids = this.subtree(node.id);
-    const out: any[] = [];
+    const grupos = new Map<string, any>();
+    const tbds: any[] = [];
+    let tbdCount = 0;
     for (const n of this.nodes) {
       if (!ids.has(n.id) || !this.ehSquad(n)) continue;
-      for (const m of (n.membros || [])) {
-        out.push({
-          nome: m.nomePessoa,
-          papel: this.papelDoMembro(m) || '—',
-          grupo: this.classificaPerfilFte(m),
-          vinculo: this.ehTerceiro(m) ? 'Terceiro' : 'Folha',
-          estrutura: n.nome,
-          alocacao: this.percentualPessoa(m) ?? 100,
-          fte: this.fteContribuicaoMembro(m),
-          contaFte: this.membroContaFte(m),
-        });
+      const membros = n.membros || [];
+      for (let idx = 0; idx < membros.length; idx++) {
+        const m = membros[idx];
+        const aloc = this.percentualPessoa(m) ?? 100;
+        const fte = this.fteContribuicaoMembro(m);
+        const papel = this.papelDoMembro(m) || '—';
+        const vinculo = this.ehTerceiro(m) ? 'Terceiro' : 'Folha';
+        const grupo = this.classificaPerfilFte(m);
+        const ehTbd = this.norm(m.nomePessoa) === this.norm(this.tbdNome);
+        if (ehTbd) {
+          const total = Math.round(aloc * 100) / 100;
+          tbds.push({
+            nome: this.nomeTbdFicticio(tbdCount++), papel, grupo, vinculo,
+            estruturas: n.nome, alocacaoTotal: total, fte, contaFte: this.membroContaFte(m),
+            tbd: true, refKey: `${n.id}:${idx}`, ref: { nodeId: n.id, idx },
+            alerta: total !== 100,
+          });
+        } else {
+          const key = this.norm(m.nomePessoa) + '|' + this.norm(papel);
+          let row = grupos.get(key);
+          if (!row) {
+            const total = this.alocacaoTotalPessoa(m.nomePessoa);
+            row = {
+              nome: m.nomePessoa, papel, grupo, vinculo, estruturasSet: new Set<string>(),
+              alocacaoTotal: total, fte: 0, contaFte: this.membroContaFte(m),
+              tbd: false, ref: null, alerta: Math.round(total * 100) / 100 !== 100,
+            };
+            grupos.set(key, row);
+          }
+          row.estruturasSet.add(n.nome);
+          row.fte += fte;
+        }
       }
     }
-    return out.sort((a, b) =>
-      a.estrutura.localeCompare(b.estrutura, 'pt-BR') ||
-      a.grupo.localeCompare(b.grupo, 'pt-BR') ||
-      a.nome.localeCompare(b.nome, 'pt-BR'));
+    const reais = Array.from(grupos.values()).map(r => ({ ...r, estruturas: [...r.estruturasSet].join(', ') }));
+    return [...reais, ...tbds].sort((a, b) =>
+      a.grupo.localeCompare(b.grupo, 'pt-BR') || a.nome.localeCompare(b.nome, 'pt-BR'));
+  }
+
+  // ── Edição de nome de TBD no detalhamento ─────────────────────────────────
+  editTbdKey: string | null = null;
+  editTbdValue = '';
+  iniciarEdicaoNomeTbd(row: any): void { this.editTbdKey = row.refKey; this.editTbdValue = row.nome; }
+  cancelarEdicaoNomeTbd(): void { this.editTbdKey = null; this.editTbdValue = ''; }
+  salvarNomeTbd(row: any): void {
+    if (this.editTbdKey !== row.refKey) return;
+    const novo = (this.editTbdValue || '').trim();
+    this.editTbdKey = null; this.editTbdValue = '';
+    if (!novo) return;
+    const node = this.nodes.find((n: any) => n.id === row.ref.nodeId);
+    if (!node) return;
+    const membros = (node.membros || []).map((m: any, i: number) =>
+      i === row.ref.idx ? { ...m, nomePessoa: novo } : m);
+    // feedback imediato no modal (a fonte é this.nodes)
+    if (node.membros && node.membros[row.ref.idx]) {
+      node.membros[row.ref.idx] = { ...node.membros[row.ref.idx], nomePessoa: novo };
+    }
+    this.emitirAtualizacaoMembros(node, membros);
   }
 
   /** HTML do breakdown de FTE por perfil para exportação. */

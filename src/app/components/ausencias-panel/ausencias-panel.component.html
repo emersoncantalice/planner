@@ -36,7 +36,20 @@
   </div>
 
   
-  <input [(ngModel)]="searchPessoa" placeholder="Pesquisar pessoa..." class="abs-search" />
+  <div class="abs-filters">
+    <input [(ngModel)]="searchPessoa" placeholder="Pesquisar pessoa..." class="abs-search" />
+    @if (losDisponiveis().length) {
+      <select [(ngModel)]="filterLoId" class="abs-lo-select" title="Mostrar apenas pessoas alocadas em uma LO">
+        <option value="">Todas as LOs</option>
+        @for (lo of losDisponiveis(); track lo.id) {
+          <option [value]="lo.id">{{ loLabel(lo) }}{{ lo.ano ? ' (' + lo.ano + ')' : '' }}</option>
+        }
+      </select>
+      @if (filterLoId) {
+        <button type="button" class="abs-chip abs-chip-clear" (click)="filterLoId = ''">✕ Limpar LO</button>
+      }
+    }
+  </div>
 
   
   @if (formOpen) {

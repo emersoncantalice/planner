@@ -120,7 +120,7 @@
           </div>
         }
 
-        @if (mostrarFteTotal(node) && ftePorPerfilNode(node).length) {
+        @if (!ocultarValoresExport && mostrarFteTotal(node) && ftePorPerfilNode(node).length) {
           <div class="node-fte-perfis">
             @for (g of ftePorPerfilNode(node); track g.label) {
               <span class="node-fte-perfil" [title]="'FTE de ' + g.label + ' nesta estrutura'">
@@ -534,17 +534,35 @@
       <div class="fte-det-table-wrap">
         <table class="fte-det-table">
           <thead>
-            <tr><th>Pessoa</th><th>Perfil</th><th>Grupo</th><th>Vínculo</th><th>Estrutura</th><th class="num">Alocação</th><th class="num">FTE</th></tr>
+            <tr><th>Pessoa</th><th>Perfil</th><th>Grupo</th><th>Vínculo</th><th>Estruturas</th><th class="num">Alocação total</th><th class="num">FTE</th></tr>
           </thead>
           <tbody>
-            @for (p of fteDetalhePessoas(fteDetalheNode); track $index) {
-              <tr [class.no-fte]="!p.contaFte">
-                <td>{{ p.nome }}</td>
+            @for (p of fteDetalhePessoas(fteDetalheNode); track p.refKey || (p.nome + '|' + p.papel)) {
+              <tr [class.no-fte]="!p.contaFte" [class.alerta]="p.alerta">
+                <td>
+                  <span class="det-pessoa">
+                    @if (p.tbd && editTbdKey === p.refKey) {
+                      <input class="tbd-name-input" [(ngModel)]="editTbdValue"
+                             (click)="$event.stopPropagation()"
+                             (keydown.enter)="salvarNomeTbd(p)"
+                             (keydown.escape)="cancelarEdicaoNomeTbd()"
+                             (blur)="salvarNomeTbd(p)" autofocus />
+                    } @else {
+                      <span [class.tbd-name]="p.tbd">{{ p.nome }}</span>
+                      @if (p.tbd) {
+                        <button type="button" class="tbd-edit" title="Editar nome do TBD" (click)="iniciarEdicaoNomeTbd(p)">✎</button>
+                      }
+                    }
+                    @if (p.alerta) {
+                      <span class="det-alerta" [title]="'Alocação total ' + formatPct(p.alocacaoTotal) + '% — diferente de 100%. Corrija.'">⚠</span>
+                    }
+                  </span>
+                </td>
                 <td>{{ p.papel }}</td>
                 <td>{{ p.grupo }}</td>
                 <td>{{ p.vinculo }}</td>
-                <td>{{ p.estrutura }}</td>
-                <td class="num">{{ formatPct(p.alocacao) }}%</td>
+                <td>{{ p.estruturas }}</td>
+                <td class="num">{{ formatPct(p.alocacaoTotal) }}%</td>
                 <td class="num">{{ formatFte(p.fte) }}</td>
               </tr>
             } @empty {
@@ -553,7 +571,7 @@
           </tbody>
         </table>
       </div>
-      <small class="sub">Linhas esmaecidas = pessoas que não contam FTE no cadastro (não somam no Dev Team).</small>
+      <small class="sub">Linhas esmaecidas = pessoas que não contam FTE no cadastro (não somam no Team Member).</small>
 
       <div class="form-actions">
         <button type="button" class="sec" (click)="fecharFteDetalhe()">Fechar</button>
