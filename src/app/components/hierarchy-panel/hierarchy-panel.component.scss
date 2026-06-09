@@ -157,7 +157,7 @@
 }
 .multi-select-option {
   display: grid !important;
-  grid-template-columns: 18px 1fr;
+  grid-template-columns: 18px 1fr auto;
   align-items: center;
   gap: 8px;
   margin: 0 !important;
@@ -324,7 +324,7 @@
 .conectores-svg.tem-destaque .conector-line:not(.ativo) { opacity: .2; }
 .conector-hit {
   fill: none;
-  stroke: transparent;
+  stroke: whitesmoke;
   stroke-width: 16;
   pointer-events: stroke;    /* área de clique generosa sobre a linha fina */
   cursor: pointer;
@@ -456,6 +456,88 @@
 }
 .node-valor { margin-top: 6px; font-size: .76rem; color: #475569; }
 .node-valor strong { color: #0f766e; }
+
+/* FTE Total do time — chip discreto junto ao tipo (à direita) */
+.node-fte-chip {
+  margin-left: auto;
+  font-size: .58rem; font-weight: 800; letter-spacing: .02em;
+  color: #1d4ed8; background: #eef6ff; border: 1px solid #cfe0fb;
+  border-radius: 999px; padding: 1px 7px; white-space: nowrap;
+}
+
+/* Projetos vinculados (tribos/squads) — exibição moderna no card */
+.node-projetos {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.node-projetos-head {
+  font-size: .6rem; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: #64748b;
+}
+.node-proj {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 6px 8px;
+}
+.node-proj-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.node-proj-nome {
+  flex: 1 1 auto; min-width: 0;
+  font-size: .72rem; font-weight: 700; color: #1e293b;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.node-proj-pct { font-size: .7rem; font-weight: 800; flex: 0 0 auto; }
+.node-proj-bar {
+  margin-top: 5px; height: 6px; border-radius: 999px;
+  background: #e2e8f0; overflow: hidden;
+}
+.node-proj-bar > span { display: block; height: 100%; border-radius: 999px; transition: width .25s ease; }
+
+/* Marcação de projeto compartilhado (em mais de um time) */
+.node-proj.shared { border-color: #c4b5fd; background: #f5f3ff; }
+.node-proj-shared {
+  flex: 0 0 auto; color: #7c3aed; font-weight: 900; font-size: .8rem; line-height: 1;
+  margin-left: 2px;
+}
+
+.projetos-edit { margin-top: 12px; }
+
+/* Lista de visibilidade por time: ocultar projeto vinculado só neste time */
+.proj-visibility {
+  margin-top: 8px; display: flex; flex-direction: column; gap: 4px;
+  padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;
+}
+.proj-vis-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 2px 2px;
+}
+.proj-vis-row.hidden .proj-vis-nome { color: #94a3b8; text-decoration: line-through; }
+.proj-vis-nome {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: .82rem; font-weight: 600; color: #0f172a;
+}
+.proj-vis-toggle {
+  flex: 0 0 auto; cursor: pointer; font-size: .72rem; font-weight: 700;
+  border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d;
+  border-radius: 999px; padding: 2px 10px;
+}
+.proj-vis-toggle.on { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+
+/* Coluna direita das opções do multi-select (valor da LO / % e marcação do projeto) */
+.option-aside {
+  justify-self: end; display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap; font-size: .76rem; font-weight: 700; color: #64748b;
+}
+.option-pct { font-weight: 800; }
+.option-shared {
+  display: inline-flex; align-items: center;
+  color: #7c3aed; background: #f5f3ff; border: 1px solid #ddd6fe;
+  border-radius: 999px; padding: 0 6px; font-size: .64rem; font-weight: 800;
+  letter-spacing: .02em;
+}
 
 /* destino de drop */
 .node-card.drop-target {

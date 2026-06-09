@@ -112,7 +112,8 @@ export class App {
   projetoSelecionado = signal<any>(null);
   openTransferRequestId = signal(0);
   menuAberto = signal(false);
-  sidebarCollapsed = signal(localStorage.getItem('planner_sidebar_collapsed') === '1');
+  // Padrão: sidebar retraída. Respeita a preferência salva quando já existir.
+  sidebarCollapsed = signal((localStorage.getItem('planner_sidebar_collapsed') ?? '1') === '1');
   cadastrosExpanded = signal(false);
   alocacoesExpanded = signal(false);
   riscosExpanded = signal(false);

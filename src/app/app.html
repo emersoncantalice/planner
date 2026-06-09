@@ -78,7 +78,7 @@
       </div>
     }
     <section class="auth-hero">
-      <img class="auth-logo" src="assets/branding/logo-full.png" alt="Planner" />
+      <!-- <img class="auth-logo" src="assets/branding/logo-full.png" alt="Planner" /> -->
       <p>Planejamento e gestão de trabalho em um só lugar.</p>
     </section>
     <div class="auth-divider" aria-hidden="true"></div>
@@ -101,7 +101,7 @@
 
   @if (token()) {
     <aside class="sidebar" [class.collapsed]="sidebarCollapsed()" [class.mobile-open]="mobileSidebarOpen()">
-      <div class="sb-brand sb-brand-link" (click)="selecionarSecao('dashboard')" title="Ir para o Cockpit">
+       <!-- <div class="sb-brand sb-brand-link" (click)="selecionarSecao('dashboard')" title="Ir para o Cockpit">
         @if (!sidebarCollapsed()) {
           <div class="sb-logo-wrap">
             <img class="sb-logo" src="assets/branding/logo-full.png" alt="Planner" />
@@ -111,7 +111,8 @@
             <img class="sb-mark" src="assets/branding/icon-square.png" alt="Planner" />
           </div>
         }
-      </div>
+        
+      </div> -->
       <div class="sb-top-btns">
         <button class="sb-toggle" (click)="toggleSidebar()" [title]="sidebarCollapsed() ? 'Expandir menu' : 'Retrair menu'">
           @if (sidebarCollapsed()) {
@@ -129,7 +130,8 @@
         </button>
       </div>
       <nav class="sb-nav">
-        <a [class.active]="secaoAtiva() === 'dashboard'" (click)="selecionarSecao('dashboard')" title="Planner">
+        <!-- title="Planner" -->
+        <a [class.active]="secaoAtiva() === 'dashboard'" (click)="selecionarSecao('dashboard')">
           <span class="sb-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3 13h8v8H3zm10-10h8v18h-8zM3 3h8v8H3z"/></svg>
           </span>
@@ -775,6 +777,7 @@
           [linhasOrcamentarias]="linhasOrcamentarias()"
           [ajustes]="ajustesLo()"
           [alocacoes]="alocacoesLo()"
+          [projetos]="resumo()"
           (create)="criarNoHierarquia($event)"
           (update)="atualizarNoHierarquia($event)"
           (remove)="excluirNoHierarquia($event)"

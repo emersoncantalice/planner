@@ -2589,7 +2589,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     ctx.fillText(`Orçamento ajustado: ${this.currency(orcamento)}   •   Saldo projetado: ${this.currency(saldo)}   •   Ano ${this.anoSelecionado}`, 122, footerY);
     ctx.fillStyle = '#64748b';
     ctx.font = '500 15px Inter, Arial, sans-serif';
-    ctx.fillText(`Gerado em ${new Date().toLocaleDateString('pt-BR')} pelo Planner`, 122, footerY + 32);
+    // ctx.fillText(`Gerado em ${new Date().toLocaleDateString('pt-BR')} pelo Planner`, 122, footerY + 32);
+    ctx.fillText(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, 122, footerY + 32);
 
     const link = document.createElement('a');
     link.download = `time_${this.safeFilePart(lo.codigo || lo.nome || 'time')}_${this.anoSelecionado}.png`;

@@ -3131,6 +3131,7 @@ app-project-detail {
   display: none;
 }
 .sb-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; min-height: 36px; }
+/*
 .sb-logo-wrap {
   width: 96%;
   align-items: center;
@@ -3142,8 +3143,10 @@ app-project-detail {
   padding: 5px 8px;
   box-shadow: 0 6px 16px rgba(8, 30, 70, .24);
 }
+*/
 .sb-brand h2 { margin: 0; font-size: 1rem; }
 .sb-brand p { margin: 0; font-size: .78rem; opacity: .82; }
+/*
 .sb-logo {
   width: 92%;
   height: auto;
@@ -3166,6 +3169,7 @@ app-project-detail {
   border: 0;
   box-shadow: none;
 }
+*/
 .auth-logo {
   width: 260px;
   max-width: 100%;
@@ -3439,8 +3443,10 @@ app-project-detail {
   height: 31px;
 }
 .sidebar.collapsed .sb-brand { justify-content: center; padding-top: 8px; padding-left: 0; padding-right: 0; min-height: 48px; }
+/*
 .sidebar.collapsed .sb-mark-wrap { padding: 5px; border-radius: 10px; }
 .sidebar.collapsed .sb-mark { width: 32px; height: 32px; border-radius: 8px; }
+*/
 .page {
   flex: 1;
   min-height: calc(100dvh - env(safe-area-inset-top, 0px));

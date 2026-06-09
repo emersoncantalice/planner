@@ -11,9 +11,13 @@
           <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
         }
       </select>
-      <label class="export-hide-toggle" title="Não mostrar os valores das LOs na imagem exportada">
+      <label class="export-hide-toggle" title="Ocultar valores das LOs, alocação (%) e FTE — na tela e na exportação">
         <input type="checkbox" [(ngModel)]="ocultarValoresExport" (ngModelChange)="onHierarchyLayoutChange()" />
         Ocultar valores
+      </label>
+      <label class="export-hide-toggle" title="Não mostrar os projetos vinculados (na tela e na exportação)">
+        <input type="checkbox" [(ngModel)]="ocultarProjetos" (ngModelChange)="alternarOcultarProjetos()" />
+        Ocultar projetos
       </label>
       <button type="button" class="sec" (click)="exportarComLoading()" [disabled]="!nodes.length || exportando" title="Exportar a árvore selecionada para apresentação em PNG">
         @if (exportando) {
@@ -84,6 +88,9 @@
            (drop)="onNodeDrop(node, $event)">
         <div class="node-top">
           <span class="node-tipo">{{ tipoLabel(node.tipo) }}</span>
+          @if (mostrarFteTotal(node)) {
+            <span class="node-fte-chip" title="FTE Total do time (folha + terceiros)">FTE {{ formatFte(fteTotalNode(node)) }}</span>
+          }
           <span class="node-acts">
             @if (nodeQtdAlertas(node) > 0) {
               <span class="node-alert" [title]="nodeQtdAlertas(node) + ' pessoa(s) fora das LOs vinculadas'">⚠ {{ nodeQtdAlertas(node) }}</span>
@@ -119,9 +126,11 @@
             @for (grupo of grupoDefs; track grupo.key) {
             @if (membrosPorGrupo(node, grupo.key, sg.filter).length) {
               <div class="node-grupo" [class]="grupo.cls">
-                <div class="node-grupo-head count-only">
-                  <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
-                </div>
+                @if (!ocultarValoresExport) {
+                  <div class="node-grupo-head count-only">
+                    <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
+                  </div>
+                }
                 <div class="node-membros">
                   @for (item of membrosPorGrupo(node, grupo.key, sg.filter); track item.idx) {
                     <div class="node-m"
@@ -178,6 +187,26 @@
             }
             </div>
           }
+        }
+
+        @if (!ocultarProjetos && mostrarProjetos(node) && projetosVisiveisDoNode(node).length) {
+          <div class="node-projetos">
+            <div class="node-projetos-head">Projetos</div>
+            @for (proj of projetosVisiveisDoNode(node); track proj.id) {
+              <div class="node-proj" [class.shared]="projetoCompartilhado(proj.id)" [title]="proj.nome + ' — ' + projetoPct(proj) + '% concluído' + (projetoCompartilhado(proj.id) ? ' — compartilhado com mais de um time' : '')">
+                <div class="node-proj-top">
+                  <span class="node-proj-nome">{{ proj.nome }}</span>
+                  @if (projetoCompartilhado(proj.id)) {
+                    <span class="node-proj-shared" title="Compartilhado com mais de um time">⇄</span>
+                  }
+                  <span class="node-proj-pct" [style.color]="corPercentual(projetoPct(proj))">{{ projetoPct(proj) }}%</span>
+                </div>
+                <div class="node-proj-bar">
+                  <span [style.width.%]="projetoPct(proj)" [style.background]="corPercentual(projetoPct(proj))"></span>
+                </div>
+              </div>
+            }
+          </div>
         }
       </div>
       @if (ocultosDiretosRenderDe(node.id).length) {
@@ -297,13 +326,31 @@
         @if (!linhasOrcamentarias.length) {
           <small class="sub">Nenhuma LO cadastrada.</small>
         } @else {
-          <div class="lo-checklist">
-            @for (lo of losDisponiveis(); track lo.id) {
-              <label class="lo-check" [class.on]="loVinculada(lo.id)">
-                <input type="checkbox" [checked]="loVinculada(lo.id)" (change)="toggleLo(lo.id)" />
-                <span class="lo-check-cod">{{ lo.codigo || lo.nome }}</span>
-                <span class="lo-check-val" [title]="currency(valorLoPorId(lo.id))">{{ formatCompact(valorLoPorId(lo.id)) }}</span>
-              </label>
+          <div class="multi-select" [class.open]="loDropdownOpen">
+            <button type="button" class="multi-select-trigger" (click)="loDropdownOpen = !loDropdownOpen">
+              <span class="multi-select-summary" [class.placeholder]="!form.loIds.length">{{ loResumo() }}</span>
+              <span class="multi-select-count">{{ form.loIds.length || 0 }}</span>
+            </button>
+            @if (loDropdownOpen) {
+              <div class="multi-select-panel" (click)="$event.stopPropagation()">
+                <input class="multi-select-search" [(ngModel)]="loSearchTerm" placeholder="Buscar LO..." autocomplete="off" />
+                <div class="multi-select-list">
+                  @for (lo of losFiltrados(); track lo.id) {
+                    <label class="multi-select-option" [class.on]="loVinculada(lo.id)">
+                      <input type="checkbox" [checked]="loVinculada(lo.id)" (change)="toggleLo(lo.id)" />
+                      <span class="checkmark" aria-hidden="true"></span>
+                      <span class="option-main">{{ lo.codigo || lo.nome }}</span>
+                      <span class="option-aside" [title]="currency(valorLoPorId(lo.id))">{{ formatCompact(valorLoPorId(lo.id)) }}</span>
+                    </label>
+                  } @empty {
+                    <div class="multi-select-empty">Nenhuma LO encontrada.</div>
+                  }
+                </div>
+                <div class="multi-select-footer">
+                  <button type="button" class="link-btn" (click)="limparLos()">Limpar</button>
+                  <button type="button" class="link-btn primary" (click)="loDropdownOpen = false">Concluir</button>
+                </div>
+              </div>
             }
           </div>
           @if (form.loIds.length) {
@@ -311,6 +358,64 @@
           }
         }
       </div>
+
+      @if (tipoPermiteMarcacoesDeTime(form.tipo)) {
+        <div class="projetos-edit">
+          <label>Projetos vinculados (tribos e squads)</label>
+          @if (!projetosDisponiveis().length) {
+            <small class="sub">Nenhum projeto cadastrado.</small>
+          } @else {
+            <div class="multi-select" [class.open]="projDropdownOpen">
+              <button type="button" class="multi-select-trigger" (click)="projDropdownOpen = !projDropdownOpen">
+                <span class="multi-select-summary" [class.placeholder]="!form.projetoIds.length">{{ projetoResumo() }}</span>
+                <span class="multi-select-count">{{ form.projetoIds.length || 0 }}</span>
+              </button>
+              @if (projDropdownOpen) {
+                <div class="multi-select-panel" (click)="$event.stopPropagation()">
+                  <input class="multi-select-search" [(ngModel)]="projSearchTerm" placeholder="Buscar projeto..." autocomplete="off" />
+                  <div class="multi-select-list">
+                    @for (proj of projetosFiltrados(); track proj.id) {
+                      <label class="multi-select-option" [class.on]="projetoVinculado(proj.id)">
+                        <input type="checkbox" [checked]="projetoVinculado(proj.id)" (change)="toggleProjeto(proj.id)" />
+                        <span class="checkmark" aria-hidden="true"></span>
+                        <span class="option-main">{{ proj.nome }}</span>
+                        <span class="option-aside">
+                          @if (projetoCompartilhado(proj.id)) {
+                            <span class="option-shared" title="Compartilhado com mais de um time">⇄ Compart.</span>
+                          }
+                          <span class="option-pct" [style.color]="corPercentual(projetoPct(proj))">{{ projetoPct(proj) }}%</span>
+                        </span>
+                      </label>
+                    } @empty {
+                      <div class="multi-select-empty">Nenhum projeto encontrado.</div>
+                    }
+                  </div>
+                  <div class="multi-select-footer">
+                    <button type="button" class="link-btn" (click)="limparProjetos()">Limpar</button>
+                    <button type="button" class="link-btn primary" (click)="projDropdownOpen = false">Concluir</button>
+                  </div>
+                </div>
+              }
+            </div>
+            @if (form.projetoIds.length) {
+              <small class="sub">{{ form.projetoIds.length }} projeto(s) vinculado(s). Use o olho para ocultar um projeto só neste time.</small>
+              <div class="proj-visibility">
+                @for (pid of form.projetoIds; track pid) {
+                  <div class="proj-vis-row" [class.hidden]="projetoOculto(pid)">
+                    <span class="proj-vis-nome">{{ projetoNome(pid) }}</span>
+                    <button type="button" class="proj-vis-toggle"
+                            [class.on]="projetoOculto(pid)"
+                            (click)="toggleProjetoOculto(pid)"
+                            [title]="projetoOculto(pid) ? 'Oculto neste time — clique para mostrar' : 'Visível — clique para ocultar neste time'">
+                      {{ projetoOculto(pid) ? '🚫 Oculto' : '👁 Visível' }}
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
 
       <div class="membros-edit">
         <label>Pessoas alocadas</label>
