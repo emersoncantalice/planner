@@ -117,6 +117,16 @@
           </div>
         }
 
+        @if (mostrarFteTotal(node) && ftePorPerfilNode(node).length) {
+          <div class="node-fte-perfis">
+            @for (g of ftePorPerfilNode(node); track g.label) {
+              <span class="node-fte-perfil" [title]="'FTE de ' + g.label + ' nesta estrutura'">
+                <em>{{ g.label }}</em> {{ formatFte(g.fte) }}
+              </span>
+            }
+          </div>
+        }
+
         @if (node.membros?.length) {
           @for (sg of subgruposParaRender(node); track sg.key) {
             <div class="node-subgrupo" [class.flat]="sg.key === '__flat__'">
@@ -155,7 +165,7 @@
                             @if (metaDoMembro(item.m)) { <span class="node-m-metatext">{{ metaDoMembro(item.m) }}</span> }
                             @if (mostrarPercentual(node)) {
                               @if (editandoPct(node, item.idx)) {
-                                <input class="node-m-pct-input" type="number" min="0" max="100" step="1"
+                                <input class="node-m-pct-input" type="number" min="0" max="100" step="0.01"
                                        [(ngModel)]="pctEditValue"
                                        (mousedown)="$event.stopPropagation()"
                                        (click)="$event.stopPropagation()"
@@ -169,7 +179,7 @@
                                       [style.color]="percentualPessoa(item.m) != null ? '#fff' : null"
                                       title="Duplo clique para editar (cópia para o time — não altera a alocação por LO)"
                                       (dblclick)="iniciarEdicaoPct(node, item.idx, item.m, $event)">
-                                  {{ percentualPessoa(item.m) != null ? percentualPessoa(item.m) + '%' : '—' }}
+                                  {{ percentualPessoa(item.m) != null ? formatPct(percentualPessoa(item.m)) + '%' : '—' }}
                                 </span>
                               }
                             }

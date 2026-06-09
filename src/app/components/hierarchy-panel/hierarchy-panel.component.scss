@@ -465,6 +465,15 @@
   border-radius: 999px; padding: 1px 7px; white-space: nowrap;
 }
 
+/* FTE por perfil (IT Lead / PM / QA / Arquitetura / Demais) */
+.node-fte-perfis { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+.node-fte-perfil {
+  font-size: .6rem; font-weight: 700; color: #334155;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 2px 7px; white-space: nowrap;
+}
+.node-fte-perfil em { font-style: normal; font-weight: 900; color: #1d4ed8; margin-right: 3px; }
+
 /* Projetos vinculados (tribos/squads) — exibição moderna no card */
 .node-projetos {
   margin-top: 10px;
