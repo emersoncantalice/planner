@@ -95,6 +95,9 @@
             @if (nodeQtdAlertas(node) > 0) {
               <span class="node-alert" [title]="nodeQtdAlertas(node) + ' pessoa(s) fora das LOs vinculadas'">⚠ {{ nodeQtdAlertas(node) }}</span>
             }
+            @if (mostrarMarcacoesDeTime(node)) {
+              <button type="button" title="Detalhar FTE" (click)="abrirFteDetalhe(node, $event)">📊</button>
+            }
             <button type="button" title="Adicionar sub-estrutura" (click)="abrirNovo(node.id)">＋</button>
             <button type="button" title="Ocultar esta cadeia" (click)="ocultarCadeia(node, $event)">◐</button>
             <button type="button" title="Editar" (click)="editar(node)">✎</button>
@@ -136,7 +139,7 @@
             @for (grupo of grupoDefs; track grupo.key) {
             @if (membrosPorGrupo(node, grupo.key, sg.filter).length) {
               <div class="node-grupo" [class]="grupo.cls">
-                @if (!ocultarValoresExport) {
+                @if (!ocultarValoresExport && ehSquad(node)) {
                   <div class="node-grupo-head count-only">
                     <span class="node-grupo-count">{{ resumoGrupoSquad(node, grupo.key, sg.filter) }}</span>
                   </div>
@@ -173,7 +176,7 @@
                                        (keydown.enter)="salvarPct(node, item.idx)"
                                        (keydown.escape)="cancelarEdicaoPct()"
                                        autofocus />
-                              } @else {
+                              } @else if (percentualPessoa(item.m) !== 0) {
                                 <span class="node-m-pct" [class.vazio]="percentualPessoa(item.m) == null"
                                       [style.background]="percentualPessoa(item.m) != null ? corPercentual(percentualPessoa(item.m)) : null"
                                       [style.color]="percentualPessoa(item.m) != null ? '#fff' : null"
@@ -181,6 +184,10 @@
                                       (dblclick)="iniciarEdicaoPct(node, item.idx, item.m, $event)">
                                   {{ percentualPessoa(item.m) != null ? formatPct(percentualPessoa(item.m)) + '%' : '—' }}
                                 </span>
+                              } @else {
+                                <span class="node-m-pct zero"
+                                      title="Alocação 0% — duplo clique para definir"
+                                      (dblclick)="iniciarEdicaoPct(node, item.idx, item.m, $event)">0%</span>
                               }
                             }
                           </span>
@@ -188,6 +195,9 @@
                       </div>
                       @if (mostrarMarcacoesDeTime(node) && !membroContaFte(item.m)) { <span class="node-m-nofte" title="Não conta para o FTE">∅</span> }
                       @if (membroForaDaLo(node, item.m)) { <span class="node-m-alert" title="Fora da(s) LO(s) vinculada(s)">⚠</span> }
+                      @if (mostrarMarcacoesDeTime(node) && pessoaSuperAlocada(item.m)) {
+                        <span class="node-m-overalloc" [title]="item.m.nomePessoa + ' está com ' + formatPct(alocacaoTotalPessoa(item.m)) + '% de alocação somada nas estruturas — acima de 100%. Corrija.'">⚠ {{ formatPct(alocacaoTotalPessoa(item.m)) }}%</span>
+                      }
                       <button type="button" class="node-m-del" title="Remover pessoa desta estrutura" (click)="removerMembroDoNode(node, item.idx, $event)">✕</button>
                     </div>
                   }
@@ -490,6 +500,63 @@
       <div class="form-actions">
         <button type="button" (click)="salvar()" [disabled]="!formValido">{{ editingId ? 'Salvar' : 'Criar' }}</button>
         <button type="button" class="sec" (click)="cancelar()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (fteDetalheNode) {
+  <div class="modal-backdrop hierarchy-modal-backdrop" (click)="fecharFteDetalhe()"></div>
+  <div class="modal-card modal-card-lg hierarchy-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="form-box fte-detalhe">
+      <h3>Detalhamento de FTE · {{ tipoLabel(fteDetalheNode.tipo) }} {{ fteDetalheNode.nome }}</h3>
+      <div class="fte-det-total">FTE Total: <strong>{{ formatFte(fteTotalNode(fteDetalheNode)) }}</strong></div>
+
+      <h4>Por perfil</h4>
+      <div class="fte-det-chips">
+        @for (g of ftePorPerfilNode(fteDetalheNode); track g.label) {
+          <span class="fte-det-chip"><em>{{ g.label }}</em> {{ formatFte(g.fte) }}</span>
+        } @empty {
+          <span class="sub">Sem pessoas que contam FTE.</span>
+        }
+      </div>
+
+      <h4>Por vínculo</h4>
+      <div class="fte-det-chips">
+        @for (v of fteDetalheVinculo(fteDetalheNode); track v.label) {
+          <span class="fte-det-chip"><em>{{ v.label }}</em> {{ formatFte(v.fte) }} · {{ v.pct }}%</span>
+        } @empty {
+          <span class="sub">—</span>
+        }
+      </div>
+
+      <h4>Pessoas ({{ fteDetalhePessoas(fteDetalheNode).length }})</h4>
+      <div class="fte-det-table-wrap">
+        <table class="fte-det-table">
+          <thead>
+            <tr><th>Pessoa</th><th>Perfil</th><th>Grupo</th><th>Vínculo</th><th>Estrutura</th><th class="num">Alocação</th><th class="num">FTE</th></tr>
+          </thead>
+          <tbody>
+            @for (p of fteDetalhePessoas(fteDetalheNode); track $index) {
+              <tr [class.no-fte]="!p.contaFte">
+                <td>{{ p.nome }}</td>
+                <td>{{ p.papel }}</td>
+                <td>{{ p.grupo }}</td>
+                <td>{{ p.vinculo }}</td>
+                <td>{{ p.estrutura }}</td>
+                <td class="num">{{ formatPct(p.alocacao) }}%</td>
+                <td class="num">{{ formatFte(p.fte) }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="sub" style="text-align:center">Nenhuma pessoa nesta estrutura.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <small class="sub">Linhas esmaecidas = pessoas que não contam FTE no cadastro (não somam no Dev Team).</small>
+
+      <div class="form-actions">
+        <button type="button" class="sec" (click)="fecharFteDetalhe()">Fechar</button>
       </div>
     </div>
   </div>

@@ -412,11 +412,26 @@
 }
 .node-m-pct:hover { background: #c7d2fe; }
 .node-m-pct.vazio { color: #94a3b8; background: #f1f5f9; }
+/* Alocação 0%: oculta no repouso (e na exportação), reaparece no hover para poder editar */
+.node-m-pct.zero {
+  display: none;
+  color: #94a3b8; background: #f1f5f9; border: 1px dashed #cbd5e1;
+}
+.node-m:hover .node-m-pct.zero { display: inline-flex; }
 .node-m-pct-input {
   flex: 0 0 auto; width: 44px; padding: 0 4px; height: 16px;
   font-size: .58rem; font-weight: 700; border: 1px solid #6366f1; border-radius: 6px;
 }
 .node-m-alert { margin-left: auto; color: #ea580c; font-size: .8rem; }
+/* Alerta de super-alocação (soma > 100%) — só na tela, nunca na exportação */
+.node-m-overalloc {
+  margin-left: auto; flex: 0 0 auto;
+  color: #b91c1c; background: #fee2e2; border: 1px solid #fecaca;
+  border-radius: 8px; padding: 0 5px; font-size: .6rem; font-weight: 900;
+  white-space: nowrap; line-height: 1.5;
+}
+.node-m-overalloc + .node-m-del,
+.node-m-alert + .node-m-overalloc { margin-left: 4px; }
 .node-m-del {
   margin-left: auto; border: none; background: transparent; cursor: pointer;
   color: #94a3b8; font-size: .72rem; padding: 0 2px; border-radius: 4px;
@@ -464,6 +479,28 @@
   color: #1d4ed8; background: #eef6ff; border: 1px solid #cfe0fb;
   border-radius: 999px; padding: 1px 7px; white-space: nowrap;
 }
+
+/* Modal de detalhamento de FTE */
+.fte-detalhe h4 { margin: 14px 0 6px; font-size: .82rem; color: #334155; }
+.fte-det-total {
+  margin-top: 4px; font-size: 1rem; font-weight: 700; color: #0f172a;
+  background: #eef6ff; border: 1px solid #cfe0fb; border-radius: 10px;
+  padding: 8px 12px; display: inline-block;
+}
+.fte-det-total strong { color: #1d4ed8; }
+.fte-det-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fte-det-chip {
+  font-size: .76rem; font-weight: 700; color: #334155;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 3px 9px;
+}
+.fte-det-chip em { font-style: normal; font-weight: 900; color: #1d4ed8; margin-right: 4px; }
+.fte-det-table-wrap { max-height: 320px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+.fte-det-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.fte-det-table th, .fte-det-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #eef2f8; white-space: nowrap; }
+.fte-det-table th { position: sticky; top: 0; background: #f8fafc; color: #475569; font-weight: 800; z-index: 1; }
+.fte-det-table th.num, .fte-det-table td.num { text-align: right; }
+.fte-det-table tbody tr:hover { background: #f8fafc; }
+.fte-det-table tr.no-fte { color: #94a3b8; }
 
 /* FTE por perfil (IT Lead / PM / QA / Arquitetura / Demais) */
 .node-fte-perfis { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
