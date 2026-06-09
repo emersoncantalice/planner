@@ -2780,7 +2780,9 @@ app-project-detail {
 // ── Busca dentro de <select> (SearchableSelectDirective) ─────────────────────
 .ss-panel {
   position: fixed;
-  z-index: 2000;
+  /* Acima de qualquer modal/overlay (modais usam ate ~10000) para o dropdown
+     de busca nao ficar escondido atras do modal. */
+  z-index: 100000;
   background: #fff;
   border: 1px solid #c9d8f2;
   border-radius: 10px;
