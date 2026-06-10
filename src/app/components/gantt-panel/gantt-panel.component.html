@@ -413,6 +413,28 @@
   </div>
 }
 
+<!-- ── Menu de contexto da atividade (copiar / colar) ─────────────────────── -->
+@if (ctxMenu.open) {
+  <div class="gp-ctx-backdrop"
+       (click)="closeCtxMenu()"
+       (contextmenu)="$event.preventDefault(); closeCtxMenu()"></div>
+  <div class="gp-ctx-menu"
+       [style.left.px]="ctxMenu.left"
+       [style.top.px]="ctxMenu.top"
+       (click)="$event.stopPropagation()">
+    <button class="gp-ctx-item" (click)="ctxCopiar()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+      <span class="gp-ctx-label">Copiar atividade</span>
+      <span class="gp-ctx-shortcut">Ctrl+C</span>
+    </button>
+    <button class="gp-ctx-item" (click)="ctxColar()" [disabled]="!clipboardAtividades.length">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg>
+      <span class="gp-ctx-label">Colar atividade</span>
+      <span class="gp-ctx-shortcut">Ctrl+V</span>
+    </button>
+  </div>
+}
+
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="gp-wrap" [class.gp-embedded]="embedded" (window:keydown)="onWindowKeydown($event)">
 
@@ -699,7 +721,8 @@
                  [class.gp-row-selected]="isSelected(item)"
                  [class.gp-row-done]="(item.status||'').toUpperCase() === 'CONCLUIDO'"
                  [class.gp-row-dragging]="isDragging(item)"
-                 (click)="onRowClick($event, item)">
+                 (click)="onRowClick($event, item)"
+                 (contextmenu)="onRowContextMenu($event, item)">
 
               <!-- Left col (sticky) -->
               <div class="gp-lcol" [style.width.px]="LEFT_W">

@@ -830,7 +830,23 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   }
 
   onWindowKeydown(event: KeyboardEvent) {
-    if (!this.timelineHovered || !event.ctrlKey) return;
+    if (!event.ctrlKey && !event.metaKey) return;
+
+    // Copiar / colar atividades — só quando o mouse está sobre o cronograma e o
+    // foco não está em um campo de formulário (modais de edição/criação).
+    if (this.timelineHovered && this.projetoSelecionado && !this.isTypingTarget()) {
+      const k = event.key.toLowerCase();
+      if (k === 'c') {
+        if (this.copiarSelecao()) event.preventDefault();
+        return;
+      }
+      if (k === 'v') {
+        if (this.colarAtividades()) event.preventDefault();
+        return;
+      }
+    }
+
+    if (!this.timelineHovered) return;
     const key = event.key;
     if (key === '+' || key === '=' || key === 'Add') {
       event.preventDefault();
@@ -842,6 +858,99 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       this.zoomOut();
     }
   }
+
+  // ── Copiar / colar atividades ─────────────────────────────────────────────
+  /** Atividades copiadas (snapshots), prontas para colar como novas. */
+  clipboardAtividades: any[] = [];
+  /** Menu de contexto (botão direito) sobre uma atividade. */
+  ctxMenu: { open: boolean; left: number; top: number; item: any } =
+    { open: false, left: 0, top: 0, item: null };
+
+  /** Foco em um campo de formulário? (evita capturar Ctrl+C/V durante digitação) */
+  private isTypingTarget(): boolean {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+  }
+
+  /** Atividades-alvo de uma ação: a clicada (se fora da seleção) ou a seleção atual. */
+  private atividadesAlvo(item?: any): any[] {
+    if (item && !this.selectedItemIds.has(item.id)) return [item];
+    if (this.selectedItemIds.size) {
+      return this.atividades().filter((a: any) => this.selectedItemIds.has(a.id));
+    }
+    return item ? [item] : [];
+  }
+
+  /** Copia a(s) atividade(s) selecionada(s) para a área de transferência interna. */
+  copiarSelecao(item?: any): boolean {
+    const alvos = this.atividadesAlvo(item);
+    if (!alvos.length) return false;
+    this.clipboardAtividades = alvos.map((a: any) => ({
+      titulo:          a.titulo ?? '',
+      descricao:       a.descricao ?? '',
+      inicioPlanejado: a.inicioPlanejado ?? null,
+      fimPlanejado:    a.fimPlanejado ?? null,
+      permiteParalelo: !!a.permiteParalelo,
+      cor:             a.cor ?? '',
+      responsavel:     a.responsavel || this.getMeta(a.id).responsavel || '',
+    }));
+    this.dateWarning = this.clipboardAtividades.length > 1
+      ? `${this.clipboardAtividades.length} atividades copiadas. Use Ctrl+V para colar.`
+      : `Atividade "${this.clipboardAtividades[0].titulo}" copiada. Use Ctrl+V para colar.`;
+    // Reflete no clipboard do sistema (best-effort; ignora falhas de permissão).
+    try { navigator.clipboard?.writeText(JSON.stringify(this.clipboardAtividades)); } catch { }
+    return true;
+  }
+
+  /** Cola a(s) atividade(s) copiada(s) como novas atividades neste projeto. */
+  colarAtividades(): boolean {
+    if (!this.clipboardAtividades.length || !this.projetoSelecionado) return false;
+    for (const c of this.clipboardAtividades) {
+      this.addScheduleItem.emit({
+        titulo:          this.tituloCopia(c.titulo),
+        descricao:       c.descricao ?? '',
+        inicioPlanejado: c.inicioPlanejado ?? null,
+        fimPlanejado:    c.fimPlanejado ?? null,
+        permiteParalelo: !!c.permiteParalelo,
+        cor:             c.cor || undefined,
+        responsavel:     c.responsavel || undefined,
+      } as any);
+    }
+    this.dateWarning = this.clipboardAtividades.length > 1
+      ? `${this.clipboardAtividades.length} atividades coladas.`
+      : 'Atividade colada.';
+    return true;
+  }
+
+  /** Acrescenta " (cópia)" ao título, sem acumular o sufixo em colagens repetidas. */
+  private tituloCopia(titulo: string): string {
+    const base = (titulo ?? '').trim() || 'Atividade';
+    return /\(cópia\)\s*$/i.test(base) ? base : `${base} (cópia)`;
+  }
+
+  onRowContextMenu(event: MouseEvent, item: any) {
+    event.preventDefault();
+    event.stopPropagation();
+    // Se a atividade não faz parte da seleção, seleciona-a (sem abrir o editor).
+    if (!this.selectedItemIds.has(item.id)) {
+      this.selectedItemIds.clear();
+      this.selectedItemIds.add(item.id);
+    }
+    const MENU_W = 210, MENU_H = 96;
+    this.ctxMenu = {
+      open: true,
+      left: Math.min(event.clientX, window.innerWidth - MENU_W - 8),
+      top:  Math.min(event.clientY, window.innerHeight - MENU_H - 8),
+      item,
+    };
+  }
+
+  closeCtxMenu() { this.ctxMenu.open = false; this.ctxMenu.item = null; }
+
+  ctxCopiar() { this.copiarSelecao(this.ctxMenu.item); this.closeCtxMenu(); }
+  ctxColar()  { this.colarAtividades(); this.closeCtxMenu(); }
 
   
   dayHeaders(): TimelineHeader[] {
