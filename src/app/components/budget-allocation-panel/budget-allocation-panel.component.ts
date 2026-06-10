@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { PlannerApiService } from '../../core/planner-api.service';
+import { LoFinanceService, LoFinanceCalculator } from '../../core/lo-finance.service';
 
 @Component({
   selector: 'app-budget-allocation-panel',
@@ -158,6 +159,29 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private pagoMensal: Record<string, boolean> = {};
   private api = inject(PlannerApiService);
   private cdr = inject(ChangeDetectorRef);
+  private loFinance = inject(LoFinanceService);
+
+  /**
+   * Calculadora financeira compartilhada (fonte única de verdade para Cockpit/Relatórios).
+   * Aponta para os mesmos arrays/estado deste componente, então sempre lê dados atuais.
+   */
+  private finance(): LoFinanceCalculator {
+    return this.loFinance.for({
+      ano: this.anoSelecionado,
+      linhasOrcamentarias: this.linhasOrcamentarias,
+      ajustes: this.ajustes,
+      alocacoes: this.alocacoes,
+      pessoas: this.pessoas,
+      perfis: this.perfis,
+      horasMes: this.horasMes,
+      ausencias: this.ausencias,
+      percentualBase: (id) => Number(this.getConfig(id).percentual || 0),
+      isCancelado: (id, m) => this.isCancelado(id, m),
+      manualValue: (id, m) => this.getValorMensalManual(id, m),
+      manualPercent: (id, m) => this.getPercentualMensalManual(id, m),
+      isPago: (id, m) => this.isPago(id, m),
+    });
+  }
   private paymentsSyncTimer: ReturnType<typeof setInterval> | null = null;
   private presenceSyncTimer: ReturnType<typeof setInterval> | null = null;
   private monthlyStateSyncTimer: ReturnType<typeof setInterval> | null = null;
@@ -618,16 +642,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   totalOrcamentoGeralLos(): number {
-    return this.linhasDoAnoSelecionado().reduce((acc: number, lo: any) => {
-      const base = Number(lo?.valorTotal || 0);
-      const delta = this.ajustes
-        .filter((a: any) => a.budgetLineId === lo.id)
-        .reduce((sum: number, a: any) => {
-          const valor = Number(a?.valor || 0);
-          return sum + (String(a?.tipo || '').toUpperCase() === 'APORTE' ? valor : -valor);
-        }, 0);
-      return acc + base + delta;
-    }, 0);
+    return this.finance().totalOrcamentoGeralLos();
   }
 
   
@@ -674,65 +689,39 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   totalComprometidoGeralLos(): number {
-    return this.comprometidoGeralPorCategoria('FOLHA') + this.comprometidoGeralPorCategoria('TERCEIRO');
+    return this.finance().totalComprometidoGeralLos();
   }
 
   comprometidoGeralPorCategoria(categoria: 'FOLHA' | 'TERCEIRO'): number {
-    const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
-    return this.alocacoes
-      .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
-      .filter((a: any) => this.alocacaoContaNoGeral(a))
-      .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
-      .reduce((acc: number, a: any) => {
-        const vh = this.getValorHoraDaAlocacao(a);
-        return acc + this.meses.reduce(
-          (sum: number, _m: string, mi: number) => sum + this.round2(this.custoMensal(a.id, vh, mi)), 0
-        );
-      }, 0);
+    return this.finance().comprometidoGeralPorCategoria(categoria);
   }
 
   saldoGeralLos(): number {
-    return this.totalOrcamentoGeralLos() - this.totalComprometidoGeralLos();
+    return this.finance().saldoGeralLos();
   }
 
   saldoAtualGeralLos(): number {
-    return this.totalOrcamentoGeralLos() - this.totalPagoGeralLos();
+    return this.finance().saldoAtualGeralLos();
   }
 
   percentualUtilizadoGeral(): number {
-    const orc = this.totalOrcamentoGeralLos();
-    if (!orc) return 0;
-    return (this.totalComprometidoGeralLos() / orc) * 100;
+    return this.finance().percentualUtilizadoGeral();
   }
 
   numLosAno(): number {
-    return this.linhasDoAnoSelecionado().length;
+    return this.finance().numLosAno();
   }
 
   numAlocacoesAno(): number {
-    const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
-    return this.alocacoes
-      .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
-      .filter((a: any) => this.alocacaoContaNoGeral(a))
-      .length;
+    return this.finance().numAlocacoesAno();
   }
 
   numPessoasAlocadasAno(): number {
-    const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
-    const nomes = new Set(
-      this.alocacoes
-        .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
-        .filter((a: any) => this.alocacaoContaNoGeral(a))
-        .map((a: any) => this.normalized(a?.nomePessoa || ''))
-        .filter((n: string) => !!n)
-    );
-    return nomes.size;
+    return this.finance().numPessoasAlocadasAno();
   }
 
   mediaComprometidoPorLo(): number {
-    const n = this.numLosAno();
-    if (!n) return 0;
-    return this.totalComprometidoGeralLos() / n;
+    return this.finance().mediaComprometidoPorLo();
   }
 
   clampPct(v: number): number {
@@ -740,23 +729,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   totalPagoGeralLos(): number {
-    return this.totalPagoGeralLosPorCategoria('FOLHA') + this.totalPagoGeralLosPorCategoria('TERCEIRO');
+    return this.finance().totalPagoGeralLos();
   }
 
   totalPagoGeralLosPorCategoria(categoria: 'FOLHA' | 'TERCEIRO'): number {
-    const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
-    return this.alocacoes
-      .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
-      .filter((a: any) => this.alocacaoContaNoGeral(a))
-      .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
-      .reduce((acc: number, a: any) => {
-        const vh = this.getValorHoraDaAlocacao(a);
-        const pagoAnual = this.meses.reduce((sum: number, _: string, mi: number) => {
-          if (!this.isPago(a.id, mi)) return sum;
-          return sum + this.round2(this.custoMensal(a.id, vh, mi));
-        }, 0);
-        return acc + pagoAnual;
-      }, 0);
+    return this.finance().totalPagoGeralLosPorCategoria(categoria);
   }
 
   loSelecionada() {
@@ -1671,6 +1648,14 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return obs ? `${base} - ${obs}` : base;
   }
 
+  /** Rótulo do perfil para os selects, exibindo o valor/hora ao lado do nome. */
+  perfilOptionLabel(p: any): string {
+    const nome = this.perfilSemDepartamento(p?.nomePerfil || '-');
+    if (p?.debitaLo === false) return `${nome} — não debita LO`;
+    const vh = Number(p?.valorHora || 0);
+    return vh ? `${nome} — ${this.currency(vh)}/h` : nome;
+  }
+
   categoriaPessoaSelecionadaNova(): string {
     const pessoa = this.pessoas.find((p: any) => p.id === this.novaPessoaSelecionadaId);
     if (!pessoa) return '-';
@@ -1747,6 +1732,12 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (pessoa?.perfilId) {
       const perfil = this.perfis.find((x: any) => x.id === pessoa.perfilId);
       if (perfil?.valorHora != null) return Number(perfil.valorHora);
+    }
+    // Alocações rascunho não têm pessoa real: o valor/hora vem do perfil escolhido.
+    if (this.form?.perfilId) {
+      const perfilSelecionado = this.perfis.find((x: any) => x.id === this.form.perfilId);
+      if (perfilSelecionado?.debitaLo === false) return 0;
+      if (perfilSelecionado?.valorHora != null) return Number(perfilSelecionado.valorHora);
     }
     return 0;
   }
@@ -1896,12 +1887,6 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private alocacaoContaNoResumoLo(a: any): boolean {
     if (this.isPessoaPlaneada(a)) return this.incluirRascunhoNosTotalizadores || this.isPlanejadaAtivaNosTotal(a.id);
     if (a?.draft) return this.incluirRascunhoNosTotalizadores;
-    return true;
-  }
-
-  private alocacaoContaNoGeral(a: any): boolean {
-    if (this.isPessoaPlaneada(a)) return false;
-    if (a?.draft) return false;
     return true;
   }
 

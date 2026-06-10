@@ -1,6 +1,7 @@
 import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PlannerApiService } from '../../core/planner-api.service';
+import { LoFinanceService, LoFinanceCalculator } from '../../core/lo-finance.service';
 
 @Component({
   selector: 'app-dashboard-panel',
@@ -13,6 +14,7 @@ import { PlannerApiService } from '../../core/planner-api.service';
 export class DashboardPanelComponent implements OnChanges, OnDestroy {
   private api = inject(PlannerApiService);
   private cdr = inject(ChangeDetectorRef);
+  private loFinance = inject(LoFinanceService);
   @Input() nomeUsuario = '';
   @Input() usernameAtual = '';
   @Input() token = '';
@@ -220,87 +222,68 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     return this.linhasOrcamentarias.filter(lo => Number(lo?.ano) === this.anoAtual);
   }
 
-  private orcamentoLo(lo: any): number {
-    const aj = this.ajustes.filter((a: any) => a.budgetLineId === lo.id);
-    const delta = aj.reduce((s: number, a: any) => {
-      const tipo = String(a?.tipo || '').toUpperCase();
-      const valor = this.num(a?.valor);
-      return s + (tipo === 'APORTE' ? valor : -valor);
-    }, 0);
-    return this.num(lo.valorTotal) + delta;
+  /**
+   * Calculadora financeira compartilhada — mesma fonte de verdade da "Visão Geral
+   * das LOs" na tela de Alocações. Garante números idênticos entre as telas.
+   */
+  private finance(): LoFinanceCalculator {
+    return this.loFinance.for({
+      ano: this.anoAtual,
+      linhasOrcamentarias: this.linhasOrcamentarias,
+      ajustes: this.ajustes,
+      alocacoes: this.alocacoes,
+      pessoas: this.pessoas,
+      perfis: this.perfis,
+      horasMes: this.horasMes,
+      ausencias: this.ausencias,
+      percentualBase: (id) => this.getPercentual(id),
+      isCancelado: (id, m) => this.monthlyState(id, m)?.canceled === true,
+      manualValue: (id, m) => {
+        const st = this.monthlyState(id, m);
+        return (st?.manualValue != null && st?.manualValue !== '') ? this.num(st.manualValue) : null;
+      },
+      manualPercent: (id, m) => {
+        const st = this.monthlyState(id, m);
+        if (st?.manualPercent == null || st?.manualPercent === '') return null;
+        return Math.max(0, Math.min(100, this.num(st.manualPercent)));
+      },
+      isPago: (id, m) => this.isPago(id, m),
+    });
   }
 
   orcamentoTotal(): number {
-    return this.losDoAno().reduce((acc, lo) => acc + this.orcamentoLo(lo), 0);
-  }
-
-  private isPessoaPlaneada(a: any): boolean {
-    return typeof a?.nomePessoa === 'string' && a.nomePessoa.startsWith('Pessoa Planejada ');
-  }
-
-  private contaNoCockpit(a: any): boolean {
-    return !this.isPessoaPlaneada(a) && !a?.draft;
+    return this.finance().totalOrcamentoGeralLos();
   }
 
   comprometidoTotal(): number {
-    const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
-    return this.alocacoes
-      .filter((a: any) => ids.has(a.linhaOrcamentariaId) && this.contaNoCockpit(a))
-      .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
+    return this.finance().totalComprometidoGeralLos();
   }
 
-  saldoTotal(): number { return this.orcamentoTotal() - this.comprometidoTotal(); }
+  saldoTotal(): number { return this.finance().saldoGeralLos(); }
+
   realizadoTotal(): number {
-    const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
-    return this.alocacoes
-      .filter((a: any) => ids.has(a.linhaOrcamentariaId) && this.contaNoCockpit(a))
-      .reduce((acc: number, a: any) => {
-        let total = 0;
-        for (let mi = 0; mi < 12; mi++) {
-          if (!this.isPago(a?.id, mi)) continue;
-          total += this.custoMesAlocacao(a, mi);
-        }
-        return acc + total;
-      }, 0);
+    return this.finance().totalPagoGeralLos();
   }
 
   pctComprometido(): number {
-    const orc = this.orcamentoTotal();
-    return orc > 0 ? Math.min(100, (this.comprometidoTotal() / orc) * 100) : 0;
+    return Math.min(100, this.finance().percentualUtilizadoGeral());
   }
 
   utilizacaoLos(): Array<{ lo: any; orcamento: number; comprometido: number; saldo: number; pct: number; qtd: number }> {
+    const f = this.finance();
     return this.losDoAno().map(lo => {
-      const orcamento = this.orcamentoLo(lo);
-      const comprometido = this.alocacoes
-        .filter((a: any) => a.linhaOrcamentariaId === lo.id && this.contaNoCockpit(a))
-        .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
+      const orcamento = f.orcamentoLo(lo);
+      const comprometido = f.comprometidoLo(lo.id);
       const saldo = orcamento - comprometido;
       const pct = orcamento > 0 ? Math.min(100, (comprometido / orcamento) * 100) : 0;
-      const qtd = this.alocacoes.filter((a: any) => a.linhaOrcamentariaId === lo.id && this.contaNoCockpit(a)).length;
+      const qtd = f.qtdAlocacoesLo(lo.id);
       return { lo, orcamento, comprometido, saldo, pct, qtd };
     }).sort((a, b) => b.pct - a.pct);
   }
 
   // ── Tipo LO breakdown ────────────────────────────────────────────────────
-  private comprometidoPorTipo(tipo: 'folha' | 'terceiro'): number {
-    const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
-    return this.alocacoes
-      .filter((a: any) => {
-        if (!ids.has(a.linhaOrcamentariaId)) return false;
-        if (!this.contaNoCockpit(a)) return false;
-        const p = this.pessoas.find((x: any) =>
-          (x?.nome || '').trim().toLowerCase() === (a.nomePessoa || '').trim().toLowerCase()
-        );
-        const tv = (p?.tipoVinculo || '').toUpperCase();
-        if (tipo === 'terceiro') return tv === 'TERCEIRO' || tv === 'PRESTADOR';
-        return tv !== 'TERCEIRO' && tv !== 'PRESTADOR';
-      })
-      .reduce((acc: number, a: any) => acc + this.custoAnualAlocacao(a), 0);
-  }
-
-  comprometidoFolha(): number { return this.comprometidoPorTipo('folha'); }
-  comprometidoTerceiros(): number { return this.comprometidoPorTipo('terceiro'); }
+  comprometidoFolha(): number { return this.finance().comprometidoGeralPorCategoria('FOLHA'); }
+  comprometidoTerceiros(): number { return this.finance().comprometidoGeralPorCategoria('TERCEIRO'); }
 
   private getPercentual(allocationId: string): number {
     try {
@@ -311,50 +294,6 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     } catch {
       return 100;
     }
-  }
-
-  private getHorasMes(monthIndex: number): number {
-    const found = this.horasMes.find((h: any) => Number(h?.mes) === monthIndex + 1);
-    const horas = Number(found?.horas ?? 160);
-    return horas > 0 ? horas : 160;
-  }
-
-  private categoriaDaAlocacao(a: any): 'FOLHA' | 'TERCEIRO' {
-    const pessoa = this.pessoas.find((p: any) =>
-      (p?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
-    );
-    const tv = String(pessoa?.tipoVinculo || a?.tipoVinculo || '').toUpperCase();
-    return tv === 'TERCEIRO' || tv === 'PRESTADOR' ? 'TERCEIRO' : 'FOLHA';
-  }
-
-  private horasEfetivas(monthIndex: number, categoria: 'FOLHA' | 'TERCEIRO'): number {
-    return categoria === 'FOLHA' ? 168 : this.getHorasMes(monthIndex);
-  }
-
-  private debitaLoDaAlocacao(a: any): boolean {
-    if (a?.debitaLo != null) return !!a.debitaLo;
-    const pessoa = this.pessoas.find((p: any) =>
-      (p?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
-    );
-    const perfilId = a?.perfilId || pessoa?.perfilId;
-    if (!perfilId) return true;
-    const perfil = this.perfis.find((x: any) => x.id === perfilId);
-    return perfil ? !!perfil.debitaLo : true;
-  }
-
-  private valorHoraDaAlocacao(a: any): number {
-    if (!this.debitaLoDaAlocacao(a)) return 0;
-    const pessoa = this.pessoas.find((p: any) =>
-      (p?.nome || '').trim().toLowerCase() === (a?.nomePessoa || '').trim().toLowerCase()
-    );
-    if (pessoa?.valorHora != null) return this.num(pessoa.valorHora);
-    return this.num(a?.valorHora);
-  }
-
-  private custoAnualAlocacao(a: any): number {
-    let total = 0;
-    for (let mi = 0; mi < 12; mi++) total += this.custoMesAlocacao(a, mi);
-    return total;
   }
 
   private isPago(allocationId: string, month: number): boolean {
@@ -371,26 +310,9 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     ) || null;
   }
 
-  private custoMesAlocacao(a: any, month: number): number {
-    const st = this.monthlyState(a?.id, month);
-    if (st?.canceled === true) return 0;
-    if (st?.manualValue != null && st?.manualValue !== '') return this.num(st.manualValue);
-    const vh = this.valorHoraDaAlocacao(a);
-    if (!vh) return 0;
-    const basePct = this.getPercentual(a?.id);
-    const pct = st?.manualPercent != null && st?.manualPercent !== '' ? this.num(st.manualPercent) : basePct;
-    const categoria = this.categoriaDaAlocacao(a);
-    return vh * this.horasEfetivas(month, categoria) * (pct / 100);
-  }
-
   // ── Pessoas ───────────────────────────────────────────────────────────────
   pessoasAlocadas(): number {
-    const ids = new Set(this.losDoAno().map((lo: any) => lo.id));
-    return new Set(
-      this.alocacoes
-        .filter((a: any) => ids.has(a.linhaOrcamentariaId) && this.contaNoCockpit(a))
-        .map((a: any) => a.nomePessoa)
-    ).size;
+    return this.finance().numPessoasAlocadasAno();
   }
 
   // ── Riscos ────────────────────────────────────────────────────────────────

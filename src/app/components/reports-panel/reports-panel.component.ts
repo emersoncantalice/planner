@@ -1,7 +1,9 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { inject } from '@angular/core';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
+import { LoFinanceService, LoFinanceCalculator } from '../../core/lo-finance.service';
 
 type Relatorio = 'lo' | 'pessoa' | 'prestador' | 'mensal' | 'nao_alocados';
 
@@ -23,6 +25,9 @@ export class ReportsPanelComponent {
   @Input() horasMes: any[] = [];
   @Input() estadosMensais: any[] = [];
   @Input() ausencias: any[] = [];
+  @Input() pagamentos: any[] = [];
+
+  private loFinance = inject(LoFinanceService);
 
   meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   relatorioAtivo: Relatorio = 'lo';
@@ -75,18 +80,39 @@ export class ReportsPanelComponent {
     return Number(fallback);
   }
 
-  private debitaLoDaAlocacao(a: any): boolean {
-    if (a?.debitaLo != null) return !!a.debitaLo;
-    const pessoa = this.pessoaPorNome(a?.nomePessoa || '');
-    const perfilId = a?.perfilId || pessoa?.perfilId;
-    if (!perfilId) return true;
-    const perfil = this.perfis.find((x: any) => x.id === perfilId);
-    return perfil ? !!perfil.debitaLo : true;
+  /**
+   * Calculadora financeira compartilhada — mesma fonte de verdade da "Visão Geral
+   * das LOs" na tela de Alocações. Garante números idênticos entre as telas.
+   */
+  private finance(): LoFinanceCalculator {
+    return this.loFinance.for({
+      ano: this.anoSelecionado,
+      linhasOrcamentarias: this.linhasOrcamentarias,
+      ajustes: this.ajustes,
+      alocacoes: this.alocacoes,
+      pessoas: this.pessoas,
+      perfis: this.perfis,
+      horasMes: this.horasMes,
+      ausencias: this.ausencias,
+      percentualBase: (id) => this.getPercentual(id),
+      isCancelado: (id, m) => this.estadoMensal(id, m)?.canceled === true,
+      manualValue: (id, m) => {
+        const e = this.estadoMensal(id, m);
+        return (e?.manualValue != null && e?.manualValue !== '') ? Number(e.manualValue || 0) : null;
+      },
+      manualPercent: (id, m) => {
+        const e = this.estadoMensal(id, m);
+        if (e?.manualPercent == null || e?.manualPercent === '') return null;
+        return Math.max(0, Math.min(100, Number(e.manualPercent)));
+      },
+      isPago: (id, m) => this.pagamentos.some((p: any) =>
+        String(p?.allocationId || '') === String(id || '') && Number(p?.month) === m && !!p?.paid
+      ),
+    });
   }
 
   private getCategoria(a: any): 'FOLHA' | 'TERCEIRO' {
-    const tv = String(this.pessoaPorNome(a?.nomePessoa || '')?.tipoVinculo || a?.tipoVinculo || '').toUpperCase();
-    return tv === 'TERCEIRO' || tv === 'PRESTADOR' ? 'TERCEIRO' : 'FOLHA';
+    return this.finance().getCategoriaDaPessoa(a);
   }
 
   private getConsultoria(nomePessoa: string): string {
@@ -114,52 +140,6 @@ export class ReportsPanelComponent {
     return 100;
   }
 
-  private getHorasMes(monthIndex: number): number {
-    const found = this.horasMes.find((h: any) => Number(h?.mes) === monthIndex + 1);
-    const h = Number(found?.horas ?? 160);
-    return h > 0 ? h : 160;
-  }
-
-  private diasAusenciaNoMes(nomePessoa: string, monthIndex: number): number {
-    const nomeNorm = this.normalized(nomePessoa || '');
-    if (!nomeNorm) return 0;
-    const pessoa = this.pessoaPorNome(nomePessoa);
-    const pessoaId = String(pessoa?.id || '').trim();
-    const monthStart = new Date(this.anoSelecionado, monthIndex, 1);
-    const monthEnd = new Date(this.anoSelecionado, monthIndex + 1, 0);
-    const dias = new Set<string>();
-
-    for (const ausencia of this.ausencias || []) {
-      const aid = String(ausencia?.pessoaId || '').trim();
-      const anome = this.normalized(ausencia?.pessoaNome || '');
-      if (!(pessoaId && aid === pessoaId) && anome !== nomeNorm) continue;
-
-      const inicioRaw = String(ausencia?.inicio || '');
-      const fimRaw = String(ausencia?.fim || '');
-      if (!inicioRaw || !fimRaw) continue;
-      const inicio = new Date((ausencia?.recorrente ? `${this.anoSelecionado}-${inicioRaw.slice(5)}` : inicioRaw) + 'T00:00:00');
-      const fim = new Date((ausencia?.recorrente ? `${this.anoSelecionado}-${fimRaw.slice(5)}` : fimRaw) + 'T00:00:00');
-      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) continue;
-
-      const clampStart = inicio > monthStart ? inicio : monthStart;
-      const clampEnd = fim < monthEnd ? fim : monthEnd;
-      if (clampStart > clampEnd) continue;
-
-      const cursor = new Date(clampStart.getTime());
-      while (cursor <= clampEnd) {
-        dias.add(cursor.toISOString().slice(0, 10));
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    }
-
-    return dias.size;
-  }
-
-  private horasEfetivas(a: any, monthIndex: number): number {
-    if (this.getCategoria(a) !== 'TERCEIRO') return 168;
-    return Math.max(0, this.getHorasMes(monthIndex) - this.diasAusenciaNoMes(a?.nomePessoa || '', monthIndex) * 8);
-  }
-
   private estadoMensal(allocationId: string, monthIndex: number): any | null {
     return this.estadosMensais.find((s: any) =>
       String(s?.allocationId || '') === String(allocationId || '') && Number(s?.month) === monthIndex
@@ -167,33 +147,15 @@ export class ReportsPanelComponent {
   }
 
   private custoMensalAlloc(a: any, monthIndex: number): number {
-    if (!this.contaNoRelatorio(a)) return 0;
-    if (!this.debitaLoDaAlocacao(a)) return 0;
-    if (a?.mesInicio != null && Number(a.mesInicio) > monthIndex) return 0;
-    const estado = this.estadoMensal(a?.id, monthIndex);
-    if (estado?.canceled === true) return 0;
-    if (estado?.manualValue != null && estado?.manualValue !== '') return Number(estado.manualValue || 0);
-    const pctBase = this.getPercentual(a.id);
-    const pct = estado?.manualPercent != null && estado?.manualPercent !== ''
-      ? Math.max(0, Math.min(100, Number(estado.manualPercent)))
-      : pctBase;
-    const vh = this.getValorHora(a.nomePessoa, Number(a.valorHora || 0), a?.perfilId || '');
-    return vh * this.horasEfetivas(a, monthIndex) * (pct / 100);
+    return this.finance().custoMensalAlocacao(a, monthIndex);
   }
 
   private custoAnualAlloc(a: any): number {
-    return this.meses.reduce((acc, _, mi) => acc + this.custoMensalAlloc(a, mi), 0);
+    return this.finance().custoAnualAlocacao(a);
   }
 
   private orcamentoLo(lo: any): number {
-    const base = Number(lo?.valorTotal || 0);
-    const delta = this.ajustes
-      .filter((aj: any) => aj.budgetLineId === lo.id)
-      .reduce((s: number, aj: any) => {
-        const v = Number(aj?.valor || 0);
-        return s + (String(aj?.tipo || '').toUpperCase() === 'APORTE' ? v : -v);
-      }, 0);
-    return base + delta;
+    return this.finance().orcamentoLo(lo);
   }
 
   currency(v: number): string {

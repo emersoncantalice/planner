@@ -478,7 +478,7 @@
                   <select class="pessoa-combo" [(ngModel)]="form.perfilId" style="font-size:.84rem">
                     <option value="">— Perfil (obrigatório) —</option>
                     @for (p of perfis; track p.id) {
-                      <option [value]="p.id">{{ perfilSemDepartamento(p.nomePerfil) }}</option>
+                      <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
                     }
                   </select>
                 }
@@ -631,7 +631,14 @@
             }
             @if (col('perfil')) {
               <td>
-                @if (editingId === a.id) {
+                @if (editingId === a.id && isDraft(a)) {
+                  <select class="pessoa-combo" [(ngModel)]="form.perfilId" style="font-size:.84rem">
+                    <option value="">— Perfil (obrigatório) —</option>
+                    @for (p of perfis; track p.id) {
+                      <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
+                    }
+                  </select>
+                } @else if (editingId === a.id) {
                   <span class="readonly-cell">{{ perfilNomePessoaSelecionadaEdicao() }}</span>
                 } @else {
                   {{ perfilSemDepartamento(a.perfilNome) }}
@@ -903,7 +910,7 @@
     <select [(ngModel)]="pessoaRapida.perfilId">
       <option value="">Selecione o perfil</option>
       @for (p of perfis; track p.id) {
-        <option [value]="p.id">{{ p.nomePerfil }}</option>
+        <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
       }
     </select>
     <select [(ngModel)]="pessoaRapida.tipoVinculo">
