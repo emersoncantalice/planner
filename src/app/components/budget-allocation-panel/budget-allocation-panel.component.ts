@@ -130,11 +130,12 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (!partes.length) return '?';
     return ((partes[0][0] || '') + (partes.length > 1 ? (partes[partes.length - 1][0] || '') : '')).toUpperCase();
   }
-  @Output() create = new EventEmitter<{ linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }>();
-  @Output() update = new EventEmitter<{ id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }>();
+  @Output() create = new EventEmitter<{ linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number; valorHora?: number | null }>();
+  @Output() update = new EventEmitter<{ id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number; valorHora?: number | null }>();
   @Output() remove = new EventEmitter<string>();
   @Output() createPerson = new EventEmitter<{ nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl: string }>();
-  form = { linhaOrcamentariaId: '', nomePessoa: '', perfilId: '', horasPlanejadas: 0 };
+  form = { linhaOrcamentariaId: '', nomePessoa: '', perfilId: '', horasPlanejadas: 0, valorHora: null as number | null };
+  draftValorHoraMasked = '';
   editingId = '';
   novaLinhaAberta = false;
 
@@ -665,6 +666,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   getValorHoraDaAlocacao(a: any): number {
+    // Rascunho: o valor/hora informado na linha tem prioridade (mesmo que a LO não debite).
+    if (a?.draft && a?.valorHora != null) return Number(a.valorHora);
     if (!this.debitaLoDaAlocacao(a)) return 0;
     const pessoa = this.pessoas.find(
       (p: any) => this.normalized(p?.nome || '') === this.normalized(a?.nomePessoa || '')
@@ -1376,8 +1379,10 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       linhaOrcamentariaId: a.linhaOrcamentariaId,
       nomePessoa: a.nomePessoa,
       perfilId: a.perfilId,
-      horasPlanejadas: Number(a.horasPlanejadas)
+      horasPlanejadas: Number(a.horasPlanejadas),
+      valorHora: a?.valorHora != null ? Number(a.valorHora) : null
     };
+    this.draftValorHoraMasked = this.form.valorHora != null ? this.formatCurrency(this.form.valorHora) : '';
     const pessoa = this.pessoas.find((p: any) => this.normalized(p?.nome || '') === this.normalized(a?.nomePessoa || ''));
     this.pessoaEdicaoSelecionadaId = pessoa?.id || '';
     this.pessoaEdicaoNome = a.nomePessoa || '';
@@ -1419,6 +1424,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.editingId = '';
     this.pessoaEdicaoSelecionadaId = '';
     this.pessoaEdicaoNome = '';
+    this.form.valorHora = null;
+    this.draftValorHoraMasked = '';
   }
 
   cancelEdit() {
@@ -1517,6 +1524,22 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.pessoaValorMensalMasked = this.formatCurrency(this.pessoaRapida.valorMensal);
   }
 
+  // ── Valor/hora editável das alocações rascunho ─────────────────────────────
+  onDraftValorHoraChange(value: string) {
+    const digits = (value ?? '').replace(/\D/g, '');
+    const cents = digits ? Number.parseInt(digits, 10) : 0;
+    this.form.valorHora = cents / 100;
+    this.draftValorHoraMasked = this.formatCurrency(this.form.valorHora);
+  }
+
+  /** Ao escolher o perfil de um rascunho, pré-preenche o valor/hora com o do perfil (editável). */
+  onDraftPerfilChange() {
+    const perfil = this.perfis.find((x: any) => x.id === this.form.perfilId);
+    const vh = perfil ? Number(perfil.valorHora || 0) : 0;
+    this.form.valorHora = vh;
+    this.draftValorHoraMasked = this.formatCurrency(vh);
+  }
+
   adicionarAlocacao() {
     const nomePessoa = this.form.nomePessoa || '';
     // Uma LO em rascunho só aceita alocações do tipo rascunho, então tratamos
@@ -1562,6 +1585,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.create.emit(payload);
     this.form.nomePessoa = '';
     this.form.perfilId = '';
+    this.form.valorHora = null;
+    this.draftValorHoraMasked = '';
     this.novaPessoaSelecionadaId = '';
     this.pessoaNovaNome = '';
     this.novaAlocacaoPercentual = 100;
@@ -1576,6 +1601,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.editingId = '';
     // default sempre desativado; o usuário decide ativar manualmente
     this.draftMode = false;
+    this.form.valorHora = null;
+    this.draftValorHoraMasked = '';
   }
 
   fecharNovaLinha() {
@@ -1584,6 +1611,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.pessoaNovaNome = '';
     this.form.nomePessoa = '';
     this.form.perfilId = '';
+    this.form.valorHora = null;
+    this.draftValorHoraMasked = '';
     this.novaAlocacaoPercentual = 100;
     this.novaPctMasked = this.formatPct(100);
     this.draftMode = false;
@@ -1713,6 +1742,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   valorHoraPessoaSelecionadaNova(): number {
+    // Rascunho com valor/hora informado manualmente na linha.
+    if ((this.draftMode || this.loSelecionadaEhDraft()) && this.form?.valorHora != null) return Number(this.form.valorHora);
     const pessoa = this.pessoas.find((p: any) => p.id === this.novaPessoaSelecionadaId);
     if (pessoa?.valorHora != null) return Number(pessoa.valorHora);
     if (pessoa?.perfilId) {
@@ -1727,6 +1758,9 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   valorHoraPessoaSelecionadaEdicao(): number {
+    // Rascunho com valor/hora informado manualmente na linha.
+    const atual = this.alocacoes.find((a: any) => a.id === this.editingId);
+    if ((!!atual?.draft || this.loSelecionadaEhDraft()) && this.form?.valorHora != null) return Number(this.form.valorHora);
     const pessoa = this.pessoas.find((p: any) => p.id === this.pessoaEdicaoSelecionadaId);
     if (pessoa?.valorHora != null) return Number(pessoa.valorHora);
     if (pessoa?.perfilId) {

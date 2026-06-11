@@ -121,12 +121,20 @@
           </div>
           <div class="gp-field gp-field-check">
             <label class="gp-check-label">
-              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" [disabled]="!!novaAtividade.predecessorIds.length" />
+              <input type="checkbox" [(ngModel)]="novaAtividade.permiteParalelo" />
               Paralela (pode rodar junto com outras)
             </label>
           </div>
         </div>
-        @if (formError) { <p class="gp-form-error">{{ formError }}</p> }
+        @if (formError) {
+          <p class="gp-form-error">{{ formError }}</p>
+          @if (conflictSuggestion) {
+            <div class="gp-conflict-suggestion">
+              <span>Sugestão: {{ conflictSuggestion.inicioFmt }} → {{ conflictSuggestion.fimFmt }}</span>
+              <button type="button" class="gp-btn-suggestion" (click)="applyConflictSuggestion()">Aplicar nas datas</button>
+            </div>
+          }
+        }
       </div>
 
       <div class="gp-modal-footer">
@@ -292,7 +300,7 @@
           </div>
           <div class="gp-field gp-field-check">
             <label class="gp-check-label">
-              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" [disabled]="!!editForm.predecessorIds.length" />
+              <input type="checkbox" [(ngModel)]="editForm.permiteParalelo" />
               Paralela (pode rodar junto com outras)
             </label>
           </div>
@@ -345,7 +353,15 @@
           </div>
         </div>
 
-        @if (formError) { <p class="gp-form-error">{{ formError }}</p> }
+        @if (formError) {
+          <p class="gp-form-error">{{ formError }}</p>
+          @if (conflictSuggestion) {
+            <div class="gp-conflict-suggestion">
+              <span>Sugestão: {{ conflictSuggestion.inicioFmt }} → {{ conflictSuggestion.fimFmt }}</span>
+              <button type="button" class="gp-btn-suggestion" (click)="applyConflictSuggestion()">Aplicar nas datas</button>
+            </div>
+          }
+        }
 
       </div><!-- /gp-modal-body -->
 
@@ -725,7 +741,18 @@
                  (contextmenu)="onRowContextMenu($event, item)">
 
               <!-- Left col (sticky) -->
-              <div class="gp-lcol" [style.width.px]="LEFT_W">
+              <div class="gp-lcol" [style.width.px]="LEFT_W"
+                   [class.gp-reorder-over]="isReorderOver(item)"
+                   [class.gp-reorder-dragging]="isReorderDragging(item)"
+                   (dragover)="onReorderDragOver($event, item)"
+                   (drop)="onReorderDrop($event, item)">
+                <span class="gr-drag-handle" draggable="true" title="Arraste para reordenar"
+                      (dragstart)="onReorderDragStart($event, item)"
+                      (dragend)="onReorderDragEnd()"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h2v2H9V5zm4 0h2v2h-2V5zM9 9h2v2H9V9zm4 0h2v2h-2V9zm-4 4h2v2H9v-2zm4 0h2v2h-2v-2zm-4 4h2v2H9v-2zm4 0h2v2h-2v-2z"/></svg>
+                </span>
                 <span class="gr-num">{{ i + 1 }}</span>
                 <div class="gr-name-block">
                   <div class="gr-name-line">

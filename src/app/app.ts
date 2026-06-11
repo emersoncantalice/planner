@@ -718,7 +718,7 @@ export class App {
     });
   }
 
-  criarAlocacaoLo(payload: { linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }) {
+  criarAlocacaoLo(payload: { linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number; valorHora?: number | null }) {
     this.api.createBudgetAllocation(this.token(), payload).subscribe({
       next: () => {
         this.mensagem.set('Alocacao LO criada.');
@@ -730,7 +730,7 @@ export class App {
     });
   }
 
-  atualizarAlocacaoLo(payload: { id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }) {
+  atualizarAlocacaoLo(payload: { id: string; linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number; valorHora?: number | null }) {
     this.api.updateBudgetAllocation(this.token(), payload.id, payload).subscribe({
       next: () => {
         this.mensagem.set('Alocacao LO atualizada.');

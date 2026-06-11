@@ -475,7 +475,7 @@
                   }
                 </datalist>
                 @if (draftMode || loSelecionadaEhDraft()) {
-                  <select class="pessoa-combo" [(ngModel)]="form.perfilId" style="font-size:.84rem">
+                  <select class="pessoa-combo" [(ngModel)]="form.perfilId" (ngModelChange)="onDraftPerfilChange()" style="font-size:.84rem">
                     <option value="">— Perfil (obrigatório) —</option>
                     @for (p of perfis; track p.id) {
                       <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
@@ -508,7 +508,16 @@
             }
             @if (col('valorH')) {
               <td>
-                @if (novaPessoaSemCustoLo()) {
+                @if (draftMode || loSelecionadaEhDraft()) {
+                  <input
+                    class="percent-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="0,00"
+                    title="Valor/hora do rascunho (editável)"
+                    [ngModel]="draftValorHoraMasked"
+                    (ngModelChange)="onDraftValorHoraChange($event)" />
+                } @else if (novaPessoaSemCustoLo()) {
                   <span class="sem-custo-lo">Não cobra da LO</span>
                 } @else {
                   {{ currency(valorHoraPessoaSelecionadaNova()) }}
@@ -632,7 +641,7 @@
             @if (col('perfil')) {
               <td>
                 @if (editingId === a.id && isDraft(a)) {
-                  <select class="pessoa-combo" [(ngModel)]="form.perfilId" style="font-size:.84rem">
+                  <select class="pessoa-combo" [(ngModel)]="form.perfilId" (ngModelChange)="onDraftPerfilChange()" style="font-size:.84rem">
                     <option value="">— Perfil (obrigatório) —</option>
                     @for (p of perfis; track p.id) {
                       <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
@@ -680,7 +689,16 @@
             }
             @if (col('valorH')) {
               <td>
-                @if (pessoaSemCustoLo(a)) {
+                @if (editingId === a.id && isDraft(a)) {
+                  <input
+                    class="percent-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="0,00"
+                    title="Valor/hora do rascunho (editável)"
+                    [ngModel]="draftValorHoraMasked"
+                    (ngModelChange)="onDraftValorHoraChange($event)" />
+                } @else if (pessoaSemCustoLo(a)) {
                   <span class="sem-custo-lo">Não cobra da LO</span>
                 } @else if (editingId === a.id) {
                   {{ currency(valorHoraPessoaSelecionadaEdicao()) }}

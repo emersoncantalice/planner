@@ -132,14 +132,14 @@ export class PlannerApiService {
 
   createBudgetAllocation(
     token: string,
-    payload: { linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }
+    payload: { linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number; valorHora?: number | null }
   ) {
     return this.http.post<any>(`${this.api}/budget-allocations`, payload, { headers: this.headers(token) });
   }
   updateBudgetAllocation(
     token: string,
     allocationId: string,
-    payload: { linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number }
+    payload: { linhaOrcamentariaId: string; nomePessoa: string; perfilId: string; horasPlanejadas: number; draft?: boolean; mesInicio?: number; valorHora?: number | null }
   ) {
     return this.http.put<any>(`${this.api}/budget-allocations/${allocationId}`, payload, { headers: this.headers(token) });
   }

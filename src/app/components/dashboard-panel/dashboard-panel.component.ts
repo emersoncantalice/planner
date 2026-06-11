@@ -110,8 +110,19 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
         ];
     }
     return pool
-      .sort((a, b) => this.epoch(b.criadoEm) - this.epoch(a.criadoEm))
+      .sort((a, b) => this.prazoEpoch(a) - this.prazoEpoch(b))
       .slice(0, PREVIEW);
+  }
+
+  // Prazo de cada item de monitoramento: risco→dataFim, incidente→dataOcorrencia,
+  // débito→dataAlvo. Itens sem prazo vão para o fim da lista.
+  private prazoEpoch(item: any): number {
+    const value = item?._tipo === 'risco'     ? item.dataFim
+                : item?._tipo === 'incidente'  ? item.dataOcorrencia
+                : item?._tipo === 'debito'     ? item.dataAlvo
+                : item?.criadoEm;
+    const e = this.epoch(value);
+    return e === 0 ? Number.MAX_SAFE_INTEGER : e;
   }
 
   totalFiltrado(): number {

@@ -568,6 +568,31 @@ $surface   : #fff;
   font-weight: 700;
 }
 
+.gp-conflict-suggestion {
+  margin: 6px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: .75rem;
+  color: #1f2937;
+
+  span { font-weight: 600; }
+}
+
+.gp-btn-suggestion {
+  border: 1px solid #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover { background: #dbeafe; }
+}
+
 .gp-check-label {
   display: inline-flex;
   align-items: center;
@@ -1099,6 +1124,30 @@ $surface   : #fff;
   color: $text-muted;
   flex-shrink: 0;
   text-align: right;
+}
+
+.gr-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  cursor: grab;
+  color: $text-muted;
+  opacity: .45;
+  transition: opacity .15s;
+
+  svg { width: 14px; height: 14px; fill: currentColor; }
+
+  &:hover { opacity: 1; }
+  &:active { cursor: grabbing; }
+}
+
+.gp-lcol.gp-reorder-dragging { opacity: .4; }
+
+.gp-lcol.gp-reorder-over {
+  box-shadow: inset 0 3px 0 -1px #2563eb;
+  background: #eef4ff;
 }
 
 .gr-name-block {

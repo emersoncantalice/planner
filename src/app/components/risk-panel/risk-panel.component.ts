@@ -106,7 +106,7 @@ export class RiskPanelComponent implements OnChanges {
   }
 
   nextStatus(current: string): string {
-    const flow = ['PLANO_ACAO', 'DESENVOLVIMENTO', 'ENTREGA', 'CONCLUIDO'];
+    const flow = ['PLANO_ACAO', 'DESENVOLVIMENTO', 'VALIDACAO_EXTERNA', 'ENTREGA', 'CONCLUIDO'];
     const idx = flow.indexOf((current || '').toUpperCase());
     if (idx < 0 || idx >= flow.length - 1) return 'CONCLUIDO';
     return flow[idx + 1];
@@ -199,6 +199,7 @@ export class RiskPanelComponent implements OnChanges {
     const key = (status || '').toUpperCase();
     if (key === 'CONCLUIDO') return 'badge-concluido';
     if (key === 'ENTREGA') return 'badge-entrega';
+    if (key === 'VALIDACAO_EXTERNA') return 'badge-validacao';
     if (key === 'DESENVOLVIMENTO') return 'badge-dev';
     return 'badge-plano';
   }

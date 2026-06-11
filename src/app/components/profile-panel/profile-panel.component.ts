@@ -36,7 +36,8 @@ export class ProfilePanelComponent {
   }
 
   get nomeValido() { return (this.perfil.nomePerfil || '').trim().length > 0; }
-  get valorValido() { return (this.perfil.valorHora || 0) > 0; }
+  // Perfis que não debitam da LO não precisam de valor/hora — pode ser 0.
+  get valorValido() { return !this.perfil.debitaLo || (this.perfil.valorHora || 0) > 0; }
   get formValido() { return this.nomeValido && this.valorValido; }
 
   onValorHoraChange(value: string) {

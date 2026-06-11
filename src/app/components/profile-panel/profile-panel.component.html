@@ -56,7 +56,7 @@
       Debita da LO
     </label>
     <textarea [(ngModel)]="perfil.observacoes" placeholder="Observacoes do perfil (competencias, escopo, etc.)"></textarea>
-    <label>Valor/hora <span class="req">*</span></label>
+    <label>Valor/hora @if (perfil.debitaLo) { <span class="req">*</span> }</label>
     <input
       [ngModel]="valorHoraMasked"
       (ngModelChange)="onValorHoraChange($event)"
@@ -65,7 +65,9 @@
 
     <div class="form-validation">
       <p [class.ok]="nomeValido" [class.error]="!nomeValido">Nome do perfil é obrigatório</p>
-      <p [class.ok]="valorValido" [class.error]="!valorValido">Valor/hora deve ser maior que zero</p>
+      @if (perfil.debitaLo) {
+        <p [class.ok]="valorValido" [class.error]="!valorValido">Valor/hora deve ser maior que zero</p>
+      }
     </div>
 
     @if (!editingId) {

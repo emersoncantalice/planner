@@ -73,6 +73,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   @Output() addScheduleItem    = new EventEmitter<{ titulo: string; descricao: string; inicioPlanejado: string | null; fimPlanejado: string | null; permiteParalelo: boolean }>();
   @Output() updateScheduleItem = new EventEmitter<{ itemId: string; titulo?: string; descricao?: string; inicioPlanejado?: string | null; fimPlanejado?: string | null; permiteParalelo?: boolean; status?: string }>();
   @Output() deleteScheduleItem = new EventEmitter<string>();
+  @Output() reorderSchedule    = new EventEmitter<string[]>();
   @Output() logReplanejamento  = new EventEmitter<{
     scheduleItemId: string;
     scheduleItemTitulo: string;
@@ -91,6 +92,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   confirmDeleteId   = '';
   formError         = '';
   dateWarning       = '';
+  conflictSuggestion: { inicioInput: string; fimInput: string; inicioFmt: string; fimFmt: string; mode: 'nova' | 'edit' } | null = null;
+  reorderDragId = '';
+  reorderOverId = '';
 
   timelineScale: 'DIA' | 'SEMANA' | 'MES' = 'DIA';
   private readonly basePxPerDay = 26;
@@ -672,7 +676,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return {
       titulo: '', descricao: '', inicioPlanejado: '', fimPlanejado: '',
       status: 'PLANEJADO' as GStatus, responsavel: '', pct: 0,
-      permiteParalelo: false, predecessorIds: [] as string[], perfilId: '',
+      permiteParalelo: true, predecessorIds: [] as string[], perfilId: '',
       etapas: [] as Etapa[], newEtapaLabel: '',
       cor: '',
       dowConstraint: [] as number[]
@@ -766,6 +770,45 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   atividades(): any[]         { return this.projetoSelecionado?.cronograma ?? []; }
   atividadesComDatas(): any[] { return this.atividades().filter((a: any) => a.inicioPlanejado && a.fimPlanejado); }
+
+  // ── Reordenar atividades (arrastar para cima/baixo na lista) ───────────────
+  onReorderDragStart(ev: DragEvent, item: any) {
+    this.reorderDragId = item.id;
+    if (ev.dataTransfer) {
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', item.id);
+    }
+  }
+
+  onReorderDragOver(ev: DragEvent, item: any) {
+    if (!this.reorderDragId || this.reorderDragId === item.id) return;
+    ev.preventDefault();
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+    this.reorderOverId = item.id;
+  }
+
+  onReorderDrop(ev: DragEvent, target: any) {
+    ev.preventDefault();
+    const sourceId = this.reorderDragId;
+    this.reorderOverId = '';
+    this.reorderDragId = '';
+    if (!sourceId || !target?.id || sourceId === target.id) return;
+    const ids = this.atividades().map((a: any) => a.id);
+    const from = ids.indexOf(sourceId);
+    const to = ids.indexOf(target.id);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, sourceId);
+    this.reorderSchedule.emit(ids);
+  }
+
+  onReorderDragEnd() {
+    this.reorderDragId = '';
+    this.reorderOverId = '';
+  }
+
+  isReorderDragging(item: any): boolean { return !!this.reorderDragId && this.reorderDragId === item?.id; }
+  isReorderOver(item: any): boolean     { return !!this.reorderOverId && this.reorderOverId === item?.id; }
 
   
   dateRange(): { min: Date; max: Date; totalDays: number } | null {
@@ -1541,7 +1584,6 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       if (mode === 'edit' && this.isCyclicPredecessor(id)) return; 
       list.push(id);
     }
-    this.onPredecessorChange(mode);
   }
 
   hasPredecessor(form: any, id: string): boolean {
@@ -1573,21 +1615,12 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return this.perfis.find((p: any) => p?.id === perfilId)?.nomePerfil || '';
   }
 
-  private normalizeParaleloByDependency(form: any) {
-    if ((form.predecessorIds as string[] | undefined)?.length) form.permiteParalelo = false;
-  }
-
   private validarDependencias(predecessorIds: string[], inicioPlanejado: string, currentItemId = ''): string {
     for (const id of predecessorIds) {
       const err = this.validarDependencia(id, inicioPlanejado, currentItemId);
       if (err) return err;
     }
     return '';
-  }
-
-  onPredecessorChange(mode: 'nova' | 'edit') {
-    if (mode === 'nova') this.normalizeParaleloByDependency(this.novaAtividade);
-    else                 this.normalizeParaleloByDependency(this.editForm);
   }
 
   predecessorasDisponiveis(currentItemId = ''): any[] {
@@ -1620,18 +1653,18 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     return aStart.getTime() <= bEnd.getTime() && bStart.getTime() <= aEnd.getTime();
   }
 
-  private validarConflitoParalelismo(
+  private conflictingActivities(
     inicioPlanejado: string | null,
     fimPlanejado: string | null,
     permiteParalelo: boolean,
     currentItemId = ''
-  ): string {
-    if (!inicioPlanejado || !fimPlanejado) return '';
+  ): any[] {
+    if (!inicioPlanejado || !fimPlanejado) return [];
     const start = new Date(inicioPlanejado); start.setHours(0, 0, 0, 0);
     const end = new Date(fimPlanejado); end.setHours(0, 0, 0, 0);
-    if (!isFinite(start.getTime()) || !isFinite(end.getTime())) return '';
+    if (!isFinite(start.getTime()) || !isFinite(end.getTime())) return [];
 
-    const conflicting = this.atividades().find((a: any) => {
+    return this.atividades().filter((a: any) => {
       if (!a || !a.id || a.id === currentItemId) return false;
       if (!a.inicioPlanejado || !a.fimPlanejado) return false;
       const oStart = new Date(a.inicioPlanejado); oStart.setHours(0, 0, 0, 0);
@@ -1639,12 +1672,63 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       if (!isFinite(oStart.getTime()) || !isFinite(oEnd.getTime())) return false;
       if (!this.rangesOverlap(start, end, oStart, oEnd)) return false;
       const otherParallel = !!a.permiteParalelo;
-  
       return !permiteParalelo || !otherParallel;
     });
+  }
 
+  private validarConflitoParalelismo(
+    inicioPlanejado: string | null,
+    fimPlanejado: string | null,
+    permiteParalelo: boolean,
+    currentItemId = ''
+  ): string {
+    const conflicting = this.conflictingActivities(inicioPlanejado, fimPlanejado, permiteParalelo, currentItemId)[0];
     if (!conflicting) return '';
     return `Conflito de período com "${conflicting.titulo}". Atividades não paralelas não podem sobrepor datas.`;
+  }
+
+  // Sugere mover a atividade para depois do término das atividades em conflito,
+  // preservando a duração planejada (em dias corridos) e caindo em dia útil.
+  private computeConflictSuggestion(
+    inicioPlanejado: string | null,
+    fimPlanejado: string | null,
+    currentItemId: string,
+    mode: 'nova' | 'edit'
+  ): { inicioInput: string; fimInput: string; inicioFmt: string; fimFmt: string; mode: 'nova' | 'edit' } | null {
+    if (!inicioPlanejado || !fimPlanejado) return null;
+    const permiteParalelo = mode === 'edit' ? this.editForm.permiteParalelo : this.novaAtividade.permiteParalelo;
+    const conflicts = this.conflictingActivities(inicioPlanejado, fimPlanejado, permiteParalelo, currentItemId);
+    if (!conflicts.length) return null;
+
+    const start = new Date(inicioPlanejado); start.setHours(0, 0, 0, 0);
+    const end = new Date(fimPlanejado); end.setHours(0, 0, 0, 0);
+    const durationMs = Math.max(0, end.getTime() - start.getTime());
+
+    const latestEndMs = Math.max(...conflicts.map((a: any) => {
+      const d = new Date(a.fimPlanejado); d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    }));
+
+    const dayMs = 86_400_000;
+    const newStart = this.feriados.nextBusinessDay(new Date(latestEndMs + dayMs));
+    const newEnd = this.feriados.nextBusinessDay(new Date(newStart.getTime() + durationMs));
+    return {
+      inicioInput: dateToYmd(newStart),
+      fimInput: dateToYmd(newEnd),
+      inicioFmt: newStart.toLocaleDateString('pt-BR'),
+      fimFmt: newEnd.toLocaleDateString('pt-BR'),
+      mode,
+    };
+  }
+
+  applyConflictSuggestion() {
+    if (!this.conflictSuggestion) return;
+    const { inicioInput, fimInput, mode } = this.conflictSuggestion;
+    const form = mode === 'edit' ? this.editForm : this.novaAtividade;
+    form.inicioPlanejado = inicioInput;
+    form.fimPlanejado = fimInput;
+    this.conflictSuggestion = null;
+    this.formError = '';
   }
 
   
@@ -1666,6 +1750,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   toggleForm() {
     this.formVisible = !this.formVisible;
     this.formError   = '';
+    this.conflictSuggestion = null;
     this.dateWarning = '';
     this.predSearch  = '';
     if (this.formVisible) this.editingItem = null;
@@ -1673,7 +1758,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
   submitNova() {
     if (!this.novaAtividade.titulo.trim()) return;
-    this.normalizeParaleloByDependency(this.novaAtividade);
+    this.conflictSuggestion = null;
     this.formError = this.validarDependencias(this.novaAtividade.predecessorIds ?? [], this.novaAtividade.inicioPlanejado);
     if (this.formError) return;
     const dow = this.novaAtividade.dowConstraint ?? [];
@@ -1682,7 +1767,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     const fimNorm = this.novaAtividade.fimPlanejado
       ? `${dateToYmd(this.feriados.nextBusinessDay(new Date(this.novaAtividade.fimPlanejado + 'T12:00:00')))}T12:00:00Z` : null;
     this.formError = this.validarConflitoParalelismo(inicioNorm, fimNorm, this.novaAtividade.permiteParalelo);
-    if (this.formError) return;
+    if (this.formError) {
+      this.conflictSuggestion = this.computeConflictSuggestion(inicioNorm, fimNorm, '', 'nova');
+      return;
+    }
     this.addScheduleItem.emit({
       titulo:          this.novaAtividade.titulo.trim(),
       descricao:       this.composeDescricao(this.novaAtividade.descricao.trim(), this.novaAtividade.predecessorIds ?? [], this.novaAtividade.perfilId, [], dow),
@@ -1704,6 +1792,7 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.selectedItemIds.add(item.id);
     this.formVisible = false;
     this.formError   = '';
+    this.conflictSuggestion = null;
     this.dateWarning = '';
     this.editingItem = item;
     const meta = this.getMeta(item.id);
@@ -1723,12 +1812,11 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       cor:             item.cor || '',
       dowConstraint:   this.extractDowConstraint(item.descricao || ''),
     };
-    this.normalizeParaleloByDependency(this.editForm);
   }
 
   saveEdit() {
     if (!this.editingItem) return;
-    this.normalizeParaleloByDependency(this.editForm);
+    this.conflictSuggestion = null;
     this.formError = this.validarDependencias(this.editForm.predecessorIds ?? [], this.editForm.inicioPlanejado, this.editingItem.id);
     if (this.formError) return;
     let inicio = this.editForm.inicioPlanejado || null;
@@ -1737,7 +1825,10 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (inicio) inicio = `${dateToYmd(this.nextValidDay(new Date(inicio + 'T12:00:00'), dow))}T12:00:00Z`;
     if (fim)    fim    = `${dateToYmd(this.feriados.nextBusinessDay(new Date(fim + 'T12:00:00')))}T12:00:00Z`;
     this.formError = this.validarConflitoParalelismo(inicio, fim, this.editForm.permiteParalelo, this.editingItem.id);
-    if (this.formError) return;
+    if (this.formError) {
+      this.conflictSuggestion = this.computeConflictSuggestion(inicio, fim, this.editingItem.id, 'edit');
+      return;
+    }
     this.updateScheduleItem.emit({
       itemId:          this.editingItem.id,
       titulo:          this.editForm.titulo,
@@ -1747,13 +1838,13 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
       permiteParalelo: this.editForm.permiteParalelo,
       status:          this.editForm.status,
       cor:             this.editForm.cor || undefined,
-      responsavel:     this.editForm.responsavel || undefined,
+      responsavel:     this.editForm.responsavel ?? '',
     } as any);
     this.setMeta(this.editingItem.id, { responsavel: this.editForm.responsavel, pct: this.editFormEffectivePct });
     this.editingItem = null;
   }
 
-  cancelEdit() { this.editingItem = null; this.formError = ''; this.dateWarning = ''; this.predSearch = ''; }
+  cancelEdit() { this.editingItem = null; this.formError = ''; this.conflictSuggestion = null; this.dateWarning = ''; this.predSearch = ''; }
 
   quickStatus(item: any, status: string) {
     this.updateScheduleItem.emit({ itemId: item.id, status, permiteParalelo: !!item.permiteParalelo });
