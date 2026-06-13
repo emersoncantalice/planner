@@ -881,6 +881,27 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       .reduce((acc: number, a: any) => acc + this.round2(this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), month)), 0);
   }
 
+  // Realizado (pago) por mês e categoria — base para "Realizado Folha/CLM".
+  realizadoMesPorCategoria(month: number, categoria: 'FOLHA' | 'TERCEIRO'): number {
+    if (month < 0 || month > 11) return 0;
+    return this.alocacoesFiltradas()
+      .filter((a: any) => this.alocacaoContaNoResumoLo(a))
+      .filter((a: any) => this.getCategoriaDaPessoa(a) === categoria)
+      .reduce((acc: number, a: any) => {
+        if (!this.isPago(a.id, month)) return acc;
+        return acc + this.round2(this.custoMensal(a.id, this.getValorHoraDaAlocacao(a), month));
+      }, 0);
+  }
+
+  // Eficiência = movimentações negativas na LO (ajustes que não são aporte).
+  eficienciaLoSelecionada(): number {
+    return this.ajustesDaLoSelecionada().reduce((acc: number, a: any) => {
+      const tipo = String(a?.tipo || '').toUpperCase();
+      if (tipo === 'APORTE' || tipo === 'CREDITO') return acc;
+      return acc + Number(a?.valor || 0);
+    }, 0);
+  }
+
   totalComprometidoClm(): number {
     return this.meses.reduce((acc, m) => acc + this.totalComprometidoMesLo(this.monthIndex(m)), 0);
   }
@@ -2470,6 +2491,191 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       const stamp = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}`;
       const codigo = this.safeFilePart(lo.codigo || lo.nome || 'time');
       XLSX.writeFile(wb, `time_${codigo}_${this.anoSelecionado}_${stamp}.xlsx`);
+    });
+  }
+
+  /**
+   * Extração da "Visão LO" em uma única aba, reproduzindo o layout e a
+   * formatação da tela: bloco RESUMO, bloco "Realizado Extraído de Finanças"
+   * (Comprometido/Realizado/Delta por Folha e CLM) e a tabela do time com
+   * 12 meses + total e a linha de Horas Úteis Mês.
+   */
+  exportarVisaoLoExcel() {
+    const lo = this.loSelecionada();
+    if (!lo) {
+      this.percentualAviso = 'Selecione uma LO para extrair a visão.';
+      return;
+    }
+
+    import('xlsx-js-style').then((mod: any) => {
+      const XLSX = mod.default ?? mod;
+      const wb = XLSX.utils.book_new();
+      const brl = (v: number) => Number((Number(v) || 0).toFixed(2));
+      const ano = this.anoSelecionado;
+      const NCOL = 21;                 // 8 fixas + 12 meses + TOTAL
+      const MES0 = 8;                  // 1ª coluna de mês (JAN)
+      const COL_TOTAL = 20;
+
+      const thin = { style: 'thin', color: { rgb: 'BFBFBF' } };
+      const border = { top: thin, bottom: thin, left: thin, right: thin };
+      const S = {
+        resumoTitle: { fill: { fgColor: { rgb: 'ED7D31' } }, font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 }, alignment: { horizontal: 'center', vertical: 'center' }, border },
+        greenTitle:  { fill: { fgColor: { rgb: '375623' } }, font: { bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'left', vertical: 'center' }, border },
+        monthHead:   { fill: { fgColor: { rgb: '70AD47' } }, font: { bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, border },
+        blueHead:    { fill: { fgColor: { rgb: '2F75B5' } }, font: { bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, border },
+        label:       { fill: { fgColor: { rgb: 'F2F2F2' } }, font: { bold: true }, border },
+        greenLabel:  { fill: { fgColor: { rgb: 'E2EFDA' } }, font: { bold: true }, border },
+        money:       { border, alignment: { horizontal: 'right' } },
+        moneyBold:   { border, font: { bold: true }, alignment: { horizontal: 'right' } },
+        text:        { border },
+        pct:         { border, alignment: { horizontal: 'center' } },
+        horasLabel:  { fill: { fgColor: { rgb: 'D9E1F2' } }, font: { bold: true }, border },
+        horas:       { fill: { fgColor: { rgb: 'D9E1F2' } }, border, alignment: { horizontal: 'center' } },
+      };
+      const Z_MONEY = '#,##0.00';
+      const Z_RS = 'R$ #,##0.00';
+
+      const cells: Record<string, any> = {};
+      const merges: any[] = [];
+      const set = (r: number, c: number, cell: any) => { cells[XLSX.utils.encode_cell({ r, c })] = cell; };
+      const txt = (v: any, s = S.text) => ({ t: 's', v: v == null ? '' : String(v), s });
+      const money = (v: number, s = S.money) => ({ t: 'n', v: brl(v), z: Z_MONEY, s });
+      const moneyRS = (v: number, s = S.money) => ({ t: 'n', v: brl(v), z: Z_RS, s });
+      const pctc = (v: number, s = S.pct) => ({ t: 'n', v: Number(v) || 0, z: '0.00"%"', s });
+      const numc = (v: number, s = S.horas) => ({ t: 'n', v: Number(v) || 0, s });
+      const mergeRow = (r: number, c0: number, c1: number) => merges.push({ s: { r, c: c0 }, e: { r, c: c1 } });
+      let R = 0;
+
+      // ── Bloco RESUMO ──────────────────────────────────────────────────────
+      set(R, 0, txt(`RESUMO — ${lo.codigo || ''} ${lo.nome || ''}`.trim(), S.resumoTitle));
+      for (let c = 1; c <= 4; c++) set(R, c, txt('', S.resumoTitle));
+      mergeRow(R, 0, 4); R++;
+
+      const realizadoTotal = this.totalPagoNaLoSelecionada();
+      const eficiencia = this.eficienciaLoSelecionada();
+      const resumoLinhas: Array<[string, number]> = [
+        [`Orçamento ${ano}`, this.orcamentoLoSelecionada()],
+        ['Comprometido', this.totalComprometidoClm()],
+        ['Realizado', realizadoTotal],
+        ['Eficiência Realizada', eficiencia],
+        ['Eficiência Comprometida', eficiencia],
+        ['Saldo', this.saldoLo()],
+      ];
+      for (const [label, val] of resumoLinhas) {
+        set(R, 0, txt(label, S.label));
+        for (let c = 1; c <= 2; c++) set(R, c, txt('', S.label));
+        mergeRow(R, 0, 2);
+        set(R, 3, money(val, S.moneyBold));
+        set(R, 4, money(val, S.moneyBold)); // mantém a célula formatada na merge
+        mergeRow(R, 3, 4);
+        R++;
+      }
+      R++; // linha em branco
+
+      // ── Realizado Extraído de Finanças (por Folha e CLM) ──────────────────
+      set(R, 0, txt('Realizado Extraído de Finanças', S.greenTitle));
+      for (let c = 1; c < NCOL; c++) set(R, c, txt('', S.greenTitle));
+      mergeRow(R, 0, NCOL - 1); R++;
+
+      // cabeçalho de meses
+      set(R, 0, txt('', S.monthHead)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.monthHead));
+      mergeRow(R, 0, MES0 - 1);
+      this.meses.forEach((m, i) => set(R, MES0 + i, txt(m, S.monthHead)));
+      set(R, COL_TOTAL, txt('TOTAL', S.monthHead)); R++;
+
+      const linhaFinanca = (label: string, fn: (m: number) => number) => {
+        set(R, 0, txt(label, S.greenLabel)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.greenLabel));
+        mergeRow(R, 0, MES0 - 1);
+        let total = 0;
+        this.meses.forEach((_m, i) => { const v = fn(i); total += v; set(R, MES0 + i, money(v)); });
+        set(R, COL_TOTAL, money(total, S.moneyBold)); R++;
+      };
+      // Eficiência (movimentações negativas) — total anual, sem distribuição mensal.
+      linhaFinanca('Eficiência Realizada',    () => 0);
+      cells[XLSX.utils.encode_cell({ r: R - 1, c: COL_TOTAL })] = money(eficiencia, S.moneyBold);
+      linhaFinanca('Eficiência Comprometida', () => 0);
+      cells[XLSX.utils.encode_cell({ r: R - 1, c: COL_TOTAL })] = money(eficiencia, S.moneyBold);
+      linhaFinanca('Comprometido Folha', m => this.totalComprometidoMesPorCategoria(m, 'FOLHA'));
+      linhaFinanca('Realizado Folha',    m => this.realizadoMesPorCategoria(m, 'FOLHA'));
+      linhaFinanca('Delta Folha (Realizado − Comprometido)', m => this.realizadoMesPorCategoria(m, 'FOLHA') - this.totalComprometidoMesPorCategoria(m, 'FOLHA'));
+      linhaFinanca('Comprometido CLM', m => this.totalComprometidoMesPorCategoria(m, 'TERCEIRO'));
+      linhaFinanca('Realizado CLM',    m => this.realizadoMesPorCategoria(m, 'TERCEIRO'));
+      linhaFinanca('Delta CLM (Realizado − Comprometido)', m => this.realizadoMesPorCategoria(m, 'TERCEIRO') - this.totalComprometidoMesPorCategoria(m, 'TERCEIRO'));
+      R++; // linha em branco
+
+      // ── Tabela do time ────────────────────────────────────────────────────
+      const headers = ['Nome', 'VAGA', 'Frente', 'Parceiro', 'Perfil', 'Cargo', 'Alocação %', 'Valor Hora', ...this.meses, 'TOTAL'];
+      headers.forEach((h, c) => set(R, c, txt(h, S.blueHead))); R++;
+
+      const alocacoesLo = this.alocacoes
+        .filter((a: any) => a.linhaOrcamentariaId === lo.id)
+        .sort((a: any, b: any) =>
+          String(a.nomePessoa || '').localeCompare(String(b.nomePessoa || ''), 'pt-BR', { sensitivity: 'base' }));
+
+      // Cores por tipo (iguais à tela): planejada=roxo claro, folha=azul claro, terceiro=laranja.
+      const filled = (base: any, rgb: string) => ({ ...base, fill: { fgColor: { rgb } } });
+      for (const a of alocacoesLo) {
+        const nome = a.nomePessoa || '-';
+        const pessoa = this.pessoaPorNome(nome);
+        const vh = this.getValorHoraDaAlocacao(a);
+        const planejada = this.isPessoaPlaneada(a);
+        const terceiro = this.getCategoriaDaPessoa(a) === 'TERCEIRO';
+        const rgb = planejada ? 'EDE9FE' : terceiro ? 'FFE4CC' : 'E8F4FD';
+        const stText = filled(S.text, rgb);
+        const stMoney = filled(S.money, rgb);
+        const stMoneyB = filled(S.moneyBold, rgb);
+        const stPct = filled(S.pct, rgb);
+        // Vaga: mostra o alias (ex.: VAG0022976) — terceiros e planejadas inclusos.
+        const vaga = pessoa?.vagaAlias || (planejada ? 'Vaga programada' : '');
+        set(R, 0, txt(nome, stText));
+        set(R, 1, txt(vaga, stText));
+        set(R, 2, txt('', stText));
+        set(R, 3, txt(planejada ? 'Planejada' : (pessoa?.consultoria || pessoa?.tipoVinculo || this.getCategoriaDaPessoa(a)), stText));
+        set(R, 4, txt(a.perfilNome || '-', stText));
+        set(R, 5, txt(pessoa?.cargo || '', stText));
+        set(R, 6, pctc(Number(this.getConfig(a.id).percentual || 0), stPct));
+        set(R, 7, moneyRS(vh, stMoney));
+        let total = 0;
+        this.meses.forEach((_m, i) => {
+          const v = this.custoMensal(a.id, vh, i);
+          total += v;
+          // Status do mês: pago = verde claro, cancelado = cinza, senão a cor da linha.
+          const stMes = this.isPago(a.id, i) ? filled(S.money, 'C6EFCE')
+                      : this.isCancelado(a.id, i) ? filled(S.money, 'D9D9D9')
+                      : stMoney;
+          set(R, MES0 + i, money(v, stMes));
+        });
+        set(R, COL_TOTAL, money(total, stMoneyB));
+        R++;
+      }
+
+      // Total comprometido por mês
+      set(R, 0, txt('Total comprometido', S.label)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.label));
+      mergeRow(R, 0, MES0 - 1);
+      this.meses.forEach((_m, i) => set(R, MES0 + i, money(this.totalComprometidoMesLo(i), S.moneyBold)));
+      set(R, COL_TOTAL, money(this.totalComprometidoClm(), S.moneyBold)); R++;
+      R++;
+
+      // Horas Úteis Mês
+      set(R, 0, txt('Horas Úteis Mês', S.horasLabel)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.horasLabel));
+      mergeRow(R, 0, MES0 - 1);
+      let totalHoras = 0;
+      this.meses.forEach((_m, i) => { const h = this.horasDoCadastro(i); totalHoras += h; set(R, MES0 + i, numc(h)); });
+      set(R, COL_TOTAL, numc(totalHoras, { ...S.horas, font: { bold: true } } as any)); R++;
+
+      const ws: any = cells;
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: R - 1, c: NCOL - 1 } });
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 26 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 11 }, { wch: 12 },
+        ...this.meses.map(() => ({ wch: 12 })), { wch: 14 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'Visão LO');
+
+      const dt = new Date();
+      const stamp = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+      const codigo = this.safeFilePart(lo.codigo || lo.nome || 'lo');
+      XLSX.writeFile(wb, `visao_lo_${codigo}_${ano}_${stamp}.xlsx`);
     });
   }
 

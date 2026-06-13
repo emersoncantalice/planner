@@ -49,8 +49,12 @@
         </div>
       </div>
       <input class="proj-search" [(ngModel)]="searchTerm" placeholder="Pesquisar projetos e demandas..." />
+      <div class="proj-grid">
       @for (r of filteredResumo(); track r.id) {
-        <div class="proj-item">
+        <div class="proj-item"
+             [class.editing]="editingProjectId === r.id"
+             [style.border-left-color]="projColor(r).accent"
+             [style.background]="editingProjectId === r.id ? null : projColor(r).bg">
           @if (editingProjectId !== r.id) {
             <div (click)="select.emit(r.id)" style="cursor:pointer;">
               <div class="proj-head">
@@ -152,6 +156,7 @@
           }
         </div>
       }
+      </div>
       @if (!filteredResumo().length) {
         <div class="proj-empty">Nenhum projeto encontrado para o filtro informado.</div>
       }

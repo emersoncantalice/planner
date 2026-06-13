@@ -56,6 +56,30 @@ export class OverviewListComponent {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  // Paleta fixa: cada projeto recebe sempre a mesma cor (derivada do id),
+  // independente de filtro/ordenação.
+  private readonly projPalette = [
+    { accent: '#2563eb', bg: '#eef4ff' }, // azul
+    { accent: '#16a34a', bg: '#edfbf2' }, // verde
+    { accent: '#d97706', bg: '#fff6e9' }, // âmbar
+    { accent: '#7c3aed', bg: '#f4efff' }, // roxo
+    { accent: '#db2777', bg: '#fdeff6' }, // rosa
+    { accent: '#0891b2', bg: '#eafaff' }, // ciano
+    { accent: '#dc2626', bg: '#fff0f0' }, // vermelho
+    { accent: '#0d9488', bg: '#e9fbf7' }, // teal
+  ];
+
+  private hashId(id: string): number {
+    const s = String(id || '');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  }
+
+  projColor(r: any): { accent: string; bg: string } {
+    return this.projPalette[this.hashId(r?.id) % this.projPalette.length];
+  }
+
   number(value: unknown): number {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;

@@ -166,6 +166,9 @@
           <button class="tool-btn" [class.active]="tool === 'sticky'" (click)="setTool('sticky')" title="Nota (N)">
             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10l6-6V5c0-1.1-.9-2-2-2zm0 13h-4v4H5V5h14v11z"/></svg>
           </button>
+          <button class="tool-btn" (click)="addImage()" title="Inserir imagem">
+            <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          </button>
         </div>
 
         <div class="tool-sep"></div>
@@ -255,6 +258,18 @@
                    [ngModel]="sel?.text || ''"
                    (ngModelChange)="updateArrowLabel($event)"
                    placeholder="Nome da seta"/>
+          </div>
+        }
+
+        @if (sel && tabs.length > 1) {
+          <div class="tool-group link-group" title="Vincular este elemento a uma aba">
+            <svg viewBox="0 0 24 24" class="link-group-icon"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 0-10z"/></svg>
+            <select class="link-select" [ngModel]="sel.linkTabId || ''" (ngModelChange)="setSelLink($event)">
+              <option value="">Sem link</option>
+              @for (t of tabs; track t.id) {
+                <option [value]="t.id">→ {{ t.nome }}</option>
+              }
+            </select>
           </div>
         }
 
@@ -371,6 +386,33 @@
       </div>
     }
 
+    <!-- Abas (páginas) do desenho -->
+    @if (current) {
+      <div class="drawing-tabs">
+        @for (t of tabs; track t.id) {
+          @if (renamingTabId === t.id) {
+            <input class="tab-rename-input"
+                   [(ngModel)]="renameTabVal"
+                   (blur)="commitRenameTab()"
+                   (keydown.enter)="commitRenameTab()"
+                   (keydown.escape)="renamingTabId = ''"
+                   autofocus/>
+          } @else {
+            <button class="drawing-tab" [class.active]="t.id === activeTabId"
+                    (click)="switchTab(t.id)"
+                    (dblclick)="startRenameTab(t)"
+                    [title]="t.nome + ' — duplo clique para renomear'">
+              <span class="tab-name">{{ t.nome }}</span>
+              @if (tabs.length > 1) {
+                <span class="tab-close" (click)="$event.stopPropagation(); deleteTab(t.id)" title="Excluir aba">×</span>
+              }
+            </button>
+          }
+        }
+        <button class="tab-add" (click)="addTab()" title="Nova aba">+</button>
+      </div>
+    }
+
     <!-- Canvas -->
     <div class="canvas-wrap" [style.background-color]="current ? background : null">
       @if (!current) {
@@ -454,6 +496,13 @@
                       [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
                       (mousedown)="onShapeMouseDown($event, s)"/>
               }
+              @case ('image') {
+                <image [attr.href]="s.src" [attr.x]="s.x" [attr.y]="s.y"
+                       [attr.width]="s.w" [attr.height]="s.h" [attr.opacity]="s.opacity"
+                       preserveAspectRatio="none"
+                       [style.cursor]="tool === 'select' ? 'move' : 'crosshair'"
+                       (mousedown)="onShapeMouseDown($event, s)"/>
+              }
               @case ('text') {
                 <g [style.cursor]="tool === 'select' ? 'move' : 'text'"
                    (mousedown)="onShapeMouseDown($event, s)"
@@ -534,6 +583,24 @@
             }
           }
           </g>
+
+          <!-- Selos de link entre abas (clique leva à aba vinculada) -->
+          @for (s of shapes; track s.id) {
+            @if (s.linkTabId) {
+              @if (selectionHandleBounds(s); as b) {
+                <g class="shape-link-badge"
+                   [attr.transform]="'translate(' + (b.x + b.w - 11) + ' ' + (b.y + 11) + ')'"
+                   style="cursor:pointer"
+                   (mousedown)="onLinkBadgeMouseDown($event, s)">
+                  <title>Ir para "{{ linkTabName(s.linkTabId) }}"</title>
+                  <circle r="11" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/>
+                  <path transform="translate(-7 -7) scale(0.58)"
+                        fill="#fff"
+                        d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 0-10z"/>
+                </g>
+              }
+            }
+          }
 
           @for (guide of alignmentGuides; track $index) {
             @if (guide.axis === 'x') {

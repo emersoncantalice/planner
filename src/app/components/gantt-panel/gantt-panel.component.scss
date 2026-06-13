@@ -292,6 +292,20 @@ $surface   : #fff;
   &:disabled { opacity: .5; cursor: not-allowed; }
 }
 
+.gp-export-excel-btn {
+  background: linear-gradient(135deg, #eefbf2, #dcfce7);
+  color: #166534;
+  border-color: #b7d6c2;
+
+  svg { fill: #166534; }
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    border-color: #86efac;
+    box-shadow: 0 2px 8px rgba(22,101,52,.16);
+  }
+}
+
 .gp-export-spinner {
   display: inline-block;
   width: 14px;

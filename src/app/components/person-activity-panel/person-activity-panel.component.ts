@@ -1,6 +1,7 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, Input, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import * as XLSX from 'xlsx';
 
 interface WorkloadEntry {
   nome: string;
@@ -32,6 +33,103 @@ export class PersonActivityPanelComponent {
   @Input() debitos: any[] = [];
   @Input() indicadores: any[] = [];
   @Input() atividades: any[] = [];
+
+  exportarAtividadesExcel() {
+    const atividades = this.atividadesOrdenadas();
+    if (!atividades.length) return;
+
+    const rows = atividades.map((a: any) => {
+      const inicio = this.formatDate(a?.inicioPlanejado);
+      const fim = this.formatDate(a?.fimPlanejado);
+      return {
+        Projeto: String(a?.projetoNome ?? ''),
+        Atividade: String(a?.titulo ?? ''),
+        Status: this.statusLabel(a?.status),
+        Responsavel: String(a?.responsavel ?? ''),
+        Inicio: inicio,
+        Fim: fim,
+        'Duracao (dias)': this.duracaoDias(a?.inicioPlanejado, a?.fimPlanejado),
+        Descricao: this.cleanDescricao(a?.descricao),
+        'ID Projeto': String(a?.projetoId ?? ''),
+        'ID Atividade': String(a?.id ?? '')
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 28 },
+      { wch: 42 },
+      { wch: 18 },
+      { wch: 26 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 56 },
+      { wch: 24 },
+      { wch: 24 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Atividades');
+    XLSX.writeFile(workbook, `atividades_${this.todayStamp()}.xlsx`);
+  }
+
+  private atividadesOrdenadas(): any[] {
+    return [...(this.atividades ?? [])].sort((a: any, b: any) => {
+      const projeto = String(a?.projetoNome ?? '').localeCompare(String(b?.projetoNome ?? ''), 'pt-BR', { sensitivity: 'base' });
+      if (projeto !== 0) return projeto;
+      const inicioA = String(a?.inicioPlanejado ?? '');
+      const inicioB = String(b?.inicioPlanejado ?? '');
+      if (inicioA !== inicioB) return inicioA.localeCompare(inicioB);
+      return String(a?.titulo ?? '').localeCompare(String(b?.titulo ?? ''), 'pt-BR', { sensitivity: 'base' });
+    });
+  }
+
+  private statusLabel(status: any): string {
+    const key = String(status ?? '').toUpperCase();
+    return ({
+      PLANEJADO: 'Planejado',
+      EM_ANDAMENTO: 'Em andamento',
+      CONCLUIDO: 'Concluido',
+      ATRASADO: 'Atrasado',
+      BLOQUEADO: 'Bloqueado'
+    } as Record<string, string>)[key] ?? String(status ?? '');
+  }
+
+  private formatDate(value: any): string {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleDateString('pt-BR') : '';
+  }
+
+  private duracaoDias(inicio: any, fim: any): number | '' {
+    if (!inicio || !fim) return '';
+    const start = new Date(inicio);
+    const end = new Date(fim);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return '';
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    return days > 0 ? days : '';
+  }
+
+  private cleanDescricao(descricao: any): string {
+    let text = String(descricao ?? '');
+    text = text.replace(/##PRED:[a-zA-Z0-9\-,]+##/g, '');
+    text = text.replace(/##PERFILID:[a-zA-Z0-9\-]+##/g, '');
+    text = text.replace(/##DOW:[0-6,]+##/g, '');
+    const etapasIdx = text.indexOf('##ETAPAS:');
+    if (etapasIdx >= 0) text = text.slice(0, etapasIdx);
+    return text.trim();
+  }
+
+  private todayStamp(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   fotoDe(nome: string): string {
     return this.fotos?.[this.normNome(nome || '')] || '';

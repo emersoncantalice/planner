@@ -719,6 +719,84 @@
 }
 
 // ── Canvas ───────────────────────────────────────────────────────────────────
+.drawing-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+  flex-shrink: 0;
+
+  .drawing-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px 6px 0 0;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: .8rem;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover { background: #dbe3ec; }
+    &.active { background: #fff; color: #1e293b; font-weight: 600; border-bottom-color: #fff; }
+
+    .tab-close {
+      font-size: 1rem;
+      line-height: 1;
+      color: #94a3b8;
+      border-radius: 3px;
+      padding: 0 2px;
+      &:hover { color: #e11d48; background: rgba(225,29,72,.1); }
+    }
+  }
+
+  .tab-rename-input {
+    padding: 4px 8px;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    font-size: .8rem;
+    width: 120px;
+  }
+
+  .tab-add {
+    border: 1px dashed #cbd5e1;
+    background: transparent;
+    color: #64748b;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    &:hover { background: #e2e8f0; color: #1e293b; }
+  }
+}
+
+.link-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  .link-group-icon { width: 18px; height: 18px; fill: #2563eb; }
+
+  .link-select {
+    font-size: .78rem;
+    padding: 3px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    max-width: 140px;
+  }
+}
+
+.shape-link-badge {
+  &:hover circle { fill: #2563eb; }
+}
+
 .canvas-wrap {
   flex: 1;
   min-height: 0;

@@ -236,12 +236,41 @@
   background: linear-gradient(90deg, #1d63d8, #5b96ff);
 }
 
+.proj-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
 .proj-item {
-  margin: 0 0 8px;
-  padding: 12px;
+  margin: 0;
+  padding: 12px 14px;
   border-radius: 10px;
   background: #f3f7ff;
+  border-left: 5px solid #2563eb;
+  box-shadow: 0 1px 3px rgba(15, 45, 107, .07);
   min-width: 0;
+  transition: box-shadow .15s, transform .15s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(15, 45, 107, .12);
+    transform: translateY(-1px);
+  }
+
+  // Formulário de edição ocupa a linha inteira do grid.
+  &.editing {
+    grid-column: 1 / -1;
+    transform: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .proj-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .proj-grid { grid-template-columns: 1fr; }
 }
 
 .proj-head {

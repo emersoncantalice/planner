@@ -10,6 +10,7 @@ import { dateToYmd } from '../../core/business-days';
 import { FeriadosService } from '../../core/feriados.service';
 import { PlannerApiService } from '../../core/planner-api.service';
 import { uid } from '../../core/uid';
+import * as XLSX from 'xlsx';
 
   
 type GStatus = 'PLANEJADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'ATRASADO' | 'BLOQUEADO';
@@ -203,7 +204,9 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
         this.rowHeight = 42;
       }
       this.loadMarkers();
-      this.scheduleCenterToday();
+      // Só recentraliza no "hoje" ao trocar de projeto; manter o scroll ao
+      // mover/editar uma atividade do mesmo projeto.
+      if (changedProject) this.scheduleCenterToday();
     }
   }
 
@@ -777,6 +780,15 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     if (ev.dataTransfer) {
       ev.dataTransfer.effectAllowed = 'move';
       ev.dataTransfer.setData('text/plain', item.id);
+      // Mostra a linha inteira (coluna de info) sendo arrastada, em vez do
+      // pequeno ícone da alça, para facilitar o movimento.
+      const handle = ev.target as HTMLElement;
+      const rowEl = handle.closest('.gp-gantt-row') as HTMLElement | null;
+      const dragImg = (rowEl?.querySelector('.gp-lcol') as HTMLElement) || rowEl;
+      if (dragImg) {
+        const rect = dragImg.getBoundingClientRect();
+        ev.dataTransfer.setDragImage(dragImg, ev.clientX - rect.left, ev.clientY - rect.top);
+      }
     }
   }
 
@@ -1226,6 +1238,100 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
     this.markerDate = this.dayActionDate;
     this.addMarker();
     this.closeDayAction();
+  }
+
+  exportarAtividadesExcel() {
+    if (!this.projetoSelecionado || this.atividades().length === 0) return;
+
+    const rows = this.atividadesOrdenadasParaExportacao().map((item: any, index: number) => {
+      const predecessorIds = this.extractPredecessorIds(item?.descricao ?? '');
+      const etapas = this.extractEtapas(item?.descricao ?? '');
+      const etapaInfo = etapas.length ? `${this.etapasDoneCount(etapas)}/${etapas.length}` : '';
+      return {
+        Ordem: index + 1,
+        Projeto: String(this.projetoSelecionado?.nome ?? ''),
+        Atividade: String(item?.titulo ?? ''),
+        Status: this.statusLabel(item?.status ?? 'PLANEJADO'),
+        Responsavel: String(item?.responsavel || this.getMeta(item?.id).responsavel || ''),
+        Perfil: this.perfilNome(item),
+        Inicio: this.formatDateForExport(item?.inicioPlanejado),
+        Fim: this.formatDateForExport(item?.fimPlanejado),
+        'Duracao (dias)': this.duracaoDiasForExport(item?.inicioPlanejado, item?.fimPlanejado),
+        'Progresso (%)': this.effectivePct(item),
+        Etapas: etapaInfo,
+        Predecessoras: this.predecessorTitles(predecessorIds),
+        Paralela: item?.permiteParalelo === false ? 'Nao' : 'Sim',
+        Descricao: this.cleanDescricao(item?.descricao),
+        'ID Atividade': String(item?.id ?? '')
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 8 },
+      { wch: 28 },
+      { wch: 42 },
+      { wch: 18 },
+      { wch: 26 },
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 42 },
+      { wch: 10 },
+      { wch: 56 },
+      { wch: 24 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Linha do Tempo');
+    XLSX.writeFile(workbook, `${this.safeFilePart(this.projetoSelecionado?.nome)}_linha_do_tempo_${this.todayStamp()}.xlsx`);
+  }
+
+  private atividadesOrdenadasParaExportacao(): any[] {
+    return [...this.atividades()].sort((a: any, b: any) => {
+      const inicioA = String(a?.inicioPlanejado ?? '');
+      const inicioB = String(b?.inicioPlanejado ?? '');
+      if (inicioA !== inicioB) return inicioA.localeCompare(inicioB);
+      const fimA = String(a?.fimPlanejado ?? '');
+      const fimB = String(b?.fimPlanejado ?? '');
+      if (fimA !== fimB) return fimA.localeCompare(fimB);
+      return String(a?.titulo ?? '').localeCompare(String(b?.titulo ?? ''), 'pt-BR', { sensitivity: 'base' });
+    });
+  }
+
+  private formatDateForExport(value: any): string {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleDateString('pt-BR') : '';
+  }
+
+  private duracaoDiasForExport(inicio: any, fim: any): number | '' {
+    if (!inicio || !fim) return '';
+    const start = new Date(inicio);
+    const end = new Date(fim);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return '';
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    const days = Math.round((end.getTime() - start.getTime()) / this.DAY_MS) + 1;
+    return days > 0 ? days : '';
+  }
+
+  private safeFilePart(value: any): string {
+    return String(value ?? 'cronograma')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9 _-]/g, '')
+      .trim().replace(/\s+/g, '_') || 'cronograma';
+  }
+
+  private todayStamp(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   

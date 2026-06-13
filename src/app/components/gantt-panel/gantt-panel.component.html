@@ -489,6 +489,15 @@
             }
           </button>
 
+          <button class="gp-export-btn gp-export-excel-btn"
+                  type="button"
+                  (click)="exportarAtividadesExcel()"
+                  [disabled]="atividades().length === 0"
+                  title="Exportar atividades da linha do tempo em Excel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Excel
+          </button>
+
           <!-- Nova atividade -->
           <button class="gp-add-btn" (click)="toggleForm()">
             @if (formVisible) {
@@ -498,6 +507,14 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
               Nova atividade
             }
+          </button>
+          <button class="gp-export-btn gp-export-excel-btn"
+                  type="button"
+                  (click)="exportarAtividadesExcel()"
+                  [disabled]="atividades().length === 0"
+                  title="Exportar atividades da linha do tempo em Excel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Excel
           </button>
         }
       </div>

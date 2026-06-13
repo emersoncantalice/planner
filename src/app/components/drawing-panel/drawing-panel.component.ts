@@ -8,7 +8,7 @@ import { PlannerApiService } from '../../core/planner-api.service';
 import { ToastService } from '../../core/toast.service';
 import { uid as genUid } from '../../core/uid';
 
-export type Tool = 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'triangle' | 'diamond' | 'star';
+export type Tool = 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'triangle' | 'diamond' | 'star' | 'image';
 type AnchorId = 'top' | 'right' | 'bottom' | 'left';
 
 export interface DrawShape {
@@ -29,8 +29,11 @@ export interface DrawShape {
   bold?: boolean;
   stickyBg?: string;
   groupId?: string;
+  src?: string;        // data URL for image shapes
+  linkTabId?: string;  // navigates to this tab when its link badge is clicked
 }
 
+interface DrawingTab { id: string; nome: string; shapes: DrawShape[]; background: string; }
 interface DrawingRecord { id: string; nome: string; data: string; pasta?: string; atualizadoEm?: string; }
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; w: number; h: number; }
@@ -79,6 +82,12 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   // ── Canvas state ──────────────────────────────────────────────────────────
   shapes:     DrawShape[]   = [];
   background  = '#ffffff';
+
+  // ── Abas (páginas) do desenho ──────────────────────────────────────────────
+  tabs:         DrawingTab[] = [];
+  activeTabId   = '';
+  renamingTabId = '';
+  renameTabVal  = '';
   tool:       Tool          = 'select';
   zoom        = 1;
   panX        = 0;
@@ -261,14 +270,117 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.current   = d;
     this.folderDraft = this.normalizeFolder(d.pasta);
     this.editingId = null;
+    this.renamingTabId = '';
     this.clearSelection();
-    try {
-      const parsed = JSON.parse(d.data || '{}');
-      this.shapes     = parsed.shapes     || [];
-      this.background = parsed.background || '#ffffff';
-    } catch { this.shapes = []; }
-    this.resetHistory();
+    let parsed: any = {};
+    try { parsed = JSON.parse(d.data || '{}'); } catch { parsed = {}; }
+    // Compatibilidade: desenhos antigos têm apenas { shapes, background }.
+    if (Array.isArray(parsed.tabs) && parsed.tabs.length) {
+      this.tabs = parsed.tabs.map((t: any) => ({
+        id: t.id || this.uid(),
+        nome: t.nome || 'Aba',
+        shapes: Array.isArray(t.shapes) ? t.shapes : [],
+        background: t.background || '#ffffff'
+      }));
+    } else {
+      this.tabs = [{ id: this.uid(), nome: 'Aba 1', shapes: parsed.shapes || [], background: parsed.background || '#ffffff' }];
+    }
+    this.activeTabId = this.tabs[0].id;
+    this.loadActiveTab();
     this.cdr.markForCheck();
+  }
+
+  private loadActiveTab() {
+    const t = this.tabs.find(x => x.id === this.activeTabId) || this.tabs[0];
+    if (!t) { this.shapes = []; this.background = '#ffffff'; this.resetHistory(); return; }
+    this.activeTabId = t.id;
+    this.shapes      = t.shapes;
+    this.background  = t.background;
+    this.clearSelection();
+    this.resetHistory();
+  }
+
+  /** Salva o estado atual do canvas de volta na aba ativa. */
+  private syncActiveTab() {
+    const t = this.tabs.find(x => x.id === this.activeTabId);
+    if (t) { t.shapes = this.shapes; t.background = this.background; }
+  }
+
+  get activeTab(): DrawingTab | null {
+    return this.tabs.find(x => x.id === this.activeTabId) ?? null;
+  }
+
+  switchTab(id: string) {
+    if (id === this.activeTabId) return;
+    if (!this.tabs.some(t => t.id === id)) return;
+    if (this.editingId) this.commitText();
+    this.syncActiveTab();
+    this.activeTabId = id;
+    this.loadActiveTab();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  addTab() {
+    this.syncActiveTab();
+    const tab: DrawingTab = { id: this.uid(), nome: `Aba ${this.tabs.length + 1}`, shapes: [], background: '#ffffff' };
+    this.tabs = [...this.tabs, tab];
+    this.activeTabId = tab.id;
+    this.loadActiveTab();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  deleteTab(id: string) {
+    if (this.tabs.length <= 1) {
+      this.toast.show('O desenho precisa ter ao menos uma aba.', 'info', 3500);
+      return;
+    }
+    const idx = this.tabs.findIndex(t => t.id === id);
+    if (idx < 0) return;
+    // Remove vínculos que apontavam para a aba excluída.
+    for (const t of this.tabs) {
+      for (const s of t.shapes) if (s.linkTabId === id) s.linkTabId = undefined;
+    }
+    this.tabs = this.tabs.filter(t => t.id !== id);
+    if (this.activeTabId === id) {
+      this.activeTabId = this.tabs[Math.max(0, idx - 1)].id;
+      this.loadActiveTab();
+    }
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  startRenameTab(t: DrawingTab) {
+    this.renamingTabId = t.id;
+    this.renameTabVal  = t.nome;
+    this.cdr.markForCheck();
+  }
+
+  commitRenameTab() {
+    const t = this.tabs.find(x => x.id === this.renamingTabId);
+    if (t) t.nome = this.renameTabVal.trim() || t.nome;
+    this.renamingTabId = '';
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  // ── Vínculos entre abas ─────────────────────────────────────────────────────
+  setSelLink(tabId: string) {
+    if (!this.sel) return;
+    this.updateShape(this.sel.id, { linkTabId: tabId || undefined });
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  linkTabName(tabId: string | undefined): string {
+    return this.tabs.find(t => t.id === tabId)?.nome ?? '';
+  }
+
+  onLinkBadgeMouseDown(e: MouseEvent, s: DrawShape) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (s.linkTabId) this.switchTab(s.linkTabId);
   }
 
   createDrawing() {
@@ -328,10 +440,21 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.saveTimer = setTimeout(() => this.persistNow(), 1500);
   }
 
+  /** Serializa abas + (para compatibilidade) shapes/background da aba ativa. */
+  private serializeData(): string {
+    this.syncActiveTab();
+    const active = this.activeTab;
+    return JSON.stringify({
+      tabs: this.tabs,
+      shapes: active?.shapes ?? this.shapes,
+      background: active?.background ?? this.background
+    });
+  }
+
   persistNow() {
     if (!this.current || !this.token) return;
     this.saving = true;
-    const data  = JSON.stringify({ shapes: this.shapes, background: this.background });
+    const data  = this.serializeData();
     this.api.updateDrawing(this.token, this.current.id, this.current.nome, data, this.current.pasta || '').subscribe({
       next: (d: any) => {
         d.pasta = this.normalizeFolder(d.pasta);
@@ -419,7 +542,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     if (!this.current) return;
     const pasta = this.normalizeFolder(this.folderDraft);
     if (pasta === this.normalizeFolder(this.current.pasta)) return;
-    const data = JSON.stringify({ shapes: this.shapes, background: this.background });
+    const data = this.serializeData();
     this.api.updateDrawing(this.token, this.current.id, this.current.nome, data, pasta).subscribe({
       next: (d: any) => {
         d.pasta = this.normalizeFolder(d.pasta);
@@ -1643,9 +1766,55 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     const m: Record<Tool, string> = {
       select: 'Selecionar (V)', pen: 'Caneta (P)', rect: 'Retângulo (R)',
       ellipse: 'Elipse (E)', arrow: 'Seta (A)', text: 'Texto (T)', sticky: 'Nota (S)',
-      line: 'Linha (L)', triangle: 'Triângulo', diamond: 'Losango', star: 'Estrela'
+      line: 'Linha (L)', triangle: 'Triângulo', diamond: 'Losango', star: 'Estrela',
+      image: 'Imagem'
     };
     return m[t];
+  }
+
+  // ── Upload de imagem ────────────────────────────────────────────────────────
+  addImage() {
+    if (!this.current) return;
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        this.toast.show('Selecione um arquivo de imagem.', 'error', 4000);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = reader.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 400;
+          let w = img.naturalWidth  || 300;
+          let h = img.naturalHeight || 200;
+          const scale = Math.min(1, maxDim / Math.max(w, h));
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+          // Centraliza na área visível atual do canvas.
+          const cx = this.panX + (this.vw / this.zoom) / 2;
+          const cy = this.panY + (this.vh / this.zoom) / 2;
+          const shape = this.makeShape('image', cx - w / 2, cy - h / 2, w, h);
+          shape.src  = src;
+          shape.fill = 'transparent';
+          this.shapes = [...this.shapes, shape];
+          this.setTool('select');
+          this.setSelection([shape.id]);
+          this.pushHistory();
+          this.scheduleSave();
+          this.cdr.markForCheck();
+        };
+        img.onerror = () => this.toast.show('Falha ao carregar a imagem.', 'error', 4000);
+        img.src = src;
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   }
 
   svgCursor(): string {
