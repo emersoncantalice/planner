@@ -1350,6 +1350,17 @@ export class App {
     });
   }
 
+  duplicarProjeto(id: string) {
+    this.api.duplicateProject(this.token(), id).subscribe({
+      next: (copia: any) => {
+        this.mensagem.set('Projeto copiado.');
+        this.carregarResumo();
+        if (copia?.id) this.selecionarProjeto(copia.id);
+      },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao copiar projeto.')
+    });
+  }
+
   transferirDonoProjeto(event: { id: string; novoDono: string }) {
     this.api.transferProjectDono(this.token(), event.id, event.novoDono).subscribe({
       next: (updated) => {

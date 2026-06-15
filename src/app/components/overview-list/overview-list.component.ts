@@ -34,6 +34,7 @@ export class OverviewListComponent {
   @Input() projetoSelecionado: any = null;
   @Output() updateProject = new EventEmitter<{ id: string; nome: string; descricao: string }>();
   @Output() deleteProject = new EventEmitter<string>();
+  @Output() duplicateProject = new EventEmitter<string>();
   @Output() updateProjectSituacao = new EventEmitter<{ id: string; situacao: 'DRAFT' | 'PUBLISHED' }>();
   @Output() requestTransferOwnership = new EventEmitter<string>();
   editingProjectId = '';

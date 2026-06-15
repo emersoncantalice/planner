@@ -85,6 +85,7 @@
                 </button>
               }
               <button class="sec" type="button" (click)="startEditProject(r)">Editar</button>
+              <button class="sec" type="button" (click)="duplicateProject.emit(r.id)" title="Criar uma cópia deste projeto">Copiar</button>
               <button type="button" (click)="deleteProject.emit(r.id)">Excluir</button>
             </div>
           } @else {

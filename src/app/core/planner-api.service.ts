@@ -383,6 +383,9 @@ export class PlannerApiService {
   deleteProject(token: string, projectId: string) {
     return this.http.delete<void>(`${this.api}/projects/${projectId}`, { headers: this.headers(token) });
   }
+  duplicateProject(token: string, projectId: string) {
+    return this.http.post<any>(`${this.api}/projects/${projectId}/duplicate`, {}, { headers: this.headers(token) });
+  }
 
   getProject(token: string, projectId: string) {
     return this.http.get<any>(`${this.api}/projects/${projectId}`, { headers: this.headers(token) });
