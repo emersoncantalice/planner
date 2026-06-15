@@ -2494,6 +2494,27 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     });
   }
 
+  // Texto explicativo (comentário do Excel) quando o mês tem alocação personalizada:
+  // % diferente do padrão da linha, horas reduzidas por ausência ou valor manual.
+  private comentarioAlocacaoMes(a: any, month: number): string | null {
+    const fmtPct = (v: number) => `${(Number(v) || 0).toFixed(2).replace('.', ',')}%`;
+    const partes: string[] = [];
+    const padrao = Number(this.getConfig(a.id).percentual || 0);
+
+    if (this.isPercentualMesSobrescrito(a.id, month)) {
+      const mesPct = this.getPercentualMensalDigitavel(a.id, month);
+      partes.push(`Alocação do mês: ${fmtPct(mesPct)} (padrão da linha: ${fmtPct(padrao)}).`);
+    }
+    if (this.temReducaoPorAusencia(a.id, month)) {
+      const h = this.horasDescontadasPorAusencia(a.id, month);
+      partes.push(`Horas reduzidas por ausência/férias: -${h}h neste mês.`);
+    }
+    if (this.getValorMensalManual(a.id, month) != null) {
+      partes.push('Valor do mês informado manualmente (diferente do cálculo padrão).');
+    }
+    return partes.length ? partes.join('\n') : null;
+  }
+
   /**
    * Extração da "Visão LO" em uma única aba, reproduzindo o layout e a
    * formatação da tela: bloco RESUMO, bloco "Realizado Extraído de Finanças"
@@ -2668,7 +2689,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
           const stMes = this.isPago(a.id, i) ? filled(S.money, 'C6EFCE')
                       : this.isCancelado(a.id, i) ? filled(S.money, 'D9D9D9')
                       : S.money;
-          set(R, MES0 + i, money(v, stMes));
+          const celMes: any = money(v, stMes);
+          // Comentário explicando alocação personalizada (ausência / % diferente do padrão / valor manual).
+          const obs = this.comentarioAlocacaoMes(a, i);
+          if (obs) celMes.c = Object.assign([{ a: 'Planner', t: obs }], { hidden: true });
+          set(R, MES0 + i, celMes);
         });
         // TOTAL por pessoa = soma dos 12 meses (fórmula) — sem cor da linha.
         set(R, COL_TOTAL, fcell(`SUM(${addr(R, MES0)}:${addr(R, 19)})`, total, S.moneyBold));
