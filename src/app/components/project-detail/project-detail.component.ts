@@ -48,6 +48,9 @@ export class ProjectDetailComponent implements OnChanges {
   donoModalAberto = false;
   donoNovoInput   = '';
   cronogramaTelaCheia = false;
+  cronogramaColapsado = false;
+
+  toggleCronograma() { this.cronogramaColapsado = !this.cronogramaColapsado; }
 
   isDonoDoProjeto(): boolean {
     const role = (localStorage.getItem('planner_role') || '').trim();
@@ -97,9 +100,13 @@ export class ProjectDetailComponent implements OnChanges {
   }
 
   visibleReplanCount = 5;
+  // Histórico de Replanejamento começa sempre retraído.
+  replanCollapsed = true;
+
+  toggleReplanHistorico() { this.replanCollapsed = !this.replanCollapsed; }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['projeto']) this.visibleReplanCount = 5;
+    if (changes['projeto']) { this.visibleReplanCount = 5; this.replanCollapsed = true; this.cronogramaColapsado = false; }
     if (changes['openTransferRequestId'] && this.openTransferRequestId > 0 && this.isDonoDoProjeto()) {
       this.abrirDonoModal();
     }

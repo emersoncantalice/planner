@@ -3459,6 +3459,15 @@ app-project-detail {
     url('/assets/branding/bg-pattern.jpg') top right/450px auto repeat;
 }
 
+/* Detalhe do projeto (cronograma + histórico de replanejamento) tem altura
+   natural e pode passar da área visível. Como a .content-col usa overflow:hidden,
+   tornamos esta .page rolável para nada ficar escondido atrás da barra de tarefas. */
+.page:has(app-project-detail) {
+  min-height: 0;
+  overflow-y: auto;
+  scroll-padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+}
+
 .topo {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
   background: linear-gradient(90deg, #0f4cb8, #1b66db);

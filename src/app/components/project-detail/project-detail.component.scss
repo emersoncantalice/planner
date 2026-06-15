@@ -17,6 +17,28 @@
   flex-wrap: wrap;
 }
 
+.cronograma-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2a4a7c;
+
+  .cronograma-caret {
+    display: inline-block;
+    font-size: .85rem;
+    color: #5b8dee;
+    transform: rotate(-90deg);
+    transition: transform .18s ease;
+    &.open { transform: rotate(0deg); }
+  }
+}
+
 .cronograma-wrap {
   margin-top: 8px;
   width: 100%;
@@ -134,19 +156,27 @@
 
 .replan-history {
   margin-top: 16px;
+  // Safe area: respeita os insets do dispositivo e garante um respiro interno ao container.
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
 
-  h3 {
+  .replan-toggle {
+    width: 100%;
     display: flex;
     align-items: center;
     gap: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
     font-size: 1rem;
+    font-weight: 700;
     color: #2a4a7c;
-    margin-bottom: 12px;
+    padding: 4px 0;
+    text-align: left;
 
-    .replan-icon {
-      font-size: 1.15rem;
-      color: #5b8dee;
-    }
+    .replan-icon { font-size: 1.15rem; color: #5b8dee; }
 
     .replan-badge {
       margin-left: auto;
@@ -157,6 +187,13 @@
       border-radius: 10px;
       padding: 1px 8px;
     }
+
+    .replan-caret {
+      font-size: .8rem;
+      color: #5b8dee;
+      transition: transform .18s ease;
+      &.open { transform: rotate(180deg); }
+    }
   }
 }
 
@@ -164,6 +201,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 12px;
+  // Área segura: lista contida e rolável, sem estourar o container/tela.
+  max-height: min(420px, 50vh);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .replan-row {

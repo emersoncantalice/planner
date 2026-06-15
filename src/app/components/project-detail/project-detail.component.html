@@ -1,7 +1,12 @@
 ﻿@if (projeto) {
+  @if (!cronogramaColapsado) {
   <section class="card detalhe" [class.detalhe-fullscreen]="cronogramaTelaCheia">
     <div class="detalhe-header">
-      <h3>Cronograma</h3>
+      <button type="button" class="cronograma-toggle" (click)="toggleCronograma()"
+              [attr.aria-expanded]="!cronogramaColapsado" [title]="cronogramaColapsado ? 'Expandir cronograma' : 'Retrair cronograma'">
+        <span class="cronograma-caret" [class.open]="!cronogramaColapsado">▾</span>
+        Cronograma
+      </button>
       <div class="detalhe-meta">
         <span class="lo-meta-pill lo-meta-pill-gray">Dono: {{ projeto.donoProjeto || '—' }}</span>
         @if (isDonoDoProjeto()) {
@@ -34,14 +39,18 @@
       </app-gantt-panel>
     </div>
   </section>
+  }
 
   @if (historicoReplanejamento().length > 0) {
-    <section class="card replan-history">
-      <h3>
+    <section class="card replan-history" [class.collapsed]="replanCollapsed">
+      <button type="button" class="replan-toggle" (click)="toggleReplanHistorico()"
+              [attr.aria-expanded]="!replanCollapsed">
         <span class="replan-icon">↺</span>
         Histórico de Replanejamento
         <span class="replan-badge">{{ historicoReplanejamento().length }}</span>
-      </h3>
+        <span class="replan-caret" [class.open]="!replanCollapsed">▾</span>
+      </button>
+      @if (!replanCollapsed) {
       <div class="replan-list">
         @for (ev of historicoVisivel(); track ev.id) {
           <div class="replan-row">
@@ -68,6 +77,7 @@
         <button class="replan-more-btn" (click)="visibleReplanCount = visibleReplanCount + 10">
           Ver mais ({{ historicoReplanejamento().length - visibleReplanCount }} restantes)
         </button>
+      }
       }
     </section>
   }

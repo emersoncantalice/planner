@@ -2532,7 +2532,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         horasLabel:  { fill: { fgColor: { rgb: 'D9E1F2' } }, font: { bold: true }, border },
         horas:       { fill: { fgColor: { rgb: 'D9E1F2' } }, border, alignment: { horizontal: 'center' } },
       };
-      const Z_MONEY = '#,##0.00';
+      const Z_MONEY = 'R$ #,##0.00';
       const Z_RS = 'R$ #,##0.00';
 
       const cells: Record<string, any> = {};
@@ -2544,6 +2544,9 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       const pctc = (v: number, s = S.pct) => ({ t: 'n', v: Number(v) || 0, z: '0.00"%"', s });
       const numc = (v: number, s = S.horas) => ({ t: 'n', v: Number(v) || 0, s });
       const mergeRow = (r: number, c0: number, c1: number) => merges.push({ s: { r, c: c0 }, e: { r, c: c1 } });
+      const addr = (r: number, c: number) => XLSX.utils.encode_cell({ r, c });
+      // Célula com fórmula (mantém valor em cache para visualização antes do recálculo).
+      const fcell = (formula: string, value: number, s = S.money) => ({ t: 'n', f: formula, v: brl(value), z: Z_MONEY, s });
       let R = 0;
 
       // ── Bloco RESUMO ──────────────────────────────────────────────────────
@@ -2553,23 +2556,25 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
       const realizadoTotal = this.totalPagoNaLoSelecionada();
       const eficiencia = this.eficienciaLoSelecionada();
-      const resumoLinhas: Array<[string, number]> = [
-        [`Orçamento ${ano}`, this.orcamentoLoSelecionada()],
-        ['Comprometido', this.totalComprometidoClm()],
-        ['Realizado', realizadoTotal],
-        ['Eficiência Realizada', eficiencia],
-        ['Eficiência Comprometida', eficiencia],
-        ['Saldo', this.saldoLo()],
+      const resumoRow: Record<string, number> = {};
+      const resumoDefs: Array<[string, string]> = [
+        [`Orçamento ${ano}`, 'orc'],
+        ['Comprometido', 'comp'],
+        ['Realizado', 'real'],
+        ['Eficiência Realizada', 'efr'],
+        ['Eficiência Comprometida', 'efc'],
+        ['Saldo', 'saldo'],
       ];
-      for (const [label, val] of resumoLinhas) {
+      for (const [label, kind] of resumoDefs) {
         set(R, 0, txt(label, S.label));
         for (let c = 1; c <= 2; c++) set(R, c, txt('', S.label));
         mergeRow(R, 0, 2);
-        set(R, 3, money(val, S.moneyBold));
-        set(R, 4, money(val, S.moneyBold)); // mantém a célula formatada na merge
         mergeRow(R, 3, 4);
+        resumoRow[kind] = R;
         R++;
       }
+      // Orçamento é dado base; os demais viram fórmulas (preenchidas no fim).
+      set(resumoRow['orc'], 3, money(this.orcamentoLoSelecionada(), S.moneyBold));
       R++; // linha em branco
 
       // ── Realizado Extraído de Finanças (por Folha e CLM) ──────────────────
@@ -2583,34 +2588,55 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       this.meses.forEach((m, i) => set(R, MES0 + i, txt(m, S.monthHead)));
       set(R, COL_TOTAL, txt('TOTAL', S.monthHead)); R++;
 
-      const linhaFinanca = (label: string, fn: (m: number) => number) => {
-        set(R, 0, txt(label, S.greenLabel)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.greenLabel));
-        mergeRow(R, 0, MES0 - 1);
+      const labelFin = (label: string) => { set(R, 0, txt(label, S.greenLabel)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.greenLabel)); mergeRow(R, 0, MES0 - 1); };
+      // Linha de valores (dados mensais) com TOTAL como fórmula =SUM(JAN:DEZ).
+      const linhaValores = (label: string, fn: (m: number) => number): number => {
+        labelFin(label);
         let total = 0;
         this.meses.forEach((_m, i) => { const v = fn(i); total += v; set(R, MES0 + i, money(v)); });
-        set(R, COL_TOTAL, money(total, S.moneyBold)); R++;
+        set(R, COL_TOTAL, fcell(`SUM(${addr(R, MES0)}:${addr(R, 19)})`, total, S.moneyBold));
+        return R++;
+      };
+      // Linha de delta: cada mês = Realizado − Comprometido (fórmula), TOTAL idem.
+      const linhaDelta = (label: string, rReal: number, rComp: number, valFn: (m: number) => number): number => {
+        labelFin(label);
+        this.meses.forEach((_m, i) => {
+          const c = MES0 + i;
+          set(R, c, fcell(`${addr(rReal, c)}-${addr(rComp, c)}`, valFn(i), S.money));
+        });
+        set(R, COL_TOTAL, fcell(`${addr(rReal, COL_TOTAL)}-${addr(rComp, COL_TOTAL)}`, this.meses.reduce((s, _m, i) => s + valFn(i), 0), S.moneyBold));
+        return R++;
       };
       // Eficiência (movimentações negativas) — total anual, sem distribuição mensal.
-      linhaFinanca('Eficiência Realizada',    () => 0);
-      cells[XLSX.utils.encode_cell({ r: R - 1, c: COL_TOTAL })] = money(eficiencia, S.moneyBold);
-      linhaFinanca('Eficiência Comprometida', () => 0);
-      cells[XLSX.utils.encode_cell({ r: R - 1, c: COL_TOTAL })] = money(eficiencia, S.moneyBold);
-      linhaFinanca('Comprometido Folha', m => this.totalComprometidoMesPorCategoria(m, 'FOLHA'));
-      linhaFinanca('Realizado Folha',    m => this.realizadoMesPorCategoria(m, 'FOLHA'));
-      linhaFinanca('Delta Folha (Realizado − Comprometido)', m => this.realizadoMesPorCategoria(m, 'FOLHA') - this.totalComprometidoMesPorCategoria(m, 'FOLHA'));
-      linhaFinanca('Comprometido CLM', m => this.totalComprometidoMesPorCategoria(m, 'TERCEIRO'));
-      linhaFinanca('Realizado CLM',    m => this.realizadoMesPorCategoria(m, 'TERCEIRO'));
-      linhaFinanca('Delta CLM (Realizado − Comprometido)', m => this.realizadoMesPorCategoria(m, 'TERCEIRO') - this.totalComprometidoMesPorCategoria(m, 'TERCEIRO'));
+      const linhaEficiencia = (label: string): number => {
+        labelFin(label);
+        this.meses.forEach((_m, i) => set(R, MES0 + i, money(0)));
+        set(R, COL_TOTAL, money(eficiencia, S.moneyBold));
+        return R++;
+      };
+      const compFolhaFn = (m: number) => this.totalComprometidoMesPorCategoria(m, 'FOLHA');
+      const realFolhaFn = (m: number) => this.realizadoMesPorCategoria(m, 'FOLHA');
+      const compClmFn = (m: number) => this.totalComprometidoMesPorCategoria(m, 'TERCEIRO');
+      const realClmFn = (m: number) => this.realizadoMesPorCategoria(m, 'TERCEIRO');
+
+      const rEfReal = linhaEficiencia('Eficiência Realizada');
+      const rEfComp = linhaEficiencia('Eficiência Comprometida');
+      const rCompFolha = linhaValores('Comprometido Folha', compFolhaFn);
+      const rRealFolha = linhaValores('Realizado Folha', realFolhaFn);
+      linhaDelta('Delta Folha (Realizado − Comprometido)', rRealFolha, rCompFolha, m => realFolhaFn(m) - compFolhaFn(m));
+      const rCompClm = linhaValores('Comprometido CLM', compClmFn);
+      const rRealClm = linhaValores('Realizado CLM', realClmFn);
+      linhaDelta('Delta CLM (Realizado − Comprometido)', rRealClm, rCompClm, m => realClmFn(m) - compClmFn(m));
       R++; // linha em branco
 
       // ── Tabela do time ────────────────────────────────────────────────────
       const headers = ['Nome', 'VAGA', 'Frente', 'Parceiro', 'Perfil', 'Cargo', 'Alocação %', 'Valor Hora', ...this.meses, 'TOTAL'];
+      const tableHeaderRow = R;
       headers.forEach((h, c) => set(R, c, txt(h, S.blueHead))); R++;
 
-      const alocacoesLo = this.alocacoes
-        .filter((a: any) => a.linhaOrcamentariaId === lo.id)
-        .sort((a: any, b: any) =>
-          String(a.nomePessoa || '').localeCompare(String(b.nomePessoa || ''), 'pt-BR', { sensitivity: 'base' }));
+      // Obedece a ordem exibida na tela (ordenação custom / coluna ordenada).
+      const alocacoesLo = this.alocacoesFiltradas();
+      const firstDataRow = R;
 
       // Cores por tipo (iguais à tela): planejada=roxo claro, folha=azul claro, terceiro=laranja.
       const filled = (base: any, rgb: string) => ({ ...base, fill: { fgColor: { rgb } } });
@@ -2623,7 +2649,6 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         const rgb = planejada ? 'EDE9FE' : terceiro ? 'FFE4CC' : 'E8F4FD';
         const stText = filled(S.text, rgb);
         const stMoney = filled(S.money, rgb);
-        const stMoneyB = filled(S.moneyBold, rgb);
         const stPct = filled(S.pct, rgb);
         // Vaga: mostra o alias (ex.: VAG0022976) — terceiros e planejadas inclusos.
         const vaga = pessoa?.vagaAlias || (planejada ? 'Vaga programada' : '');
@@ -2639,29 +2664,47 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         this.meses.forEach((_m, i) => {
           const v = this.custoMensal(a.id, vh, i);
           total += v;
-          // Status do mês: pago = verde claro, cancelado = cinza, senão a cor da linha.
+          // A partir do Valor Hora as cores são por status: pago=verde, cancelado=cinza, aberto=branco.
           const stMes = this.isPago(a.id, i) ? filled(S.money, 'C6EFCE')
                       : this.isCancelado(a.id, i) ? filled(S.money, 'D9D9D9')
-                      : stMoney;
+                      : S.money;
           set(R, MES0 + i, money(v, stMes));
         });
-        set(R, COL_TOTAL, money(total, stMoneyB));
+        // TOTAL por pessoa = soma dos 12 meses (fórmula) — sem cor da linha.
+        set(R, COL_TOTAL, fcell(`SUM(${addr(R, MES0)}:${addr(R, 19)})`, total, S.moneyBold));
         R++;
       }
+      const lastDataRow = R - 1;
+      const tableLastRow = Math.max(tableHeaderRow, lastDataRow);
+      const hasData = lastDataRow >= firstDataRow;
 
-      // Total comprometido por mês
+      // Total comprometido por mês = soma da coluna do mês (fórmula).
+      const rTotalComp = R;
       set(R, 0, txt('Total comprometido', S.label)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.label));
       mergeRow(R, 0, MES0 - 1);
-      this.meses.forEach((_m, i) => set(R, MES0 + i, money(this.totalComprometidoMesLo(i), S.moneyBold)));
-      set(R, COL_TOTAL, money(this.totalComprometidoClm(), S.moneyBold)); R++;
+      this.meses.forEach((_m, i) => {
+        const c = MES0 + i;
+        set(R, c, hasData
+          ? fcell(`SUM(${addr(firstDataRow, c)}:${addr(lastDataRow, c)})`, this.totalComprometidoMesLo(i), S.moneyBold)
+          : money(0, S.moneyBold));
+      });
+      set(R, COL_TOTAL, fcell(`SUM(${addr(rTotalComp, MES0)}:${addr(rTotalComp, 19)})`, this.totalComprometidoClm(), S.moneyBold)); R++;
       R++;
 
       // Horas Úteis Mês
       set(R, 0, txt('Horas Úteis Mês', S.horasLabel)); for (let c = 1; c < MES0; c++) set(R, c, txt('', S.horasLabel));
       mergeRow(R, 0, MES0 - 1);
+      const rHoras = R;
       let totalHoras = 0;
       this.meses.forEach((_m, i) => { const h = this.horasDoCadastro(i); totalHoras += h; set(R, MES0 + i, numc(h)); });
-      set(R, COL_TOTAL, numc(totalHoras, { ...S.horas, font: { bold: true } } as any)); R++;
+      set(R, COL_TOTAL, { t: 'n', f: `SUM(${addr(rHoras, MES0)}:${addr(rHoras, 19)})`, v: totalHoras, s: { ...S.horas, font: { bold: true } } } as any); R++;
+
+      // ── Fórmulas do RESUMO (referenciam os blocos acima) ──────────────────
+      set(resumoRow['comp'], 3, fcell(`${addr(rCompFolha, COL_TOTAL)}+${addr(rCompClm, COL_TOTAL)}`, this.totalComprometidoClm(), S.moneyBold));
+      set(resumoRow['real'], 3, fcell(`${addr(rRealFolha, COL_TOTAL)}+${addr(rRealClm, COL_TOTAL)}`, realizadoTotal, S.moneyBold));
+      set(resumoRow['efr'], 3, fcell(`${addr(rEfReal, COL_TOTAL)}`, eficiencia, S.moneyBold));
+      set(resumoRow['efc'], 3, fcell(`${addr(rEfComp, COL_TOTAL)}`, eficiencia, S.moneyBold));
+      set(resumoRow['saldo'], 3, fcell(`${addr(resumoRow['orc'], 3)}-${addr(resumoRow['comp'], 3)}`, this.saldoLo(), S.moneyBold));
 
       const ws: any = cells;
       ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: R - 1, c: NCOL - 1 } });
@@ -2670,7 +2713,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         { wch: 26 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 11 }, { wch: 12 },
         ...this.meses.map(() => ({ wch: 12 })), { wch: 14 }
       ];
-      XLSX.utils.book_append_sheet(wb, ws, 'Visão LO');
+      // Tabela ordenável/filtrável (AutoFilter sobre o cabeçalho + linhas do time).
+      ws['!autofilter'] = {
+        ref: XLSX.utils.encode_range({ s: { r: tableHeaderRow, c: 0 }, e: { r: tableLastRow, c: NCOL - 1 } })
+      };
+      // Nome da aba = código da LO (ex.: FIN-310183). Sanitiza p/ regras do Excel (máx. 31, sem : \ / ? * [ ]).
+      const sheetName = (String(lo.codigo || lo.nome || 'Visão LO').replace(/[:\\/?*\[\]]/g, ' ').trim() || 'Visão LO').slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
       const dt = new Date();
       const stamp = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
