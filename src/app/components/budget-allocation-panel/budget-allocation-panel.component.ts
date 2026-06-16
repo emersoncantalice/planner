@@ -198,6 +198,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private valorMensalMaskedMap: Record<string, string> = {};
   private percentualMensalManual: Record<string, number> = {};
   percentualAviso = '';
+  // Quando ligado, descontos de horas por ausência/férias entram no custo (tela e extração).
+  descontarAusencias = this.carregarDescontarAusencias();
   novaAlocacaoPercentual = 100;
   novaPctMasked = '100,00';
   private pctMaskedMap: Record<string, string> = {};
@@ -860,7 +862,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const mi = month ?? new Date().getMonth();
     const percentual = this.getPercentualEfetivoMes(allocationId, mi);
     const isDraftAloc = !!(this.alocacoes.find((a: any) => a.id === allocationId)?.draft);
-    const horas = this.horasEfetivas(mi, this.categoriaDaAlocacaoId(allocationId), undefined, isDraftAloc);
+    // Passa o nome da pessoa para que o desconto de ausências (quando ligado) também afete os totais.
+    const horas = this.horasEfetivas(mi, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), isDraftAloc);
     return (valorHora || 0) * horas * (percentual / 100);
   }
 
@@ -973,7 +976,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private horasEfetivas(monthIndex: number, categoria?: 'FOLHA' | 'TERCEIRO', nomePessoa?: string, isDraft = false): number {
     if (categoria !== 'TERCEIRO') return isDraft ? this.horasDoCadastro(monthIndex) : 168;
     const base = this.horasDoCadastro(monthIndex);
-    if (!nomePessoa) return base;
+    // Só desconta ausências quando a opção está ligada.
+    if (!this.descontarAusencias || !nomePessoa) return base;
     const diasFora = this.diasAusenciaNoMes(nomePessoa, monthIndex, this.anoSelecionado);
     return Math.max(0, base - (diasFora * 8));
   }
@@ -1014,6 +1018,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   horasDescontadasPorAusencia(allocationId: string, monthIndex: number): number {
+    if (!this.descontarAusencias) return 0;
     const categoria = this.categoriaDaAlocacaoId(allocationId);
     if (categoria !== 'TERCEIRO') return 0;
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
@@ -1949,6 +1954,20 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.percentualAviso = '';
   }
 
+  // ── Desconto de ausências (tela + extração) ────────────────────────────────
+  private carregarDescontarAusencias(): boolean {
+    try {
+      const v = localStorage.getItem('planner_lo_descontar_ausencias');
+      return v == null ? true : v === 'true';
+    } catch { return true; }
+  }
+
+  salvarDescontarAusencias() {
+    try { localStorage.setItem('planner_lo_descontar_ausencias', String(this.descontarAusencias)); } catch {}
+    // Limpa o cache de valores exibidos para a tabela recalcular com/sem o desconto.
+    this.valorMensalMaskedMap = {};
+  }
+
   private preencherPessoaNoForm(pessoaId: string) {
     const pessoa = this.pessoas.find((p: any) => p.id === pessoaId);
     if (!pessoa) return;
@@ -2683,7 +2702,11 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         set(R, 7, moneyRS(vh, stMoney));
         let total = 0;
         this.meses.forEach((_m, i) => {
-          const v = this.custoMensal(a.id, vh, i);
+          // Mesmo valor exibido na célula da tela: já desconta horas de ausência/férias
+          // e respeita valor manual; meses cancelados/indisponíveis não geram custo.
+          const v = (this.isCancelado(a.id, i) || this.mesIndisponivelParaAlocacao(a.id, i))
+            ? 0
+            : this.getValorMensalDigitavel(a.id, i, vh);
           total += v;
           // A partir do Valor Hora as cores são por status: pago=verde, cancelado=cinza, aberto=branco.
           const stMes = this.isPago(a.id, i) ? filled(S.money, 'C6EFCE')
