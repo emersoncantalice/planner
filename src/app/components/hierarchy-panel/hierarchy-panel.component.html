@@ -59,8 +59,14 @@
         }
       </div>
     }
-    <div class="tree-wrap">
-      <div class="tree" #treeContainer>
+    <div class="tree-wrap" [class.is-panning]="isPanning"
+         (mousedown)="onTreePanStart($event)" (wheel)="onTreeWheel($event)">
+      <div class="tree-zoom-controls" (mousedown)="$event.stopPropagation()">
+        <button type="button" (click)="zoomOut()" title="Diminuir zoom">−</button>
+        <span class="tree-zoom-val" (click)="zoomReset()" title="Resetar zoom e posição">{{ zoomPct() }}%</span>
+        <button type="button" (click)="zoomIn()" title="Aumentar zoom">+</button>
+      </div>
+      <div class="tree" #treeContainer [style.transform]="treeTransform" [style.transform-origin]="'0 0'">
         <svg class="conectores-svg" [attr.width]="svgW" [attr.height]="svgH" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" [class.tem-destaque]="!!vinculoDestacado">
           @for (l of linhas; track l.id) {
             <path class="conector-hit" [attr.d]="l.d" (click)="alternarVinculo(l.de, l.para, $event)">

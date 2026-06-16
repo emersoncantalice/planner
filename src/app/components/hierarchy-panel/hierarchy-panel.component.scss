@@ -283,21 +283,66 @@
 /* ── Árvore ───────────────────────────────────────────────────────────── */
 .tree-wrap {
   position: relative;        /* âncora para o overlay SVG dos conectores */
-  overflow-x: auto;
-  padding: 10px calc(4px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) calc(4px + env(safe-area-inset-left, 0px));
-  scroll-padding-left: calc(4px + env(safe-area-inset-left, 0px));
-  scroll-padding-right: calc(4px + env(safe-area-inset-right, 0px));
-  scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;          /* viewport fixo; navegação por arraste + zoom */
+  height: min(72vh, 760px);
+  background:
+    radial-gradient(circle, rgba(100,116,139,.22) 1px, transparent 1px) 0 0 / 22px 22px;
+  cursor: grab;
+  touch-action: none;
+
+  &.is-panning { cursor: grabbing; }
+  &.is-panning .tree { user-select: none; }
 }
+
+/* Controles de zoom flutuantes */
+.tree-zoom-controls {
+  position: absolute;
+  z-index: 5;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid #d8e2f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15,23,42,.12);
+  cursor: default;
+
+  button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font-size: 1.05rem;
+    line-height: 1;
+    color: #1d4ed8;
+    cursor: pointer;
+    &:hover { background: #eef4ff; }
+  }
+  .tree-zoom-val {
+    min-width: 46px;
+    text-align: center;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    user-select: none;
+    &:hover { color: #1d4ed8; }
+  }
+}
+
 .tree {
   position: relative;
   z-index: 1;                /* cards acima das linhas */
-  display: flex;
-  justify-content: center;   /* árvore centralizada */
+  display: inline-flex;      /* largura do conteúdo (permite pan/zoom) */
+  justify-content: center;
   align-items: flex-start;
   gap: 40px;
   min-width: min-content;
-  width: 100%;
+  will-change: transform;
 }
 
 /* Overlay SVG com as linhas de conexão pai → filho (clicáveis para destacar) */

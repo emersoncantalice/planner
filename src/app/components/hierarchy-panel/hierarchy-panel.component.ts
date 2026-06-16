@@ -35,6 +35,19 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   private resizeObs?: ResizeObserver;
   private recalcAgendado = false;
 
+  // ── Zoom & pan (arraste) da árvore ─────────────────────────────────────────
+  zoom = 1;
+  panX = 0;
+  panY = 0;
+  isPanning = false;
+  private panStart = { x: 0, y: 0, px: 0, py: 0 };
+  private readonly zoomMin = 0.3;
+  private readonly zoomMax = 2;
+
+  get treeTransform(): string {
+    return `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+  }
+
   constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 
   ngAfterViewInit(): void {
@@ -58,6 +71,8 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     window.removeEventListener('resize', this.agendarRecalcLinhas, true);
     this.treeContainer?.nativeElement.removeEventListener('scroll', this.agendarRecalcLinhas, true);
     this.resizeObs?.disconnect();
+    document.removeEventListener('mousemove', this.onPanMoveDoc, true);
+    document.removeEventListener('mouseup', this.onPanUpDoc, true);
   }
 
   agendarRecalcLinhas = () => {
@@ -73,19 +88,22 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     const cont = this.treeContainer?.nativeElement;
     if (!cont) return;
     const crect = cont.getBoundingClientRect();
+    // O SVG e os cards vivem dentro de .tree (que recebe translate/scale juntos),
+    // então as linhas usam coordenadas lógicas: dividimos a distância em tela pelo zoom.
+    const z = this.zoom || 1;
     const novas: LinhaConector[] = [];
     for (const n of this.nodes) {
       const childEl = cont.querySelector<HTMLElement>(`.node-card[data-node-id="${n.id}"]`);
       if (!childEl) continue;
       const cr = childEl.getBoundingClientRect();
-      const x2 = cr.left + cr.width / 2 - crect.left;
-      const y2 = cr.top - crect.top;
+      const x2 = (cr.left + cr.width / 2 - crect.left) / z;
+      const y2 = (cr.top - crect.top) / z;
       for (const pid of this.paisDe(n)) {
         const parentEl = cont.querySelector<HTMLElement>(`.node-card[data-node-id="${pid}"]`);
         if (!parentEl) continue;
         const pr = parentEl.getBoundingClientRect();
-        const x1 = pr.left + pr.width / 2 - crect.left;
-        const y1 = pr.bottom - crect.top;
+        const x1 = (pr.left + pr.width / 2 - crect.left) / z;
+        const y1 = (pr.bottom - crect.top) / z;
         novas.push({ id: `${pid}->${n.id}`, de: pid, para: n.id, x1, y1, x2, y2, d: '' });
       }
     }
@@ -156,6 +174,70 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   onExportRootChange() { this.onHierarchyLayoutChange(); }
+
+  // ── Navegação: arrastar para mover + zoom ──────────────────────────────────
+  onTreePanStart(ev: MouseEvent): void {
+    if (ev.button !== 0) return;
+    const t = ev.target as HTMLElement | null;
+    // Não inicia o arraste em elementos interativos (membros arrastáveis, botões, linhas, etc.).
+    if (t && t.closest('.node-m, button, input, select, textarea, a, .conector-hit, [draggable="true"]')) return;
+    this.isPanning = true;
+    this.panStart = { x: ev.clientX, y: ev.clientY, px: this.panX, py: this.panY };
+    ev.preventDefault();
+    // Listeners só durante o arraste (evita custo global de change detection).
+    this.zone.runOutsideAngular(() => {
+      document.addEventListener('mousemove', this.onPanMoveDoc, true);
+      document.addEventListener('mouseup', this.onPanUpDoc, true);
+    });
+  }
+
+  private onPanMoveDoc = (ev: MouseEvent): void => {
+    if (!this.isPanning) return;
+    this.panX = this.panStart.px + (ev.clientX - this.panStart.x);
+    this.panY = this.panStart.py + (ev.clientY - this.panStart.y);
+    this.zone.run(() => this.cdr.markForCheck());
+  };
+
+  private onPanUpDoc = (): void => {
+    if (!this.isPanning) return;
+    this.isPanning = false;
+    document.removeEventListener('mousemove', this.onPanMoveDoc, true);
+    document.removeEventListener('mouseup', this.onPanUpDoc, true);
+    this.zone.run(() => { this.agendarRecalcLinhas(); this.cdr.markForCheck(); });
+  };
+
+  onTreeWheel(ev: WheelEvent): void {
+    ev.preventDefault();
+    const wrap = ev.currentTarget as HTMLElement;
+    const rect = wrap.getBoundingClientRect();
+    const cx = ev.clientX - rect.left;
+    const cy = ev.clientY - rect.top;
+    const fator = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
+    this.aplicarZoom(this.zoom * fator, cx, cy);
+  }
+
+  zoomIn(): void  { this.aplicarZoomCentral(this.zoom * 1.15); }
+  zoomOut(): void { this.aplicarZoomCentral(this.zoom / 1.15); }
+  zoomReset(): void { this.zoom = 1; this.panX = 0; this.panY = 0; this.agendarRecalcLinhas(); }
+  zoomPct(): number { return Math.round(this.zoom * 100); }
+
+  private aplicarZoomCentral(z: number): void {
+    const wrap = this.treeContainer?.nativeElement?.parentElement;
+    const rect = wrap?.getBoundingClientRect();
+    this.aplicarZoom(z, (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2);
+  }
+
+  // Mantém o ponto sob o cursor (cx,cy em px relativos ao .tree-wrap) estável ao dar zoom.
+  private aplicarZoom(z: number, cx: number, cy: number): void {
+    const novo = Math.min(this.zoomMax, Math.max(this.zoomMin, Math.round(z * 100) / 100));
+    if (novo === this.zoom) return;
+    const lx = (cx - this.panX) / this.zoom;
+    const ly = (cy - this.panY) / this.zoom;
+    this.panX = cx - lx * novo;
+    this.panY = cy - ly * novo;
+    this.zoom = novo;
+    this.agendarRecalcLinhas();
+  }
 
   parentSearchTerm = '';
   parentDropdownOpen = false;
