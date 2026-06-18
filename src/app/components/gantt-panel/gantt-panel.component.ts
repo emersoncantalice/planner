@@ -1243,24 +1243,37 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
   exportarAtividadesExcel() {
     if (!this.projetoSelecionado || this.atividades().length === 0) return;
 
-    const rows = this.atividadesOrdenadasParaExportacao().map((item: any, index: number) => {
+    const projetoNome = String(this.projetoSelecionado?.nome ?? '');
+    const ordenadas = this.atividadesOrdenadasParaExportacao();
+
+    // ── Aba 1: Atividades (máximo de informações) ─────────────────────────────
+    const rows = ordenadas.map((item: any, index: number) => {
       const predecessorIds = this.extractPredecessorIds(item?.descricao ?? '');
       const etapas = this.extractEtapas(item?.descricao ?? '');
-      const etapaInfo = etapas.length ? `${this.etapasDoneCount(etapas)}/${etapas.length}` : '';
+      const dow = this.extractDowConstraint(item?.descricao ?? '');
+      const atrasada = this.isAtrasado(item);
+      const meta = this.getMeta(item?.id);
       return {
         Ordem: index + 1,
-        Projeto: String(this.projetoSelecionado?.nome ?? ''),
+        Projeto: projetoNome,
         Atividade: String(item?.titulo ?? ''),
-        Status: this.statusLabel(item?.status ?? 'PLANEJADO'),
-        Responsavel: String(item?.responsavel || this.getMeta(item?.id).responsavel || ''),
+        Status: this.statusLabel(this.effectiveStatus(item)),
+        'Progresso (%)': this.effectivePct(item),
+        Atrasada: atrasada ? 'Sim' : 'Nao',
+        'Dias de atraso': this.diasDeAtrasoForExport(item),
+        Responsavel: String(item?.responsavel || meta.responsavel || ''),
         Perfil: this.perfilNome(item),
         Inicio: this.formatDateForExport(item?.inicioPlanejado),
         Fim: this.formatDateForExport(item?.fimPlanejado),
         'Duracao (dias)': this.duracaoDiasForExport(item?.inicioPlanejado, item?.fimPlanejado),
-        'Progresso (%)': this.effectivePct(item),
-        Etapas: etapaInfo,
+        'Etapas (concluidas/total)': etapas.length ? `${this.etapasDoneCount(etapas)}/${etapas.length}` : '',
+        'Detalhe das etapas': etapas.map((e: any) => `${e?.done ? '✓' : '○'} ${e?.label ?? ''}`).join(' | '),
         Predecessoras: this.predecessorTitles(predecessorIds),
+        'Qtd predecessoras': predecessorIds.length,
         Paralela: item?.permiteParalelo === false ? 'Nao' : 'Sim',
+        'Iniciar somente em': dow.length ? this.dowLabel(dow) : '',
+        Cor: String(item?.cor ?? ''),
+        'Criada em': this.formatDateForExport(item?.criadoEm),
         Descricao: this.cleanDescricao(item?.descricao),
         'ID Atividade': String(item?.id ?? '')
       };
@@ -1268,26 +1281,91 @@ export class GanttPanelComponent implements OnChanges, OnDestroy {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     worksheet['!cols'] = [
-      { wch: 8 },
-      { wch: 28 },
-      { wch: 42 },
-      { wch: 18 },
-      { wch: 26 },
-      { wch: 22 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 10 },
-      { wch: 42 },
-      { wch: 10 },
-      { wch: 56 },
-      { wch: 24 }
+      { wch: 7 }, { wch: 26 }, { wch: 42 }, { wch: 16 }, { wch: 12 }, { wch: 9 }, { wch: 13 },
+      { wch: 24 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 50 },
+      { wch: 40 }, { wch: 16 }, { wch: 9 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 56 }, { wch: 24 }
     ];
+    if (rows.length) worksheet['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(Object.keys(rows[0]).length - 1)}${rows.length + 1}` };
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Linha do Tempo');
-    XLSX.writeFile(workbook, `${this.safeFilePart(this.projetoSelecionado?.nome)}_linha_do_tempo_${this.todayStamp()}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Atividades');
+
+    // ── Aba 2: Etapas (uma linha por etapa) ───────────────────────────────────
+    const etapaRows: any[] = [];
+    ordenadas.forEach((item: any, index: number) => {
+      const etapas = this.extractEtapas(item?.descricao ?? '');
+      etapas.forEach((e: any, i: number) => {
+        etapaRows.push({
+          'Ordem atividade': index + 1,
+          Atividade: String(item?.titulo ?? ''),
+          'Nº etapa': i + 1,
+          Etapa: String(e?.label ?? ''),
+          Concluida: e?.done ? 'Sim' : 'Nao'
+        });
+      });
+    });
+    if (etapaRows.length) {
+      const wsEtapas = XLSX.utils.json_to_sheet(etapaRows);
+      wsEtapas['!cols'] = [{ wch: 14 }, { wch: 42 }, { wch: 9 }, { wch: 50 }, { wch: 11 }];
+      wsEtapas['!autofilter'] = { ref: `A1:E${etapaRows.length + 1}` };
+      XLSX.utils.book_append_sheet(workbook, wsEtapas, 'Etapas');
+    }
+
+    XLSX.writeFile(workbook, `${this.safeFilePart(projetoNome)}_atividades_${this.todayStamp()}.xlsx`);
+  }
+
+  /** Exporta as atividades do projeto no formato padrão de importação do Jira (CSV). */
+  exportarAtividadesJira() {
+    if (!this.projetoSelecionado || this.atividades().length === 0) return;
+    const nomeProjeto = String(this.projetoSelecionado?.nome ?? '').trim();
+    const rows: string[][] = [];
+    rows.push(['Issue Type', 'Summary', 'Description', 'Priority', 'Start Date', 'Due Date', 'Epic Name', 'Epic Link', 'Labels']);
+    // O projeto vira um Epic e cada atividade uma Task ligada a ele.
+    rows.push(['Epic', nomeProjeto, String(this.projetoSelecionado?.descricao ?? '').trim(), 'Medium', '', '', nomeProjeto, '', 'planner,projeto']);
+    for (const item of this.atividadesOrdenadasParaExportacao()) {
+      rows.push([
+        'Task',
+        String(item?.titulo ?? '').trim() || `Atividade ${nomeProjeto}`,
+        this.cleanDescricao(item?.descricao),
+        this.mapStatusToPriorityJira(this.effectiveStatus(item)),
+        this.jiraDate(item?.inicioPlanejado),
+        this.jiraDate(item?.fimPlanejado),
+        '',
+        nomeProjeto,
+        'planner,cronograma'
+      ]);
+    }
+    const csv = rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.safeFilePart(nomeProjeto)}_jira_${this.todayStamp()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private mapStatusToPriorityJira(status: string): string {
+    const s = String(status || '').toUpperCase();
+    if (s === 'ATRASADO' || s === 'BLOQUEADO') return 'Highest';
+    if (s === 'EM_ANDAMENTO') return 'High';
+    if (s === 'CONCLUIDO') return 'Low';
+    return 'Medium';
+  }
+
+  private jiraDate(value: any): string {
+    if (!value) return '';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '';
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  }
+
+  private diasDeAtrasoForExport(item: any): number | '' {
+    if (!this.isAtrasado(item) || !item?.fimPlanejado) return '';
+    const fim = new Date(item.fimPlanejado); fim.setHours(0, 0, 0, 0);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dias = Math.round((hoje.getTime() - fim.getTime()) / this.DAY_MS);
+    return dias > 0 ? dias : '';
   }
 
   private atividadesOrdenadasParaExportacao(): any[] {

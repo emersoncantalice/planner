@@ -791,38 +791,39 @@ th.col-header-sel {
 }
 
 /* ── Anotação por pessoa ────────────────────────────────────────────────── */
+/* Ícone de nota (abre o balão de anotação) */
 .anotacao-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   color: #94a3b8;
   flex: 0 0 auto;
 
-  svg { width: 13px; height: 13px; fill: currentColor; }
+  svg { width: 15px; height: 15px; fill: currentColor; }
   &:hover { background: #eef2f7; color: #475569; }
   &.tem-anotacao { color: #d97706; }
   &.tem-anotacao:hover { background: #fef3c7; color: #b45309; }
+  &.ativo { background: #fef3c7; color: #b45309; }
 }
 
-/* Anotação sempre visível na linha da pessoa */
+/* Nota sempre visível na linha quando há conteúdo (clique abre o balão) */
 .anotacao-texto {
   display: block;
   margin-top: 3px;
-  max-width: 260px;
   font-size: .72rem;
   line-height: 1.25;
   color: #92400e;
   background: #fef3c7;
   border: 1px solid #fcd34d;
   border-radius: 6px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   cursor: pointer;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -831,26 +832,103 @@ th.col-header-sel {
   &:hover { background: #fde68a; }
 }
 
-.anotacao-row > td {
-  background: #fffbeb !important;
-  border-bottom: 1px solid #fde68a;
+/* Balão (popover) de anotação */
+.anotacao-pop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
 }
-.anotacao-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 6px;
+.anotacao-pop {
+  position: fixed;
+  z-index: 1201;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  background: #fff;
+  border: 1px solid #e2d9c0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .22);
+  padding: 10px;
+  animation: anotacao-pop-in .12s ease;
+
+  .anotacao-pop-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #b45309;
+    margin-bottom: 8px;
+    svg { width: 15px; height: 15px; fill: #d97706; }
+  }
 
   textarea {
     width: 100%;
+    box-sizing: border-box;
     border: 1px solid #fcd34d;
     border-radius: 8px;
     padding: 8px 10px;
     font-size: .85rem;
     resize: vertical;
-    background: #fff;
-    &:focus { outline: none; border-color: #f59e0b; }
+    background: #fffdf7;
+    &:focus { outline: none; border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245, 158, 11, .25); }
   }
-  .anotacao-actions { display: flex; gap: 8px; }
-  .anotacao-remover { color: #b91c1c; }
+
+  .anotacao-pop-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    .anotacao-remover { margin-left: auto; color: #b91c1c; }
+  }
 }
+
+@keyframes anotacao-pop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Coluna Pessoa com largura ajustável (arrastar) ─────────────────────── */
+.alloc-table {
+  th:first-child,
+  td:first-child {
+    width: var(--pessoa-col-w, 220px);
+    min-width: var(--pessoa-col-w, 220px);
+    max-width: var(--pessoa-col-w, 220px);
+    white-space: normal;          /* deixa o conteúdo quebrar dentro da largura */
+  }
+  /* a linha de anotação ocupa toda a largura (colspan) — não limitar */
+  .anotacao-row td {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.pessoa-col-head { position: relative; }
+
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 2;
+
+  &:hover { background: rgba(37, 99, 235, .22); }
+  &::after {
+    content: '';
+    position: absolute;
+    top: 22%;
+    bottom: 22%;
+    right: 3px;
+    width: 2px;
+    border-radius: 2px;
+    background: rgba(100, 116, 139, .55);
+  }
+}
+
+.pessoa-cell-wrap { min-width: 0; }
+.pessoa-cell-info strong { white-space: normal; overflow-wrap: anywhere; }

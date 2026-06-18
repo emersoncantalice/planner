@@ -489,13 +489,22 @@
             }
           </button>
 
+          <button class="gp-export-btn gp-export-jira-btn"
+                  type="button"
+                  (click)="exportarAtividadesJira()"
+                  [disabled]="atividades().length === 0"
+                  title="Exportar atividades no formato padrão de importação do Jira (CSV)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.5 2 4 9.5 11.5 17 19 9.5zM4 14.5 11.5 22 19 14.5l-3-3-4.5 4.5L7 11.5z"/></svg>
+            Jira
+          </button>
+
           <button class="gp-export-btn gp-export-excel-btn"
                   type="button"
                   (click)="exportarAtividadesExcel()"
                   [disabled]="atividades().length === 0"
-                  title="Exportar atividades da linha do tempo em Excel">
+                  title="Exportar a listagem completa das atividades em Excel">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            Excel
+            Listagem
           </button>
 
           <!-- Nova atividade -->
@@ -507,14 +516,6 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
               Nova atividade
             }
-          </button>
-          <button class="gp-export-btn gp-export-excel-btn"
-                  type="button"
-                  (click)="exportarAtividadesExcel()"
-                  [disabled]="atividades().length === 0"
-                  title="Exportar atividades da linha do tempo em Excel">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            Excel
           </button>
         }
       </div>

@@ -2007,9 +2007,20 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
   getAnotacao(allocationId: string): string { return this.anotacoes[allocationId] || ''; }
   temAnotacao(allocationId: string): boolean { return !!this.getAnotacao(allocationId); }
-  abrirAnotacao(allocationId: string): void {
+  anotacaoPos = { x: 0, y: 0 };
+  abrirAnotacao(allocationId: string, ev?: MouseEvent): void {
+    if (this.anotacaoEditId === allocationId) { this.cancelarAnotacao(); return; }
     this.anotacaoEditId = allocationId;
     this.anotacaoEditValue = this.getAnotacao(allocationId);
+    // Posiciona o balão (fixo) logo abaixo do ícone, ajustando para caber na tela.
+    const alvo = (ev?.currentTarget || ev?.target) as HTMLElement | undefined;
+    if (alvo) {
+      const r = alvo.getBoundingClientRect();
+      const largura = 300;
+      let x = r.left;
+      if (x + largura > window.innerWidth - 12) x = window.innerWidth - largura - 12;
+      this.anotacaoPos = { x: Math.max(12, x), y: r.bottom + 6 };
+    }
   }
   cancelarAnotacao(): void { this.anotacaoEditId = null; this.anotacaoEditValue = ''; }
   salvarAnotacao(allocationId: string): void {
@@ -2027,6 +2038,50 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.anotacaoEditId = null;
     this.anotacaoEditValue = '';
   }
+
+  // ── Largura ajustável da coluna Pessoa (arrastar) ──────────────────────────
+  pessoaColWidth = this.carregarPessoaColWidth();
+  private resizingPessoaCol = false;
+  private pessoaColResizeStart = { x: 0, w: 0 };
+  private pessoaColResizeTable: HTMLElement | null = null;
+
+  private carregarPessoaColWidth(): number {
+    const v = Number(localStorage.getItem('planner_lo_pessoa_col_w'));
+    return Number.isFinite(v) && v >= 120 ? v : 220;
+  }
+
+  onPessoaColResizeStart(ev: MouseEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const handle = ev.target as HTMLElement;
+    const th = handle.closest('th') as HTMLElement | null;
+    this.pessoaColResizeTable = handle.closest('table') as HTMLElement | null;
+    this.resizingPessoaCol = true;
+    this.pessoaColResizeStart = { x: ev.clientX, w: th ? th.offsetWidth : this.pessoaColWidth };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', this.onPessoaColResizeMove, true);
+    document.addEventListener('mouseup', this.onPessoaColResizeEnd, true);
+  }
+
+  private onPessoaColResizeMove = (ev: MouseEvent): void => {
+    if (!this.resizingPessoaCol) return;
+    const next = Math.max(120, Math.min(640, this.pessoaColResizeStart.w + (ev.clientX - this.pessoaColResizeStart.x)));
+    this.pessoaColWidth = next;
+    // Atualização direta (sem disparar change detection a cada movimento).
+    this.pessoaColResizeTable?.style.setProperty('--pessoa-col-w', `${next}px`);
+  };
+
+  private onPessoaColResizeEnd = (): void => {
+    if (!this.resizingPessoaCol) return;
+    this.resizingPessoaCol = false;
+    document.removeEventListener('mousemove', this.onPessoaColResizeMove, true);
+    document.removeEventListener('mouseup', this.onPessoaColResizeEnd, true);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    try { localStorage.setItem('planner_lo_pessoa_col_w', String(this.pessoaColWidth)); } catch {}
+    this.cdr.markForCheck();
+  };
 
   private loadAnotacoesFromBackend(): void {
     if (!this.token) return;

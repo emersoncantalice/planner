@@ -236,100 +236,119 @@
   background: linear-gradient(90deg, #1d63d8, #5b96ff);
 }
 
+/* Listagem em linhas (uma por projeto) */
 .proj-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .proj-item {
   margin: 0;
-  padding: 0 14px 12px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
   background: #f3f7ff;
   border-left: 5px solid #2563eb;
-  box-shadow: 0 1px 3px rgba(15, 45, 107, .07);
+  box-shadow: 0 1px 2px rgba(15, 45, 107, .06);
   min-width: 0;
-  overflow: hidden;
-  transition: box-shadow .15s, transform .15s;
+  transition: box-shadow .15s, transform .12s, background .15s;
 
   &:hover {
-    box-shadow: 0 8px 20px rgba(15, 45, 107, .15);
-    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15, 45, 107, .12);
+    transform: translateY(-1px);
   }
-  &:hover .proj-cover img { transform: scale(1.04); }
+  &:hover .proj-thumb img { transform: scale(1.06); }
 
-  // Formulário de edição ocupa a linha inteira do grid.
-  &.editing {
-    grid-column: 1 / -1;
-    transform: none;
-    padding: 12px 14px;
-  }
+  &.editing { transform: none; }
 }
 
-/* Capa do projeto */
-.proj-cover {
+.proj-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Foto pequena redonda */
+.proj-thumb {
   position: relative;
-  margin: 0 -14px 10px;        /* sangra até as bordas do card */
-  height: 116px;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   background: #2563eb;
+  box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(15, 45, 107, .2);
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    cursor: pointer;
-    transition: transform .25s ease;
-  }
+  img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s ease; }
 
-  .proj-cover-initial {
-    font-size: 2.6rem;
+  .proj-thumb-initial {
+    font-size: 1.25rem;
     font-weight: 800;
-    color: rgba(255, 255, 255, .9);
-    cursor: pointer;
+    color: #fff;
     user-select: none;
   }
 
-  .proj-cover-actions {
+  .proj-thumb-cam {
     position: absolute;
-    top: 6px;
-    right: 6px;
+    inset: 0;
     display: flex;
-    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, .45);
+    opacity: 0;
+    transition: opacity .15s;
+    svg { width: 18px; height: 18px; fill: #fff; }
+  }
+  &:hover .proj-thumb-cam { opacity: 1; }
+
+  .proj-thumb-x {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-size: .8rem;
+    line-height: 14px;
+    padding: 0;
+    cursor: pointer;
     opacity: 0;
     transition: opacity .15s;
   }
-  &:hover .proj-cover-actions { opacity: 1; }
-
-  .proj-cover-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 7px;
-    background: rgba(15, 23, 42, .55);
-    color: #fff;
-    cursor: pointer;
-    backdrop-filter: blur(2px);
-    svg { width: 15px; height: 15px; fill: currentColor; }
-    &:hover { background: rgba(15, 23, 42, .8); }
-  }
+  &:hover .proj-thumb-x { opacity: 1; }
 }
 
-@media (max-width: 1100px) {
-  .proj-grid { grid-template-columns: repeat(2, 1fr); }
+.proj-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+
+  .proj-head { justify-content: flex-start; gap: 8px; margin-bottom: 4px; }
+  .progress-line { margin-bottom: 4px; }
 }
 
-@media (max-width: 720px) {
-  .proj-grid { grid-template-columns: 1fr; }
+.proj-owner-inline { color: #4f6b98; }
+
+.proj-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .proj-row { flex-wrap: wrap; }
+  .proj-row-actions { width: 100%; justify-content: flex-start; }
 }
 
 .proj-head {
@@ -378,10 +397,10 @@
   font-size: .75rem;
 }
 
-.proj-item .linha {
+.proj-item .linha,
+.proj-row-actions {
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 8px;
 
   .lo-transfer-btn {
     background: #eef4ff;

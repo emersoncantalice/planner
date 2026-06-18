@@ -306,6 +306,20 @@ $surface   : #fff;
   }
 }
 
+.gp-export-jira-btn {
+  background: linear-gradient(135deg, #eaf1ff, #dbe7ff);
+  color: #1d4ed8;
+  border-color: #b7caf2;
+
+  svg { fill: #1d4ed8; }
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dbe7ff, #c2d6ff);
+    border-color: #93b8f8;
+    box-shadow: 0 2px 8px rgba(29,78,216,.16);
+  }
+}
+
 .gp-export-spinner {
   display: inline-block;
   width: 14px;

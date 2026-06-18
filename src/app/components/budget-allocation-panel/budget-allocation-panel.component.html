@@ -463,10 +463,14 @@
         }
       </div>
     </div>
-    <table class="modern-table alloc-table">
+    <table class="modern-table alloc-table" [style.--pessoa-col-w]="pessoaColWidth + 'px'">
       <thead>
         <tr>
-          <th class="sortable" (click)="ordenarPor('nome')">{{ primeiraColunaEhPerfil() ? 'Perfil' : 'Pessoa' }} <span class="sort-icon">{{ getSortIcon('nome') }}</span></th>
+          <th class="sortable pessoa-col-head" (click)="ordenarPor('nome')">
+            {{ primeiraColunaEhPerfil() ? 'Perfil' : 'Pessoa' }} <span class="sort-icon">{{ getSortIcon('nome') }}</span>
+            <span class="col-resize-handle" title="Arraste para ajustar a largura"
+                  (mousedown)="onPessoaColResizeStart($event)" (click)="$event.stopPropagation()"></span>
+          </th>
           @if (col('vaga'))      { <th>Vaga</th> }
           @if (col('perfil'))    { <th>Perfil</th> }
           @if (col('categoria')) { <th class="sortable" (click)="ordenarPor('categoria')">Categoria <span class="sort-icon">{{ getSortIcon('categoria') }}</span></th> }
@@ -647,12 +651,17 @@
                       {{ iniciaisDe(a.nomePessoa) }}
                     }
                   </span>
-                  <div class="pessoa-cell-info" [title]="getAnotacao(a.id)">
+                  <div class="pessoa-cell-info">
                     <strong>{{ a.nomePessoa }}</strong>
                     <button type="button" class="anotacao-btn" [class.tem-anotacao]="temAnotacao(a.id)"
+                            [class.ativo]="anotacaoEditId === a.id"
                             [title]="temAnotacao(a.id) ? getAnotacao(a.id) : 'Adicionar anotação'"
-                            (click)="$event.stopPropagation(); abrirAnotacao(a.id)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            (click)="$event.stopPropagation(); abrirAnotacao(a.id, $event)">
+                      @if (temAnotacao(a.id)) {
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM7 9h10v2H7V9zm6 5H7v-2h6v2zm4-6H7V6h10v2z"/></svg>
+                      } @else {
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 12H6.83L5 15.83V4h14v10z"/></svg>
+                      }
                     </button>
                     @if (isDraft(a)) {
                       <span class="draft-badge" [title]="'Rascunho: ' + (a.loFicticiaNome || 'Cenário')">RASCUNHO</span>
@@ -662,8 +671,8 @@
                     }
                     @if (temAnotacao(a.id)) {
                       <span class="anotacao-texto" [title]="getAnotacao(a.id)"
-                            (click)="$event.stopPropagation(); abrirAnotacao(a.id)">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            (click)="$event.stopPropagation(); abrirAnotacao(a.id, $event)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                         {{ getAnotacao(a.id) }}
                       </span>
                     }
@@ -905,23 +914,6 @@
               </div>
             </td>
           </tr>
-          @if (anotacaoEditId === a.id) {
-            <tr class="anotacao-row">
-              <td colspan="99">
-                <div class="anotacao-editor">
-                  <textarea [(ngModel)]="anotacaoEditValue" rows="2"
-                            placeholder="Anotação sobre {{ a.nomePessoa }} (visível como tooltip na linha)…"></textarea>
-                  <div class="anotacao-actions">
-                    <button class="sec" type="button" (click)="salvarAnotacao(a.id)">Salvar</button>
-                    <button type="button" (click)="cancelarAnotacao()">Cancelar</button>
-                    @if (temAnotacao(a.id)) {
-                      <button type="button" class="anotacao-remover" (click)="removerAnotacao(a.id)">Remover</button>
-                    }
-                  </div>
-                </div>
-              </td>
-            </tr>
-          }
         }
       </tbody>
       <tfoot>
@@ -946,6 +938,24 @@
     </table>
   </section>
 </article></planner-card>
+
+@if (anotacaoEditId) {
+  <div class="anotacao-pop-backdrop" (click)="cancelarAnotacao()" (contextmenu)="$event.preventDefault(); cancelarAnotacao()"></div>
+  <div class="anotacao-pop" [style.left.px]="anotacaoPos.x" [style.top.px]="anotacaoPos.y" (click)="$event.stopPropagation()">
+    <div class="anotacao-pop-head">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <span>Anotação</span>
+    </div>
+    <textarea [(ngModel)]="anotacaoEditValue" rows="3" placeholder="Escreva uma anotação sobre esta pessoa/alocação…"></textarea>
+    <div class="anotacao-pop-actions">
+      <button class="sec" type="button" (click)="salvarAnotacao(anotacaoEditId)">Salvar</button>
+      <button type="button" (click)="cancelarAnotacao()">Cancelar</button>
+      @if (temAnotacao(anotacaoEditId)) {
+        <button type="button" class="anotacao-remover" (click)="removerAnotacao(anotacaoEditId)">Remover</button>
+      }
+    </div>
+  </div>
+}
 
 @if (confirmToast) {
   <div class="alloc-toast alloc-toast-confirm">

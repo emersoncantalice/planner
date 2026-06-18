@@ -53,55 +53,56 @@
              [style.border-left-color]="projColor(r).accent"
              [style.background]="editingProjectId === r.id ? null : projColor(r).bg">
           @if (editingProjectId !== r.id) {
-            <div class="proj-cover" [class.has-img]="temImagem(r)"
-                 [style.background]="temImagem(r) ? null : projColor(r).accent">
-              @if (temImagem(r)) {
-                <img [src]="getImagem(r)" [alt]="r.nome" (click)="select.emit(r.id)" />
-              } @else {
-                <span class="proj-cover-initial" (click)="select.emit(r.id)">{{ (r.nome || '?').charAt(0) }}</span>
-              }
-              <div class="proj-cover-actions">
-                <button type="button" class="proj-cover-btn" (click)="escolherImagem(r); $event.stopPropagation()"
-                        [title]="temImagem(r) ? 'Trocar imagem' : 'Adicionar imagem'">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                </button>
+            <div class="proj-row">
+              <div class="proj-thumb" [class.has-img]="temImagem(r)"
+                   [style.background]="temImagem(r) ? null : projColor(r).accent"
+                   (click)="escolherImagem(r)"
+                   [title]="temImagem(r) ? 'Trocar imagem' : 'Adicionar imagem'">
                 @if (temImagem(r)) {
-                  <button type="button" class="proj-cover-btn" (click)="removerImagem(r); $event.stopPropagation()" title="Remover imagem">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                  </button>
+                  <img [src]="getImagem(r)" [alt]="r.nome" />
+                } @else {
+                  <span class="proj-thumb-initial">{{ (r.nome || '?').charAt(0) }}</span>
+                }
+                <span class="proj-thumb-cam" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                </span>
+                @if (temImagem(r)) {
+                  <button type="button" class="proj-thumb-x" (click)="removerImagem(r); $event.stopPropagation()" title="Remover imagem">×</button>
                 }
               </div>
-            </div>
-            <div (click)="select.emit(r.id)" style="cursor:pointer;">
-              <div class="proj-head">
-                <strong>{{ r.nome }}</strong>
-                <span class="status">{{ r.status }}</span>
-                <span class="situacao-badge" [class.draft]="isDraft(r)" [class.published]="!isDraft(r)">
-                  {{ situacaoLabel(r) }}
-                </span>
+
+              <div class="proj-row-main" (click)="select.emit(r.id)">
+                <div class="proj-head">
+                  <strong>{{ r.nome }}</strong>
+                  <span class="status">{{ r.status }}</span>
+                  <span class="situacao-badge" [class.draft]="isDraft(r)" [class.published]="!isDraft(r)">
+                    {{ situacaoLabel(r) }}
+                  </span>
+                </div>
+                <div class="progress-line">
+                  <div class="progress-fill" [style.width.%]="percentualConclusaoProjeto(r)"></div>
+                </div>
+                <div class="proj-meta">
+                  <span>Conclusao: {{ percentualConclusaoProjeto(r) }}%</span>
+                  <span>Etapas: {{ r.etapasConcluidas }}/{{ r.totalEtapas }}</span>
+                  <span class="proj-owner-inline">Dono: {{ r.donoProjeto || '—' }}</span>
+                </div>
               </div>
-              <div class="progress-line">
-                <div class="progress-fill" [style.width.%]="percentualConclusaoProjeto(r)"></div>
-              </div>
-              <div class="proj-meta">
-                <span>Conclusao: {{ percentualConclusaoProjeto(r) }}%</span>
-                <span>Etapas: {{ r.etapasConcluidas }}/{{ r.totalEtapas }}</span>
-              </div>
-            </div>
-            <div class="linha">
-              <span class="owner-pill">Dono: {{ r.donoProjeto || '—' }}</span>
-              <button class="lo-transfer-btn" type="button" (click)="abrirTransferenciaProjeto(r.id)" title="Transferir dono do projeto">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-                Transferir
-              </button>
-              @if (canToggleSituacao(r)) {
-                <button class="sec situacao-toggle" type="button" (click)="toggleSituacao(r)" [title]="isDraft(r) ? 'Publicar projeto' : 'Voltar para rascunho'">
-                  {{ isDraft(r) ? 'Publicar' : 'Tornar rascunho' }}
+
+              <div class="proj-row-actions">
+                <button class="lo-transfer-btn" type="button" (click)="abrirTransferenciaProjeto(r.id)" title="Transferir dono do projeto">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                  Transferir
                 </button>
-              }
-              <button class="sec" type="button" (click)="startEditProject(r)">Editar</button>
-              <button class="sec" type="button" (click)="duplicateProject.emit(r.id)" title="Criar uma cópia deste projeto">Copiar</button>
-              <button type="button" (click)="deleteProject.emit(r.id)">Excluir</button>
+                @if (canToggleSituacao(r)) {
+                  <button class="sec situacao-toggle" type="button" (click)="toggleSituacao(r)" [title]="isDraft(r) ? 'Publicar projeto' : 'Voltar para rascunho'">
+                    {{ isDraft(r) ? 'Publicar' : 'Tornar rascunho' }}
+                  </button>
+                }
+                <button class="sec" type="button" (click)="startEditProject(r)">Editar</button>
+                <button class="sec" type="button" (click)="duplicateProject.emit(r.id)" title="Criar uma cópia deste projeto">Copiar</button>
+                <button type="button" (click)="deleteProject.emit(r.id)">Excluir</button>
+              </div>
             </div>
           } @else {
             <!-- ── Formulário de edição completo (espelha o cadastro) ─── -->
