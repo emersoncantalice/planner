@@ -386,6 +386,12 @@ export class PlannerApiService {
   duplicateProject(token: string, projectId: string) {
     return this.http.post<any>(`${this.api}/projects/${projectId}/duplicate`, {}, { headers: this.headers(token) });
   }
+  listProjectCovers(token: string) {
+    return this.http.get<any[]>(`${this.api}/project-covers`, { headers: this.headers(token) });
+  }
+  upsertProjectCover(token: string, projectId: string, imagem: string) {
+    return this.http.put<any>(`${this.api}/projects/${projectId}/cover`, { imagem }, { headers: this.headers(token) });
+  }
 
   getProject(token: string, projectId: string) {
     return this.http.get<any>(`${this.api}/projects/${projectId}`, { headers: this.headers(token) });
@@ -493,6 +499,14 @@ export class PlannerApiService {
 
   upsertAllocationPercent(token: string, allocationId: string, percentual: number) {
     return this.http.put<any>(`${this.api}/allocation-percent/${allocationId}`, { percentual }, { headers: this.headers(token) });
+  }
+
+  // ── Anotação por alocação (persistida no backend) ────────────────────────
+  listAllocationNotes(token: string) {
+    return this.http.get<any[]>(`${this.api}/allocation-notes`, { headers: this.headers(token) });
+  }
+  upsertAllocationNote(token: string, allocationId: string, nota: string) {
+    return this.http.put<any>(`${this.api}/allocation-notes/${allocationId}`, { nota }, { headers: this.headers(token) });
   }
 
   // ── Lo Realizado (realized monthly value per LO, stored in backend) ────────

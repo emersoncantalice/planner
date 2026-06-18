@@ -200,6 +200,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   percentualAviso = '';
   // Quando ligado, descontos de horas por ausência/férias entram no custo (tela e extração).
   descontarAusencias = this.carregarDescontarAusencias();
+  // Filtros da tabela
+  filtroPerfil = '';
+  filtroCategoria: '' | 'FOLHA' | 'TERCEIRO' = '';
+  // Anotações por alocação (tooltip na linha da pessoa)
+  private anotacoes: Record<string, string> = this.carregarAnotacoes();
+  anotacaoEditId: string | null = null;
+  anotacaoEditValue = '';
   novaAlocacaoPercentual = 100;
   novaPctMasked = '100,00';
   private pctMaskedMap: Record<string, string> = {};
@@ -403,6 +410,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       this.aplicarConfigsPendentes();
       this.loadPagamentosDoBackend();
       this.loadAllocationPercentsFromBackend();
+      this.loadAnotacoesFromBackend();
       if (this.loSelecionadaId && !this.ordemPorLo[this.loSelecionadaId]) {
         this.ordemPorLo[this.loSelecionadaId] = this.carregarOrdemLo(this.loSelecionadaId);
       }
@@ -418,6 +426,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       this.startAllocationPercentRealtimeSync();
       this.startLoRealizadoRealtimeSync();
       this.loadFavoritosFromBackend();
+      this.loadAnotacoesFromBackend();
     }
     if (changes['linhasOrcamentarias']) this.heartbeatLoAberta();
   }
@@ -1450,8 +1459,6 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.editingId = '';
     this.pessoaEdicaoSelecionadaId = '';
     this.pessoaEdicaoNome = '';
-    this.form.valorHora = null;
-    this.draftValorHoraMasked = '';
   }
 
   cancelEdit() {
@@ -1611,8 +1618,6 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.create.emit(payload);
     this.form.nomePessoa = '';
     this.form.perfilId = '';
-    this.form.valorHora = null;
-    this.draftValorHoraMasked = '';
     this.novaPessoaSelecionadaId = '';
     this.pessoaNovaNome = '';
     this.novaAlocacaoPercentual = 100;
@@ -1968,10 +1973,85 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.valorMensalMaskedMap = {};
   }
 
+  // ── Filtros da tabela (perfil / categoria) ─────────────────────────────────
+  /** Perfis distintos presentes na LO atual (independente dos filtros ativos). */
+  perfisDisponiveisNaLo(): string[] {
+    const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
+    const set = new Set<string>();
+    for (const a of this.alocacoes) {
+      if (!idsAno.has(a.linhaOrcamentariaId)) continue;
+      if (this.loSelecionadaId && a.linhaOrcamentariaId !== this.loSelecionadaId) continue;
+      const p = String(a?.perfilNome || '').trim();
+      if (p) set.add(p);
+    }
+    return [...set].sort((x, y) => x.localeCompare(y, 'pt-BR'));
+  }
+
+  temFiltrosTabela(): boolean { return !!this.filtroPerfil || !!this.filtroCategoria; }
+  limparFiltrosTabela(): void { this.filtroPerfil = ''; this.filtroCategoria = ''; }
+
+  /** Linhas exibidas na tabela: ordem da tela + filtros de perfil/categoria. */
+  alocacoesVisiveis(): any[] {
+    let list = this.alocacoesFiltradas();
+    if (this.filtroCategoria) list = list.filter((a: any) => this.getCategoriaDaPessoa(a) === this.filtroCategoria);
+    if (this.filtroPerfil) list = list.filter((a: any) => String(a?.perfilNome || '').trim() === this.filtroPerfil);
+    return list;
+  }
+
+  // ── Anotações por pessoa/alocação ──────────────────────────────────────────
+  private carregarAnotacoes(): Record<string, string> {
+    try { return JSON.parse(localStorage.getItem('planner_lo_anotacoes') || '{}') || {}; } catch { return {}; }
+  }
+  private persistAnotacoes(): void {
+    try { localStorage.setItem('planner_lo_anotacoes', JSON.stringify(this.anotacoes)); } catch {}
+  }
+  getAnotacao(allocationId: string): string { return this.anotacoes[allocationId] || ''; }
+  temAnotacao(allocationId: string): boolean { return !!this.getAnotacao(allocationId); }
+  abrirAnotacao(allocationId: string): void {
+    this.anotacaoEditId = allocationId;
+    this.anotacaoEditValue = this.getAnotacao(allocationId);
+  }
+  cancelarAnotacao(): void { this.anotacaoEditId = null; this.anotacaoEditValue = ''; }
+  salvarAnotacao(allocationId: string): void {
+    const t = (this.anotacaoEditValue || '').trim();
+    if (t) this.anotacoes[allocationId] = t; else delete this.anotacoes[allocationId];
+    this.persistAnotacoes();
+    if (this.token) this.api.upsertAllocationNote(this.token, allocationId, t).subscribe({ error: () => {} });
+    this.anotacaoEditId = null;
+    this.anotacaoEditValue = '';
+  }
+  removerAnotacao(allocationId: string): void {
+    delete this.anotacoes[allocationId];
+    this.persistAnotacoes();
+    if (this.token) this.api.upsertAllocationNote(this.token, allocationId, '').subscribe({ error: () => {} });
+    this.anotacaoEditId = null;
+    this.anotacaoEditValue = '';
+  }
+
+  private loadAnotacoesFromBackend(): void {
+    if (!this.token) return;
+    this.api.listAllocationNotes(this.token).subscribe({
+      next: (rows: any[]) => {
+        const map: Record<string, string> = {};
+        for (const r of rows || []) {
+          const id = String(r?.allocationId || '').trim();
+          const nota = String(r?.nota || '').trim();
+          if (id && nota) map[id] = nota;
+        }
+        this.anotacoes = map;
+        try { localStorage.setItem('planner_lo_anotacoes', JSON.stringify(map)); } catch {}
+        this.cdr.markForCheck();
+      },
+      error: () => {}
+    });
+  }
+
   private preencherPessoaNoForm(pessoaId: string) {
     const pessoa = this.pessoas.find((p: any) => p.id === pessoaId);
     if (!pessoa) return;
     this.form.nomePessoa = pessoa.nome || '';
+    this.form.valorHora = null;
+    this.draftValorHoraMasked = '';
     if (pessoa.perfilId) {
       this.form.perfilId = pessoa.perfilId;
     }

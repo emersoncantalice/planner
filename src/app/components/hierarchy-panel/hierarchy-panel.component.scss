@@ -291,7 +291,8 @@
   touch-action: none;
 
   &.is-panning { cursor: grabbing; }
-  &.is-panning .tree { user-select: none; }
+  // GPU hint só durante o arraste (escala constante) → pan suave sem perder nitidez no zoom.
+  &.is-panning .tree { user-select: none; will-change: transform; }
 }
 
 /* Controles de zoom flutuantes */
@@ -342,7 +343,7 @@
   align-items: flex-start;
   gap: 40px;
   min-width: min-content;
-  will-change: transform;
+  /* sem will-change fixo: o browser re-rasteriza no zoom atual, mantendo texto/bordas nítidos */
 }
 
 /* Overlay SVG com as linhas de conexão pai → filho (clicáveis para destacar) */

@@ -760,3 +760,97 @@ th.col-header-sel {
 
   strong { font-weight: 700; color: #92400e; }
 }
+
+/* ── Filtros da tabela (perfil / categoria) ─────────────────────────────── */
+.lo-filtros {
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.lo-filtro {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: .72rem;
+  font-weight: 700;
+  color: #64748b;
+
+  span { text-transform: uppercase; letter-spacing: .04em; }
+
+  select {
+    height: 32px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 8px;
+    font-size: .82rem;
+    font-weight: 500;
+    color: #1e293b;
+    background: #fff;
+    min-width: 160px;
+  }
+}
+
+/* ── Anotação por pessoa ────────────────────────────────────────────────── */
+.anotacao-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #94a3b8;
+  flex: 0 0 auto;
+
+  svg { width: 13px; height: 13px; fill: currentColor; }
+  &:hover { background: #eef2f7; color: #475569; }
+  &.tem-anotacao { color: #d97706; }
+  &.tem-anotacao:hover { background: #fef3c7; color: #b45309; }
+}
+
+/* Anotação sempre visível na linha da pessoa */
+.anotacao-texto {
+  display: block;
+  margin-top: 3px;
+  max-width: 260px;
+  font-size: .72rem;
+  line-height: 1.25;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
+
+  svg { width: 11px; height: 11px; fill: #b45309; vertical-align: -1px; margin-right: 3px; }
+  &:hover { background: #fde68a; }
+}
+
+.anotacao-row > td {
+  background: #fffbeb !important;
+  border-bottom: 1px solid #fde68a;
+}
+.anotacao-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 6px;
+
+  textarea {
+    width: 100%;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: .85rem;
+    resize: vertical;
+    background: #fff;
+    &:focus { outline: none; border-color: #f59e0b; }
+  }
+  .anotacao-actions { display: flex; gap: 8px; }
+  .anotacao-remover { color: #b91c1c; }
+}

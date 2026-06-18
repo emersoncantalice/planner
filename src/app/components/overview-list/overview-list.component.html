@@ -16,9 +16,6 @@
       <div class="kpi kpi-blue"><span>Total projetos</span><strong>{{ resumo.length }}</strong></div>
       <div class="kpi kpi-green"><span>Concluidos</span><strong>{{ projetosConcluidos() }}</strong></div>
       <div class="kpi kpi-sky"><span>Progresso medio</span><strong>{{ progressoMedio() }}%</strong></div>
-      <div class="kpi kpi-indigo"><span>Total LO ({{ anoSelecionado }})</span><strong>{{ currency(totalLo()) }}</strong></div>
-      <div class="kpi kpi-amber"><span>Comprometido LO ({{ anoSelecionado }})</span><strong>{{ currency(totalComprometidoLo()) }}</strong></div>
-      <div class="kpi kpi-balance" [class.negative]="saldoLo() < 0" [class.positive]="saldoLo() >= 0"><span>Saldo LO ({{ anoSelecionado }})</span><strong>{{ currency(saldoLo()) }}</strong></div>
     </div>
   }
 
@@ -56,6 +53,25 @@
              [style.border-left-color]="projColor(r).accent"
              [style.background]="editingProjectId === r.id ? null : projColor(r).bg">
           @if (editingProjectId !== r.id) {
+            <div class="proj-cover" [class.has-img]="temImagem(r)"
+                 [style.background]="temImagem(r) ? null : projColor(r).accent">
+              @if (temImagem(r)) {
+                <img [src]="getImagem(r)" [alt]="r.nome" (click)="select.emit(r.id)" />
+              } @else {
+                <span class="proj-cover-initial" (click)="select.emit(r.id)">{{ (r.nome || '?').charAt(0) }}</span>
+              }
+              <div class="proj-cover-actions">
+                <button type="button" class="proj-cover-btn" (click)="escolherImagem(r); $event.stopPropagation()"
+                        [title]="temImagem(r) ? 'Trocar imagem' : 'Adicionar imagem'">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                </button>
+                @if (temImagem(r)) {
+                  <button type="button" class="proj-cover-btn" (click)="removerImagem(r); $event.stopPropagation()" title="Remover imagem">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                  </button>
+                }
+              </div>
+            </div>
             <div (click)="select.emit(r.id)" style="cursor:pointer;">
               <div class="proj-head">
                 <strong>{{ r.nome }}</strong>
@@ -70,7 +86,6 @@
               <div class="proj-meta">
                 <span>Conclusao: {{ percentualConclusaoProjeto(r) }}%</span>
                 <span>Etapas: {{ r.etapasConcluidas }}/{{ r.totalEtapas }}</span>
-                <span>Saldo: {{ currency(number(r.saldo)) }}</span>
               </div>
             </div>
             <div class="linha">
@@ -116,6 +131,14 @@
                 <option value="MEDIA">Prioridade média</option>
                 <option value="ALTA">Prioridade alta</option>
                 <option value="BAIXA">Prioridade baixa</option>
+              </select>
+
+              <label>Status do projeto</label>
+              <select [(ngModel)]="projectForm.statusProjeto">
+                <option value="">Automatico pelo progresso</option>
+                <option value="PLANEJADO">Planejado</option>
+                <option value="EM_ANDAMENTO">Em andamento</option>
+                <option value="CONCLUIDO">Concluido</option>
               </select>
 
               <label>LO vinculada</label>

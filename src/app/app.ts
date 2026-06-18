@@ -86,6 +86,7 @@ export class App {
   profileImage = signal('');
   mensagem = signal('');
   resumo = signal<any[]>([]);
+  projetoImagens = signal<Record<string, string>>({});
   perfis = signal<any[]>([]);
   linhasOrcamentarias = signal<any[]>([]);
   ajustesLo = signal<any[]>([]);
@@ -1662,6 +1663,33 @@ export class App {
       error: (err) => this.tratarErroCarga('Falha ao carregar resumo.', err)
     });
     this.carregarAtividades();
+    this.carregarCapasProjetos();
+  }
+
+  private carregarCapasProjetos() {
+    this.api.listProjectCovers(this.token()).subscribe({
+      next: (rows: any[]) => {
+        const map: Record<string, string> = {};
+        for (const r of rows || []) {
+          const id = String(r?.projectId || '').trim();
+          const img = String(r?.imagem || '').trim();
+          if (id && img) map[id] = img;
+        }
+        this.projetoImagens.set(map);
+      },
+      error: () => {}
+    });
+  }
+
+  definirImagemProjeto(ev: { id: string; imagem: string }) {
+    if (!ev?.id) return;
+    // Atualiza local imediatamente (otimista) e persiste no backend.
+    const atual = { ...this.projetoImagens() };
+    if (ev.imagem) atual[ev.id] = ev.imagem; else delete atual[ev.id];
+    this.projetoImagens.set(atual);
+    this.api.upsertProjectCover(this.token(), ev.id, ev.imagem || '').subscribe({
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao salvar imagem do projeto.')
+    });
   }
 
   private carregarPerfis() {

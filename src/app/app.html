@@ -577,9 +577,11 @@
           (exportJira)="exportarProjetosParaJira()"
           (select)="selecionarProjeto($event)"
           (requestTransferOwnership)="solicitarTransferenciaProjeto($event)"
+          [imagens]="projetoImagens()"
           (updateProject)="atualizarProjeto($event)"
           (deleteProject)="excluirProjeto($event)"
           (duplicateProject)="duplicarProjeto($event)"
+          (setProjectImage)="definirImagemProjeto($event)"
           (updateProjectSituacao)="atualizarSituacaoProjeto($event)"></app-overview-list>
 
         @if (projectCreateModalOpen()) {

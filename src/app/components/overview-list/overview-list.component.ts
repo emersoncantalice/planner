@@ -35,6 +35,8 @@ export class OverviewListComponent {
   @Output() updateProject = new EventEmitter<{ id: string; nome: string; descricao: string }>();
   @Output() deleteProject = new EventEmitter<string>();
   @Output() duplicateProject = new EventEmitter<string>();
+  @Input() imagens: Record<string, string> = {};
+  @Output() setProjectImage = new EventEmitter<{ id: string; imagem: string }>();
   @Output() updateProjectSituacao = new EventEmitter<{ id: string; situacao: 'DRAFT' | 'PUBLISHED' }>();
   @Output() requestTransferOwnership = new EventEmitter<string>();
   editingProjectId = '';
@@ -46,6 +48,7 @@ export class OverviewListComponent {
     inicioPrevisto: '',
     fimPrevisto: '',
     prioridade: 'MEDIA',
+    statusProjeto: '',
     linhaOrcamentariaId: '',
     businessEpicId: '',
     percentualLo: null as number | null,
@@ -79,6 +82,45 @@ export class OverviewListComponent {
 
   projColor(r: any): { accent: string; bg: string } {
     return this.projPalette[this.hashId(r?.id) % this.projPalette.length];
+  }
+
+  // ── Imagem (capa) do projeto ───────────────────────────────────────────────
+  getImagem(r: any): string { return this.imagens?.[r?.id] || ''; }
+  temImagem(r: any): boolean { return !!this.getImagem(r); }
+
+  escolherImagem(r: any): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          // Redimensiona/compacta para manter o JSON leve (máx. 640px de largura).
+          const maxW = 640;
+          const scale = Math.min(1, maxW / (img.naturalWidth || maxW));
+          const w = Math.round((img.naturalWidth || maxW) * scale);
+          const h = Math.round((img.naturalHeight || maxW) * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          this.setProjectImage.emit({ id: r.id, imagem: dataUrl });
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  removerImagem(r: any): void {
+    this.setProjectImage.emit({ id: r.id, imagem: '' });
   }
 
   number(value: unknown): number {
@@ -238,6 +280,7 @@ export class OverviewListComponent {
       inicioPrevisto:      this.parseDetailLine(detailsText, 'Inicio previsto'),
       fimPrevisto:         this.parseDetailLine(detailsText, 'Fim previsto'),
       prioridade:          this.parseDetailLine(detailsText, 'Prioridade') || 'MEDIA',
+      statusProjeto:       this.parseDetailLine(detailsText, 'Status do projeto') || r.status || '',
       linhaOrcamentariaId: lo?.id ?? '',
       businessEpicId:      epic?.id ?? '',
       percentualLo,
@@ -275,6 +318,7 @@ export class OverviewListComponent {
     if (this.projectForm.inicioPrevisto) detalhes.push(`Inicio previsto: ${this.projectForm.inicioPrevisto}`);
     if (this.projectForm.fimPrevisto)    detalhes.push(`Fim previsto: ${this.projectForm.fimPrevisto}`);
     if (this.projectForm.prioridade)     detalhes.push(`Prioridade: ${this.projectForm.prioridade}`);
+    if (this.projectForm.statusProjeto)  detalhes.push(`Status do projeto: ${this.projectForm.statusProjeto}`);
     if (this.projectForm.percentualLo != null) detalhes.push(`Percentual da LO: ${this.projectForm.percentualLo}%`);
     const orcamento = this.orcamentoPrevistoDerivadoEdit();
     if (orcamento > 0) {
