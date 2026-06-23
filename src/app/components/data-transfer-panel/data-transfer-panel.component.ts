@@ -579,6 +579,7 @@ export class DataTransferPanelComponent {
             fim: a?.fim ?? '',
             recorrente: !!a?.recorrente,
             observacao: a?.observacao ?? '',
+            conflitosOk: Array.isArray(a?.conflitosOk) ? a.conflitosOk : [],
           }));
         } catch {
           this.importErros.push(`Ausência "${a?.pessoaNome || a?.pessoaId || 'sem pessoa'}": ignorada`);

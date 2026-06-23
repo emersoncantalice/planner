@@ -450,6 +450,12 @@
           </span>
           <span class="sb-text"><strong>Desenhos</strong></span>
         </a>
+        <a [class.active]="secaoAtiva() === 'minhas_coisas'" (click)="selecionarSecao('minhas_coisas')" title="Minhas Coisas">
+          <span class="sb-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          </span>
+          <span class="sb-text"><strong>Minhas Coisas</strong></span>
+        </a>
         @if (isAdmin()) {
           <a [class.active]="secaoAtiva() === 'usuarios'" (click)="selecionarSecao('usuarios')" title="Usuários">
             <span class="sb-icon" aria-hidden="true">
@@ -535,6 +541,9 @@
           (updateAccount)="atualizarConta($event)"
           (profileImageChange)="atualizarFotoPerfil($event)"
           (changePassword)="alterarSenha($event)"></app-account-panel>
+      }
+      @if (secaoAtiva() === 'minhas_coisas') {
+        <app-my-stuff-panel class="full-row" [token]="token()"></app-my-stuff-panel>
       }
       @if (secaoAtiva() === 'perfis') {
         <app-profile-panel

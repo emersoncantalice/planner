@@ -1,0 +1,378 @@
+<planner-card class="ms-root">
+<div class="mystuff">
+  <!-- Coluna de pastas / labels -->
+  <aside class="ms-side">
+    <button type="button" class="ms-new" (click)="novoItem()">+ Nova coisa</button>
+
+    <nav class="ms-folders" (contextmenu)="abrirMenuPasta($event, null)">
+      <button type="button" class="ms-folder" [class.active]="selectedFolder() === null && !isSearching()"
+              (click)="abrirPasta(null)" (contextmenu)="abrirMenuPasta($event, null)">
+        <span>📚 Todas</span>
+        <small>{{ items().length }}</small>
+      </button>
+      @for (n of visibleFolders(); track n.path) {
+        <button type="button" class="ms-folder" [class.active]="selectedFolder() === n.path && !isSearching()"
+                [style.paddingLeft.px]="10 + n.depth * 14" (click)="abrirPasta(n.path)"
+                (contextmenu)="abrirMenuPasta($event, n.path)">
+          @if (n.children.length) {
+            <span class="ms-caret" [class.open]="expandedFolders().has(n.path)"
+                  (click)="toggleFolderExpand(n.path, $event)">▸</span>
+          } @else {
+            <span class="ms-caret ms-caret-empty"></span>
+          }
+          <span class="ms-folder-name">📁 {{ n.name }}</span>
+          @if (n.count) { <small>{{ n.count }}</small> }
+        </button>
+      }
+      <button type="button" class="ms-add-folder" (click)="novaPastaNoMenu()">+ Nova pasta</button>
+    </nav>
+
+    @if (allLabels().length) {
+      <div class="ms-labels-box">
+        <h4>Labels</h4>
+        <div class="ms-chips">
+          @for (l of allLabels(); track l) {
+            <button type="button" class="ms-chip" [class.active]="activeLabel() === l" (click)="toggleLabel(l)">
+              {{ l }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </aside>
+
+  <!-- Conteúdo principal -->
+  <section class="ms-main">
+    <!-- Busca geral -->
+    <div class="ms-search-bar">
+      <input type="search" [ngModel]="globalSearch()" (ngModelChange)="globalSearch.set($event)"
+             placeholder="Busca geral (todas as pastas, conteúdo, labels)…" />
+      @if (isSearching()) {
+        <button type="button" class="ms-clear" (click)="limparBuscaGeral()">Limpar</button>
+      }
+    </div>
+
+    @if (activeLabel()) {
+      <div class="ms-active-label">
+        Filtrando por label: <strong>{{ activeLabel() }}</strong>
+        <button type="button" (click)="toggleLabel(activeLabel()!)">✕</button>
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="ms-empty">Carregando…</p>
+    } @else if (isSearching()) {
+      <!-- Resultado da busca geral -->
+      <h3 class="ms-heading">Resultados da busca ({{ searchResults().length }})</h3>
+      @if (!searchResults().length) {
+        <p class="ms-empty">Nada encontrado para “{{ globalSearch() }}”.</p>
+      } @else {
+        <div class="ms-grid">
+          @for (it of searchResults(); track it.id) {
+            <ng-container [ngTemplateOutlet]="card" [ngTemplateOutletContext]="{ $implicit: it }"></ng-container>
+          }
+        </div>
+      }
+    } @else if (selectedFolder() !== null) {
+      <!-- Dentro de uma pasta: navegação + busca na pasta e subpastas -->
+      <div class="ms-folder-head">
+        <nav class="ms-breadcrumb">
+          <button type="button" (click)="abrirPasta(null)">📚 Todas</button>
+          @for (c of breadcrumb(); track c.path) {
+            <span class="ms-bc-sep">/</span>
+            <button type="button" (click)="abrirPasta(c.path)">{{ c.name }}</button>
+          }
+        </nav>
+        <input type="search" class="ms-folder-search" [ngModel]="folderSearch()" (ngModelChange)="folderSearch.set($event)"
+               placeholder="Buscar nesta pasta e subpastas…" />
+      </div>
+
+      @if (subfolders().length && !folderSearch().trim()) {
+        <h3 class="ms-heading">Subpastas</h3>
+        <div class="ms-folder-tiles">
+          @for (sf of subfolders(); track sf.path) {
+            <button type="button" class="ms-folder-tile" (click)="abrirPasta(sf.path)">
+              <span class="ms-tile-icon">📁</span>
+              <span class="ms-tile-name">{{ sf.name }}</span>
+              <small>{{ sf.count }} {{ sf.count === 1 ? 'item' : 'itens' }}{{ sf.children.length ? ' • ' + sf.children.length + ' subpasta(s)' : '' }}</small>
+            </button>
+          }
+        </div>
+      }
+
+      <h3 class="ms-heading">{{ folderSearch().trim() ? 'Resultados na pasta (' + folderItems().length + ')' : 'Itens' }}</h3>
+      @if (!folderItems().length) {
+        <p class="ms-empty">{{ folderSearch().trim() ? 'Nada encontrado nesta pasta.' : 'Nenhum item direto nesta pasta.' }}</p>
+      } @else {
+        <div class="ms-grid">
+          @for (it of folderItems(); track it.id) {
+            <ng-container [ngTemplateOutlet]="card" [ngTemplateOutletContext]="{ $implicit: it }"></ng-container>
+          }
+        </div>
+      }
+    } @else {
+      <!-- Visão raiz: pastas de topo + itens sem pasta -->
+      @if (!items().length) {
+        <p class="ms-empty">Você ainda não cadastrou nenhuma coisa. Clique em “Nova coisa”.</p>
+      }
+      @if (folderTree().length) {
+        <h3 class="ms-heading">Pastas</h3>
+        <div class="ms-folder-tiles">
+          @for (n of folderTree(); track n.path) {
+            <button type="button" class="ms-folder-tile" (click)="abrirPasta(n.path)">
+              <span class="ms-tile-icon">📁</span>
+              <span class="ms-tile-name">{{ n.name }}</span>
+              <small>{{ n.count }} {{ n.count === 1 ? 'item' : 'itens' }}{{ n.children.length ? ' • ' + n.children.length + ' subpasta(s)' : '' }}</small>
+            </button>
+          }
+        </div>
+      }
+      @if (rootItems().length) {
+        <h3 class="ms-heading">🗂️ Sem pasta</h3>
+        <div class="ms-grid">
+          @for (it of rootItems(); track it.id) {
+            <ng-container [ngTemplateOutlet]="card" [ngTemplateOutletContext]="{ $implicit: it }"></ng-container>
+          }
+        </div>
+      }
+    }
+  </section>
+</div>
+
+<!-- Menu de contexto (botão direito) das pastas -->
+@if (folderMenu(); as menu) {
+  <div class="ms-ctx" [style.left.px]="menu.x" [style.top.px]="menu.y" (click)="$event.stopPropagation()">
+    @if (menu.path) {
+      <div class="ms-ctx-title">📁 {{ menu.path }}</div>
+      <button type="button" (click)="novaPastaNoMenu()">Nova subpasta…</button>
+    } @else {
+      <button type="button" (click)="novaPastaNoMenu()">Nova pasta…</button>
+    }
+    <button type="button" (click)="novaCoisaNoMenu()">Nova coisa aqui</button>
+  </div>
+}
+
+<!-- Modal de nova pasta -->
+@if (newFolder(); as ctx) {
+  <div class="ms-overlay" (click)="cancelarNovaPasta()">
+    <div class="ms-modal ms-modal-sm" (click)="$event.stopPropagation()">
+      <header class="ms-modal-head">
+        <h3>{{ ctx.parent ? 'Nova subpasta' : 'Nova pasta' }}</h3>
+        <button type="button" class="ms-x" (click)="cancelarNovaPasta()">✕</button>
+      </header>
+      <div class="ms-form">
+        @if (ctx.parent) { <p class="ms-hint">Dentro de: 📁 {{ ctx.parent }}</p> }
+        <label>
+          <span>Nome da pasta</span>
+          <input type="text" [ngModel]="newFolderName()" (ngModelChange)="newFolderName.set($event)"
+                 (keydown.enter)="confirmarNovaPasta()" placeholder="Ex.: Relatórios" autofocus />
+        </label>
+      </div>
+      <footer class="ms-modal-foot">
+        <button type="button" (click)="cancelarNovaPasta()">Cancelar</button>
+        <button type="button" class="primary" (click)="confirmarNovaPasta()">Criar</button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- Card de item (template reutilizável) -->
+<ng-template #card let-it>
+  <article class="ms-card" (click)="abrirVisualizacao(it)">
+    <header>
+      <span class="ms-type">{{ meta(it.tipo).icon }} {{ meta(it.tipo).label }}</span>
+      @if (it.linguagem) { <span class="ms-lang">{{ it.linguagem }}</span> }
+    </header>
+    <h4 class="ms-title">{{ it.titulo }}</h4>
+
+    @switch (it.tipo) {
+      @case ('imagem') {
+        <img class="ms-thumb" [src]="it.conteudo" [alt]="it.titulo" />
+      }
+      @case ('arquivo') {
+        <div class="ms-file-preview">
+          <span class="ms-file-icon">📎</span>
+          <span class="ms-file-meta">
+            <span class="ms-file-name">{{ it.arquivo || 'arquivo' }}</span>
+            <small>{{ formatarTamanho(it.conteudo) }}</small>
+          </span>
+        </div>
+      }
+      @case ('texto') {
+        <p class="ms-text-preview">{{ it.conteudo }}</p>
+      }
+      @default {
+        <pre class="ms-code-preview"><code>{{ it.conteudo }}</code></pre>
+      }
+    }
+
+    @if (it.labels?.length) {
+      <div class="ms-card-labels">
+        @for (l of it.labels; track l) { <span class="ms-tag">{{ l }}</span> }
+      </div>
+    }
+
+    <footer (click)="$event.stopPropagation()">
+      @if (it.tipo === 'imagem' || it.tipo === 'arquivo') {
+        <button type="button" class="ms-dl" (click)="baixar(it, $event)" title="Baixar">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="13" height="13"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+          Baixar
+        </button>
+      } @else {
+        <button type="button" (click)="copiarConteudo(it)" title="Copiar">Copiar</button>
+      }
+      <button type="button" (click)="editarItem(it)" title="Editar">Editar</button>
+      <button type="button" class="danger" (click)="excluir(it)" title="Excluir">Excluir</button>
+    </footer>
+  </article>
+</ng-template>
+
+<!-- Modal de visualização -->
+@if (viewItem(); as it) {
+  <div class="ms-overlay" (click)="fecharVisualizacao()">
+    <div class="ms-modal ms-view" (click)="$event.stopPropagation()">
+      <header class="ms-modal-head">
+        <div>
+          <span class="ms-type">{{ meta(it.tipo).icon }} {{ meta(it.tipo).label }}</span>
+          @if (it.linguagem) { <span class="ms-lang">{{ it.linguagem }}</span> }
+          <h3>{{ it.titulo }}</h3>
+        </div>
+        <button type="button" class="ms-x" (click)="fecharVisualizacao()">✕</button>
+      </header>
+
+      <div class="ms-view-body">
+        @switch (it.tipo) {
+          @case ('imagem') { <img [src]="it.conteudo" [alt]="it.titulo" /> }
+          @case ('arquivo') {
+            <div class="ms-file-preview large">
+              <span class="ms-file-icon">📎</span>
+              <span class="ms-file-meta">
+                <span class="ms-file-name">{{ it.arquivo || 'arquivo' }}</span>
+                <small>{{ formatarTamanho(it.conteudo) }}</small>
+              </span>
+            </div>
+          }
+          @case ('texto')  { <p class="ms-text-full">{{ it.conteudo }}</p> }
+          @default { <pre class="ms-code-full"><code>{{ it.conteudo }}</code></pre> }
+        }
+      </div>
+
+      @if (it.labels?.length) {
+        <div class="ms-card-labels">
+          @for (l of it.labels; track l) { <span class="ms-tag">{{ l }}</span> }
+        </div>
+      }
+
+      <footer class="ms-modal-foot">
+        @if (it.tipo === 'imagem' || it.tipo === 'arquivo') {
+          <button type="button" class="ms-dl" (click)="baixar(it, $event)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+            Baixar
+          </button>
+        } @else {
+          <button type="button" (click)="copiarConteudo(it)">Copiar</button>
+        }
+        <button type="button" (click)="editarItem(it)">Editar</button>
+        <button type="button" class="danger" (click)="excluir(it)">Excluir</button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- Modal de edição -->
+@if (editorOpen()) {
+  <div class="ms-overlay" (click)="fecharEditor()">
+    <div class="ms-modal" (click)="$event.stopPropagation()">
+      <header class="ms-modal-head">
+        <h3>{{ editId() ? 'Editar coisa' : 'Nova coisa' }}</h3>
+        <button type="button" class="ms-x" (click)="fecharEditor()">✕</button>
+      </header>
+
+      <div class="ms-form">
+        <label>
+          <span>Título</span>
+          <input type="text" [(ngModel)]="form.titulo" placeholder="Ex.: Query de clientes ativos" />
+        </label>
+
+        <div class="ms-form-row">
+          <label>
+            <span>Tipo</span>
+            <select [(ngModel)]="form.tipo">
+              @for (t of types; track t) { <option [value]="t">{{ typeMeta[t].label }}</option> }
+            </select>
+          </label>
+          @if (isMono) {
+            <label>
+              <span>Linguagem</span>
+              <input type="text" [(ngModel)]="form.linguagem" placeholder="sql, java, javascript…" />
+            </label>
+          }
+          <label>
+            <span>Pasta</span>
+            <input type="text" [(ngModel)]="form.pasta" list="ms-folder-list" placeholder="Ex.: SQL/Relatórios" />
+            <datalist id="ms-folder-list">
+              @for (f of folders(); track f) { <option [value]="f"></option> }
+            </datalist>
+            <small class="ms-hint">Use “/” para criar subpastas (ex.: SQL/Relatórios/Mensal).</small>
+          </label>
+        </div>
+
+        <label>
+          <span>Labels</span>
+          <div class="ms-label-input">
+            <input type="text" [ngModel]="labelDraft()" (ngModelChange)="labelDraft.set($event)"
+                   (keydown)="onLabelKeydown($event)" placeholder="Digite e Enter para adicionar" />
+            <button type="button" (click)="adicionarLabel()">Adicionar</button>
+          </div>
+          @if (formLabels().length) {
+            <div class="ms-chips">
+              @for (l of formLabels(); track l) {
+                <span class="ms-chip removable">{{ l }} <button type="button" (click)="removerLabel(l)">✕</button></span>
+              }
+            </div>
+          }
+        </label>
+
+        <div class="ms-field">
+          <span>Conteúdo</span>
+          @if (form.tipo === 'imagem') {
+            <label class="ms-upload">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M5 20h14v-2H5v2zM12 4l-5 5h3v6h4V9h3l-5-5z"/></svg>
+              <span>{{ form.conteudo ? 'Trocar imagem' : 'Escolher imagem' }}</span>
+              <input type="file" accept="image/*" (change)="onFileSelected($event)" hidden />
+            </label>
+            @if (form.conteudo) { <img class="ms-thumb-edit" [src]="form.conteudo" alt="Pré-visualização" /> }
+          } @else if (form.tipo === 'arquivo') {
+            <label class="ms-upload">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M5 20h14v-2H5v2zM12 4l-5 5h3v6h4V9h3l-5-5z"/></svg>
+              <span>{{ form.conteudo ? 'Trocar arquivo' : 'Escolher arquivo' }}</span>
+              <input type="file" (change)="onFileSelected($event)" hidden />
+            </label>
+            @if (form.conteudo) {
+              <div class="ms-file-preview">
+                <span class="ms-file-icon">📎</span>
+                <span class="ms-file-meta">
+                  <span class="ms-file-name">{{ form.arquivo || 'arquivo' }}</span>
+                  <small>{{ formatarTamanho(form.conteudo) }}</small>
+                </span>
+              </div>
+            }
+          } @else {
+            <textarea [(ngModel)]="form.conteudo" (keydown)="onContentKeydown($event)"
+                      [class.mono]="isMono" rows="12"
+                      [placeholder]="isMono ? 'Cole seu código/query — a identação é preservada (Tab insere espaços).' : 'Digite o texto…'"
+                      spellcheck="false"></textarea>
+          }
+        </div>
+      </div>
+
+      <footer class="ms-modal-foot">
+        <button type="button" (click)="fecharEditor()">Cancelar</button>
+        <button type="button" class="primary" [disabled]="saving()" (click)="salvar()">
+          {{ saving() ? 'Salvando…' : 'Salvar' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+</planner-card><!-- /ms-root -->

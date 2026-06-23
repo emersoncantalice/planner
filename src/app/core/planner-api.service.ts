@@ -548,6 +548,31 @@ export class PlannerApiService {
     return this.http.delete<void>(`${this.api}/drawings/${id}`, { headers: this.headers(token) });
   }
 
+  // ── Minhas Coisas (Things) ────────────────────────────────────────────────────
+  listThings(token: string) {
+    return this.http.get<any[]>(`${this.api}/things`, { headers: this.headers(token) });
+  }
+
+  createThing(token: string, payload: { titulo: string; tipo: string; conteudo: string; linguagem?: string; arquivo?: string; labels?: string[]; pasta?: string }) {
+    return this.http.post<any>(`${this.api}/things`, payload, { headers: this.headers(token) });
+  }
+
+  updateThing(token: string, id: string, payload: { titulo: string; tipo: string; conteudo: string; linguagem?: string; arquivo?: string; labels?: string[]; pasta?: string }) {
+    return this.http.put<any>(`${this.api}/things/${id}`, payload, { headers: this.headers(token) });
+  }
+
+  deleteThing(token: string, id: string) {
+    return this.http.delete<void>(`${this.api}/things/${id}`, { headers: this.headers(token) });
+  }
+
+  listThingFolders(token: string) {
+    return this.http.get<string[]>(`${this.api}/things/folders`, { headers: this.headers(token) });
+  }
+
+  createThingFolder(token: string, pasta: string) {
+    return this.http.post<string[]>(`${this.api}/things/folders`, { pasta }, { headers: this.headers(token) });
+  }
+
   // ── Periods ─────────────────────────────────────────────────────────────────
   listPeriods(token: string) {
     return this.http.get<any[]>(`${this.api}/periods`, { headers: this.headers(token) });
@@ -644,12 +669,14 @@ export class PlannerApiService {
   createAbsence(token: string, payload: {
     pessoaId: string; pessoaNome: string; tipo: string;
     inicio: string; fim: string; recorrente: boolean; observacao: string;
+    conflitosOk?: string[];
   }) {
     return this.http.post<any>(`${this.api}/absences`, payload, { headers: this.headers(token) });
   }
   updateAbsence(token: string, absenceId: string, payload: {
     pessoaId: string; pessoaNome: string; tipo: string;
     inicio: string; fim: string; recorrente: boolean; observacao: string;
+    conflitosOk?: string[];
   }) {
     return this.http.put<any>(`${this.api}/absences/${absenceId}`, payload, { headers: this.headers(token) });
   }

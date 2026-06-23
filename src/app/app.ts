@@ -38,6 +38,7 @@ import { DrawingPanelComponent } from './components/drawing-panel/drawing-panel.
 import { PeriodsPanelComponent } from './components/periods-panel/periods-panel.component';
 import { PeriodBannerComponent } from './components/period-banner/period-banner.component';
 import { HierarchyPanelComponent } from './components/hierarchy-panel/hierarchy-panel.component';
+import { MyStuffPanelComponent } from './components/my-stuff-panel/my-stuff-panel.component';
 
 @Component({
   selector: 'app-root',
@@ -72,7 +73,8 @@ import { HierarchyPanelComponent } from './components/hierarchy-panel/hierarchy-
     DrawingPanelComponent,
     PeriodsPanelComponent,
     PeriodBannerComponent,
-    HierarchyPanelComponent
+    HierarchyPanelComponent,
+    MyStuffPanelComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './app.html',
@@ -129,7 +131,7 @@ export class App {
   authSubmitting = signal(false);
   mobileSidebarOpen = signal(false);
   periodRefreshKey = signal(0);
-  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia'>(
+  secaoAtiva = signal<'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia' | 'minhas_coisas'>(
     (() => {
       const s = (localStorage.getItem('planner_secao') as any) || 'dashboard';
       // Nao restaura secoes admin-only para usuario comum (ex.: apos reload).
@@ -308,7 +310,7 @@ export class App {
     this.periodRefreshKey.update(value => value + 1);
   }
 
-  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia') {
+  selecionarSecao(secao: 'dashboard' | 'conta' | 'perfis' | 'projetos' | 'orcamento' | 'epicos' | 'alocacoes_lo' | 'alocacoes_pessoa' | 'pessoas_atividade' | 'riscos' | 'incidentes' | 'debitos_tecnicos' | 'indicadores' | 'pessoas' | 'horas_mes' | 'prestadores' | 'pontos_focais' | 'relatorios' | 'feriados' | 'ausencias' | 'usuarios' | 'dados' | 'orcamento_projeto' | 'desenhos' | 'periodos' | 'hierarquia' | 'minhas_coisas') {
     // Secoes restritas a admin (UI). Nao-admin cai no dashboard em vez de tela em branco.
     if ((secao === 'dados' || secao === 'usuarios') && !this.isAdmin()) secao = 'dashboard';
     this.secaoAtiva.set(secao);
@@ -1454,15 +1456,15 @@ export class App {
   }
 
   
-  criarAusencia(payload: { pessoaId: string; pessoaNome: string; tipo: string; inicio: string; fim: string; recorrente: boolean; observacao: string }) {
+  criarAusencia(payload: { pessoaId: string; pessoaNome: string; tipo: string; inicio: string; fim: string; recorrente: boolean; observacao: string; conflitosOk?: string[] }) {
     this.api.createAbsence(this.token(), payload).subscribe({
       next: () => this.carregarAusencias(),
       error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao registrar ausência.')
     });
   }
 
-  atualizarAusencia(payload: { id: string; pessoaId: string; pessoaNome: string; tipo: string; inicio: string; fim: string; recorrente: boolean; observacao: string }) {
-    const { id, ...rest } = payload;
+  atualizarAusencia(payload: { id: string; pessoaId: string; pessoaNome: string; tipo: string; inicio: string; fim: string; recorrente: boolean; observacao: string; conflitosOk?: string[]; criadoEm?: string }) {
+    const { id, criadoEm, ...rest } = payload;
     this.api.updateAbsence(this.token(), id, rest).subscribe({
       next: () => this.carregarAusencias(),
       error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar ausência.')

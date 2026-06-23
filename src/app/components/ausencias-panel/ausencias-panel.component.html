@@ -108,16 +108,24 @@
 
 
     @if (conflitos().length > 0) {
-      <div class="abs-conflicts-banner">
+      <div class="abs-conflicts-banner" [class.abs-conflicts-all-ok]="conflitosPendentes().length === 0">
         <div class="abs-conflicts-header" (click)="conflitosOpen = !conflitosOpen">
           <span class="abs-conflicts-icon">⚠</span>
-          <strong>{{ conflitos().length }} conflito{{ conflitos().length > 1 ? 's' : '' }} de período detectado{{ conflitos().length > 1 ? 's' : '' }}</strong>
+          <strong>{{ conflitosPendentes().length }} conflito{{ conflitosPendentes().length > 1 ? 's' : '' }} de período detectado{{ conflitosPendentes().length > 1 ? 's' : '' }}</strong>
           <span class="abs-conflicts-toggle">{{ conflitosOpen ? '▾' : '▸' }}</span>
         </div>
         @if (conflitosOpen) {
           <ul class="abs-conflicts-list">
-            @for (c of conflitos(); track c.a1.id + c.a2.id) {
-              <li class="abs-conflict-item">
+            @if (conflitosOk().length > 0) {
+              <li class="abs-conflicts-tools">
+                <span>{{ conflitosOk().length }} conflito{{ conflitosOk().length !== 1 ? 's' : '' }} OK</span>
+                <button type="button" class="sec abs-conflicts-ok-toggle" (click)="ocultarConflitosOk = !ocultarConflitosOk">
+                  {{ ocultarConflitosOk ? 'Mostrar OK' : 'Ocultar OK' }}
+                </button>
+              </li>
+            }
+            @for (c of conflitosVisiveis(); track c.a1.id + c.a2.id) {
+              <li class="abs-conflict-item" [class.abs-conflict-item-ok]="conflitoOk(c)">
                 <span class="abs-conflict-period">
                   <span class="abs-tipo-dot" [style.background]="CORES[c.a1.tipo]"></span>
                   <strong>{{ c.pessoa1Nome }}</strong>&nbsp;{{ TIPOS[c.a1.tipo] }} {{ fmtDate(c.a1.inicio) }}–{{ fmtDate(c.a1.fim) }}
@@ -129,6 +137,11 @@
                 </span>
                 <span class="abs-conflict-overlap">sobreposição {{ fmtDate(c.overlapInicio) }}–{{ fmtDate(c.overlapFim) }} · {{ c.overlapDias }}d</span>
                 <span class="abs-conflict-actions">
+                  @if (conflitoOk(c)) {
+                    <span class="abs-conflict-ok-tag">OK</span>
+                  } @else {
+                    <button type="button" class="sec abs-conflict-ok" (click)="marcarConflitoOk(c)">OK</button>
+                  }
                   <button type="button" class="sec" (click)="startEdit(c.a1)">Editar {{ c.pessoa1Nome }}</button>
                   <button type="button" class="sec" (click)="startEdit(c.a2)">Editar {{ c.pessoa2Nome }}</button>
                 </span>

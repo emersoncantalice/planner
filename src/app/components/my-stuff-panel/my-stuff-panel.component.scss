@@ -1,0 +1,505 @@
+:host { display: block; }
+
+/* .ms-root é o <planner-card>: ele já define fundo, borda, raio, padding e
+   rolagem interna (altura ajustada ao viewport). Não sobrescrevemos isso. */
+
+.mystuff {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* ── Coluna lateral ─────────────────────────────────────────── */
+.ms-side {
+  flex: 0 0 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+.ms-new {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .15s;
+  &:hover { filter: brightness(1.05); }
+}
+
+.ms-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ms-folder {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-align: left;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  .ms-folder-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  > span:first-child:not(.ms-caret) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { color: var(--muted); flex: 0 0 auto; }
+  &:hover { background: var(--surface-soft); }
+  &.active { background: var(--bg-1); border-color: var(--border); font-weight: 600; }
+}
+
+.ms-caret {
+  flex: 0 0 14px;
+  width: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform .15s;
+  &.open { transform: rotate(90deg); }
+  &.ms-caret-empty { visibility: hidden; }
+  &:hover { color: var(--primary); }
+}
+
+/* Pastas como blocos (visão raiz / subpastas) */
+.ms-folder-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ms-folder-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  color: var(--text);
+  &:hover { background: var(--bg-1); }
+  .ms-tile-icon { font-size: 22px; }
+  .ms-tile-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  small { color: var(--muted); }
+}
+
+/* Breadcrumb */
+.ms-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  button {
+    border: none;
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    &:hover { background: var(--surface-soft); }
+  }
+  .ms-bc-sep { color: var(--muted); }
+}
+
+.ms-hint { color: var(--muted); font-size: 11px; }
+
+.ms-add-folder {
+  margin-top: 6px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+  &:hover { background: var(--surface-soft); color: var(--text); }
+}
+
+/* Menu de contexto */
+.ms-ctx {
+  position: fixed;
+  z-index: 1100;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(13,42,87,.25);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  .ms-ctx-title {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  button {
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 13px;
+    &:hover { background: var(--surface-soft); }
+  }
+}
+
+.ms-modal-sm { width: min(420px, 100%); }
+
+.ms-labels-box {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+}
+
+.ms-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ms-chip {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+  &.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  &.removable { cursor: default; display: inline-flex; align-items: center; gap: 4px;
+    button { border: none; background: none; cursor: pointer; color: inherit; font-size: 11px; padding: 0; } }
+}
+
+/* ── Principal ─────────────────────────────────────────────── */
+.ms-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ms-search-bar {
+  display: flex;
+  gap: 8px;
+  input {
+    flex: 1 1 auto;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 15px;
+  }
+}
+
+.ms-clear, .ms-folder-search {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.ms-clear { padding: 0 14px; }
+
+.ms-active-label {
+  font-size: 13px;
+  color: var(--muted);
+  button { margin-left: 6px; border: none; background: none; cursor: pointer; color: var(--primary); }
+}
+
+.ms-heading {
+  margin: 4px 0;
+  font-size: 15px;
+  color: var(--text);
+  small { color: var(--muted); font-weight: 400; }
+  &.clickable { cursor: pointer; }
+}
+
+.ms-folder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  .ms-folder-search { padding: 8px 12px; min-width: 220px; }
+}
+
+.ms-empty { color: var(--muted); padding: 12px 0; }
+
+.ms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* ── Card ──────────────────────────────────────────────────── */
+.ms-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: box-shadow .15s, transform .15s;
+  &:hover { box-shadow: 0 4px 14px rgba(20,89,217,.12); transform: translateY(-1px); }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+}
+
+.ms-type { font-size: 12px; color: var(--muted); font-weight: 600; }
+.ms-lang {
+  font-size: 11px; background: var(--bg-1); color: var(--text);
+  padding: 1px 8px; border-radius: 999px;
+}
+
+.ms-title { margin: 0; font-size: 15px; color: var(--text); }
+
+.ms-text-preview {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ms-code-preview {
+  margin: 0;
+  background: #0d1b2e;
+  color: #d6e3ff;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+  max-height: 140px;
+  overflow: hidden;
+  white-space: pre;
+  code { white-space: pre; }
+}
+
+.ms-thumb {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;          /* preserva proporção, sem distorcer/cortar */
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.ms-file-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  .ms-file-icon { font-size: 24px; }
+  .ms-file-meta { display: flex; flex-direction: column; min-width: 0; }
+  .ms-file-name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { color: var(--muted); }
+  &.large { padding: 16px 18px; .ms-file-icon { font-size: 34px; } }
+}
+
+.ms-card-labels { display: flex; flex-wrap: wrap; gap: 5px; }
+.ms-tag {
+  font-size: 11px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--muted);
+}
+
+.ms-card footer, .ms-modal-foot {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  button {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    &:hover { background: var(--surface-soft); }
+    &.danger { color: #c0392b; border-color: #f0c4be; }
+    &.danger:hover { background: #fdecea; }
+    &.primary { background: var(--primary); color: #fff; border-color: var(--primary); font-size: 13px; padding: 8px 18px; }
+    &.primary:disabled { opacity: .6; cursor: default; }
+    &.ms-dl {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
+      svg { fill: currentColor; }
+      &:hover { background: var(--brand-600); filter: brightness(1.03); }
+    }
+  }
+}
+
+/* Botão de upload (esconde o <input type=file> nativo) */
+.ms-form label.ms-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  background: var(--surface-soft);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .15s, border-color .15s;
+  svg { fill: var(--primary); }
+  &:hover { background: var(--bg-1); border-color: var(--primary); }
+}
+
+/* ── Modais ────────────────────────────────────────────────── */
+.ms-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 42, 87, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.ms-modal {
+  background: var(--surface);
+  border-radius: 14px;
+  width: min(720px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(13,42,87,.35);
+}
+
+.ms-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  h3 { margin: 4px 0 0; color: var(--text); }
+}
+.ms-x { border: none; background: none; font-size: 18px; cursor: pointer; color: var(--muted); }
+
+.ms-form {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  label, .ms-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  input, select, textarea {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    font-family: inherit;
+  }
+  textarea {
+    resize: vertical;
+    &.mono {
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      white-space: pre;
+      tab-size: 2;
+      background: #0d1b2e;
+      color: #d6e3ff;
+    }
+  }
+}
+
+.ms-form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  label { flex: 1 1 140px; }
+}
+
+.ms-label-input {
+  display: flex;
+  gap: 6px;
+  input { flex: 1 1 auto; }
+  button { border: 1px solid var(--border); background: var(--surface-soft); border-radius: 8px; padding: 0 12px; cursor: pointer; color: var(--text); }
+}
+
+.ms-thumb-edit { max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 8px; }
+
+.ms-modal-foot { padding: 14px 18px; border-top: 1px solid var(--line); }
+
+/* ── Visualização ──────────────────────────────────────────── */
+.ms-view .ms-view-body { padding: 16px 18px; overflow: auto; }
+.ms-view img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;          /* mantém a proporção original da imagem */
+  border-radius: 8px;
+}
+.ms-text-full { white-space: pre-wrap; color: var(--text); margin: 0; }
+.ms-code-full {
+  margin: 0;
+  background: #0d1b2e;
+  color: #d6e3ff;
+  border-radius: 8px;
+  padding: 14px;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 13px;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+  code { white-space: pre; }
+}
+.ms-view .ms-card-labels { padding: 0 18px 8px; }
+
+@media (max-width: 720px) {
+  .mystuff { flex-direction: column; }
+  .ms-side { flex-basis: auto; flex-direction: row; flex-wrap: wrap; }
+}

@@ -12,6 +12,7 @@ interface AbsRow {
   fim: string;      // yyyy-MM-dd
   recorrente: boolean;
   observacao: string;
+  conflitosOk?: string[];
   criadoEm?: string;
 }
 
@@ -220,7 +221,8 @@ export class AusenciasPanelComponent implements OnChanges {
       fim:    this.form.recorrente ? this.form.fim    : this.form.fim,
     };
     if (this.editingId) {
-      this.update.emit({ id: this.editingId, criadoEm: undefined, ...payload });
+      const current = this.ausencias.find(a => a.id === this.editingId);
+      this.update.emit({ id: this.editingId, criadoEm: undefined, conflitosOk: current?.conflitosOk ?? [], ...payload });
     } else {
       this.create.emit(payload);
     }
@@ -296,19 +298,43 @@ export class AusenciasPanelComponent implements OnChanges {
     return result;
   }
 
+  conflitosPendentes(): Conflito[] {
+    return this.conflitos().filter(c => !this.conflitoOk(c));
+  }
+
+  conflitosOk(): Conflito[] {
+    return this.conflitos().filter(c => this.conflitoOk(c));
+  }
+
+  conflitosVisiveis(): Conflito[] {
+    return this.ocultarConflitosOk ? this.conflitosPendentes() : this.conflitos();
+  }
+
+  conflitoOk(c: Conflito): boolean {
+    return (c.a1.conflitosOk || []).includes(c.a2.id) || (c.a2.conflitosOk || []).includes(c.a1.id);
+  }
+
+  marcarConflitoOk(c: Conflito) {
+    this.update.emit({
+      ...c.a1,
+      conflitosOk: [...new Set([...(c.a1.conflitosOk || []), c.a2.id])]
+    });
+  }
+
   temConflito(pessoaId: string): boolean {
-    return this.conflitos().some(c => c.pessoa1Id === pessoaId || c.pessoa2Id === pessoaId);
+    return this.conflitosPendentes().some(c => c.pessoa1Id === pessoaId || c.pessoa2Id === pessoaId);
   }
 
   conflitosParaPessoa(pessoaId: string): Conflito[] {
-    return this.conflitos().filter(c => c.pessoa1Id === pessoaId || c.pessoa2Id === pessoaId);
+    return this.conflitosPendentes().filter(c => c.pessoa1Id === pessoaId || c.pessoa2Id === pessoaId);
   }
 
   isConflitante(ausenciaId: string): boolean {
-    return this.conflitos().some(c => c.a1.id === ausenciaId || c.a2.id === ausenciaId);
+    return this.conflitosPendentes().some(c => c.a1.id === ausenciaId || c.a2.id === ausenciaId);
   }
 
   conflitosOpen = true;
+  ocultarConflitosOk = true;
 
   
   expandedRows = new Set<string>();
