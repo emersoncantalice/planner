@@ -81,6 +81,7 @@ export class PersonPanelComponent {
   }
 
   formExpanded = false;
+  saving = false;
   editingId = '';
   filtroAtivo: 'todos' | 'ativos' | 'inativos' = 'ativos';
   filtroPerfilId = '';
@@ -140,7 +141,7 @@ export class PersonPanelComponent {
   }
 
   saveEdit() {
-    if (!this.editingId || !this.formValido) return;
+    if (!this.editingId || !this.formValido || this.saving) return;
     if (this.pessoa.tipoVinculo !== 'TERCEIRO') {
       this.pessoa.consultoria = '';
     }
@@ -148,11 +149,14 @@ export class PersonPanelComponent {
       this.pessoa.valorHora = null;
     }
     this.pessoa.valorMensal = this.calcularValorMensalMedio(this.pessoa.valorHora);
-    this.update.emit({ id: this.editingId, ...this.pessoa, vagasAnteriores: [...this.vagasAnteriores] });
-    this.editingId = '';
-    this.formExpanded = false;
-    this.vagasAnteriores = [];
-    this.historicoExpanded = false;
+    this.saving = true;
+    // So fecha o formulario quando o pai confirma sucesso; em erro, mantem aberto para correcao.
+    this.update.emit({
+      id: this.editingId,
+      ...this.pessoa,
+      vagasAnteriores: [...this.vagasAnteriores],
+      onDone: (ok: boolean) => { this.saving = false; if (ok) this.resetForm(); }
+    });
   }
 
   cancelEdit() {
@@ -183,14 +187,25 @@ export class PersonPanelComponent {
   }
 
   submit() {
-    if (!this.formValido) return;
+    if (!this.formValido || this.saving) return;
     if (this.pessoa.tipoVinculo !== 'TERCEIRO') {
       this.pessoa.consultoria = '';
     }
     if (!this.perfilSelecionadoDebitaLo()) {
       this.pessoa.valorHora = null;
     }
-    this.create.emit({ ...this.pessoa, valorMensal: this.valorMensalMedioDaPessoa(this.pessoa), foto: this.fotoPendente || '' });
+    this.saving = true;
+    // So limpa/fecha o formulario quando o pai confirma sucesso; em erro, mantem aberto para correcao.
+    this.create.emit({
+      ...this.pessoa,
+      valorMensal: this.valorMensalMedioDaPessoa(this.pessoa),
+      foto: this.fotoPendente || '',
+      onDone: (ok: boolean) => { this.saving = false; if (ok) this.resetForm(); }
+    });
+  }
+
+  private resetForm() {
+    this.editingId = '';
     this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
     this.vagasAnteriores = [];
     this.historicoExpanded = false;

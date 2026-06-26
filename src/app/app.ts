@@ -760,8 +760,9 @@ export class App {
     });
   }
 
-  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; foto?: string }) {
+  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; foto?: string; onDone?: (ok: boolean) => void }) {
     const foto = payload.foto || '';
+    const onDone = payload.onDone;
     this.api.createPerson(this.token(), payload).subscribe({
       next: (criada: any) => {
         this.mensagem.set('Pessoa cadastrada.');
@@ -773,18 +774,21 @@ export class App {
           });
         }
         this.carregarPessoas();
+        onDone?.(true);
       },
-      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao cadastrar pessoa.')
+      error: (err) => { this.mensagem.set(err?.error?.error ?? 'Falha ao cadastrar pessoa.'); onDone?.(false); }
     });
   }
 
-  atualizarPessoa(payload: { id: string; nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[] }) {
+  atualizarPessoa(payload: { id: string; nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; onDone?: (ok: boolean) => void }) {
+    const onDone = payload.onDone;
     this.api.updatePerson(this.token(), payload.id, payload).subscribe({
       next: () => {
         this.mensagem.set('Pessoa atualizada.');
         this.carregarPessoas();
+        onDone?.(true);
       },
-      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar pessoa.')
+      error: (err) => { this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar pessoa.'); onDone?.(false); }
     });
   }
 
@@ -1947,6 +1951,7 @@ export class App {
       next: (view) => {
         this.mensagem.set('Visao criada.');
         this.hierarquiaViewAtiva.set(view.id);
+        this.carregarHierarquia();
         this.recarregarViews(() => this.iniciarEdicaoView(view));
       },
       error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao criar visao.')
@@ -1963,6 +1968,7 @@ export class App {
       next: (view) => {
         this.mensagem.set('Hierarquia copiada para uma nova visao.');
         this.hierarquiaViewAtiva.set(view.id);
+        this.carregarHierarquia();
         this.recarregarViews(() => this.iniciarEdicaoView(view));
       },
       error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao copiar hierarquia.')
