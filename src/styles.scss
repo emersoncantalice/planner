@@ -1398,6 +1398,105 @@ app-project-detail {
   margin: 8px 0 12px;
 }
 
+// ── Abas de visoes/cenarios da hierarquia (abas superiores, igual aos Desenhos) ──
+.hier-views-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hier-views-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 6px 8px 0;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-bottom: 2px solid #cbd5e1;
+  border-radius: 12px 12px 0 0;
+}
+.hier-views-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+// Aba estilo "pasta" — sobrescreve o pill de .tab-btn
+.hier-views-bar .hier-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: -2px;            // sobrepõe a borda inferior da barra
+  transition: background .12s, color .12s;
+  &:hover:not(.active) { background: #dbe3ec; color: #1e293b; }
+}
+.hier-views-bar .hier-view-tab.active {
+  background: #fff;
+  color: #1e293b;
+  border-color: #cbd5e1;
+  border-bottom: 2px solid #fff;  // "funde" a aba ativa com o conteúdo abaixo
+  font-weight: 700;
+}
+.hier-view-nome { font-weight: inherit; }
+.hier-view-acoes { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
+.hier-view-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: .72rem;
+  line-height: 1;
+  color: #64748b;
+  background: rgba(15,23,42,.06);
+  cursor: pointer;
+  &:hover { background: rgba(15,23,42,.14); color: #1e293b; }
+}
+.hier-view-del:hover { background: #ef4444; color: #fff; }
+.hier-view-edit {
+  border: 1px solid #3b82f6;
+  border-radius: 8px 8px 0 0;
+  padding: 7px 12px;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #1b4f9c;
+  outline: none;
+  min-width: 140px;
+  margin-bottom: -2px;
+}
+// Quando há barra de abas, o painel encosta nela (cantos superiores retos)
+.hier-views-bar + app-hierarchy-panel .card {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.hier-views-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 6px; }
+.hier-view-btn {
+  background: #fff;
+  color: #1d4ed8;
+  border: 1px solid #c9dcff;
+  border-radius: 8px;
+  padding: 6px 13px;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  &:hover { background: #1d63da; color: #fff; border-color: #1d63da; }
+}
+
 .tab-btn {
   background: #e9f1ff;
   color: #1b4f9c;

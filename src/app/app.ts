@@ -106,6 +106,11 @@ export class App {
   fotosPorNome = signal<Record<string, string>>({});
   percentuaisAlocacaoPorNome = signal<Record<string, number>>({});
   hierarquia = signal<any[]>([]);
+  hierarquiaViews = signal<any[]>([]);
+  hierarquiaViewAtiva = signal<string>('');
+  // Aba em modo de edicao inline de nome ('' = nenhuma); usado por nova/renomear visao.
+  hierarquiaViewEditId = signal<string>('');
+  hierarquiaViewEditNome = signal<string>('');
   consultorias = signal<any[]>([]);
   pontosFocais = signal<any[]>([]);
   ausencias    = signal<any[]>([]);
@@ -1600,7 +1605,7 @@ export class App {
         this.carregarAtividades();
         this.carregarPessoas();
         this.carregarFotosPessoas();
-        this.carregarHierarquia();
+        this.carregarHierarquiaViews();
         this.carregarPercentuaisAlocacao();
         this.carregarHorasMes();
         this.carregarConsultorias();
@@ -1898,13 +1903,125 @@ export class App {
 
   // ── Hierarquia ─────────────────────────────────────────────────────────
   private carregarHierarquia() {
-    this.api.listHierarchy(this.token()).subscribe({
+    const viewId = this.hierarquiaViewAtiva();
+    this.api.listHierarchy(this.token(), viewId || undefined).subscribe({
       next: (res) => this.hierarquia.set(res || []),
       error: (err) => this.tratarErroCarga('Falha ao carregar hierarquia.', err)
     });
   }
 
+  // ── Visoes/cenarios da hierarquia (abas) ───────────────────────────────
+  private carregarHierarquiaViews() {
+    this.api.listHierarchyViews(this.token()).subscribe({
+      next: (res) => {
+        const views = res || [];
+        this.hierarquiaViews.set(views);
+        const atual = this.hierarquiaViewAtiva();
+        if (!atual || !views.some((v: any) => v.id === atual)) {
+          this.hierarquiaViewAtiva.set(views[0]?.id || '');
+        }
+        this.carregarHierarquia();
+      },
+      // Sem suporte a visoes (backend antigo/fora): nao quebra a tela — esconde as abas
+      // e carrega a hierarquia padrao normalmente.
+      error: (err) => {
+        if (err?.status === 401 || err?.status === 403) { this.tratarErroCarga('Falha ao carregar visoes da hierarquia.', err); return; }
+        this.hierarquiaViews.set([]);
+        this.hierarquiaViewAtiva.set('');
+        this.carregarHierarquia();
+      }
+    });
+  }
+
+  selecionarHierarquiaView(id: string) {
+    if (this.hierarquiaViewAtiva() === id) return;
+    this.cancelarEdicaoView();
+    this.hierarquiaViewAtiva.set(id);
+    this.carregarHierarquia();
+  }
+
+  /** Cria uma visao vazia e entra em modo de renomear. */
+  novaHierarquiaView() {
+    const nome = this.nomeVisaoUnico('Nova visao');
+    this.api.createHierarchyView(this.token(), nome).subscribe({
+      next: (view) => {
+        this.mensagem.set('Visao criada.');
+        this.hierarquiaViewAtiva.set(view.id);
+        this.recarregarViews(() => this.iniciarEdicaoView(view));
+      },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao criar visao.')
+    });
+  }
+
+  /** Duplica a visao ativa (org inteiro) como uma nova aba e entra em modo de renomear. */
+  copiarHierarquiaView() {
+    const origem = this.hierarquiaViewAtiva();
+    if (!origem) return;
+    const base = this.hierarquiaViews().find((v: any) => v.id === origem)?.nome || 'Hierarquia';
+    const nome = this.nomeVisaoUnico(`${base} (copia)`);
+    this.api.duplicateHierarchyView(this.token(), origem, nome).subscribe({
+      next: (view) => {
+        this.mensagem.set('Hierarquia copiada para uma nova visao.');
+        this.hierarquiaViewAtiva.set(view.id);
+        this.recarregarViews(() => this.iniciarEdicaoView(view));
+      },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao copiar hierarquia.')
+    });
+  }
+
+  excluirHierarquiaView(view: any) {
+    this.confirmarExclusao(`Excluir a visao "${view.nome}" e toda a hierarquia dela?`, () => {
+      this.api.deleteHierarchyView(this.token(), view.id).subscribe({
+        next: () => {
+          this.mensagem.set('Visao excluida.');
+          if (this.hierarquiaViewAtiva() === view.id) this.hierarquiaViewAtiva.set('');
+          this.carregarHierarquiaViews();
+        },
+        error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao excluir visao.')
+      });
+    });
+  }
+
+  // edicao inline do nome da aba
+  iniciarEdicaoView(view: any) {
+    this.hierarquiaViewEditId.set(view.id);
+    this.hierarquiaViewEditNome.set(view.nome || '');
+  }
+  cancelarEdicaoView() {
+    this.hierarquiaViewEditId.set('');
+    this.hierarquiaViewEditNome.set('');
+  }
+  salvarEdicaoView() {
+    const id = this.hierarquiaViewEditId();
+    const nome = this.hierarquiaViewEditNome().trim();
+    if (!id) return;
+    const atual = this.hierarquiaViews().find((v: any) => v.id === id);
+    if (!nome || nome === atual?.nome) { this.cancelarEdicaoView(); return; }
+    this.api.renameHierarchyView(this.token(), id, nome).subscribe({
+      next: () => { this.cancelarEdicaoView(); this.recarregarViews(); },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao renomear visao.')
+    });
+  }
+
+  /** Recarrega so a lista de visoes (sem trocar de aba), com callback opcional. */
+  private recarregarViews(done?: () => void) {
+    this.api.listHierarchyViews(this.token()).subscribe({
+      next: (res) => { this.hierarquiaViews.set(res || []); done?.(); },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao carregar visoes.')
+    });
+  }
+
+  /** Garante um nome unico entre as visoes (acrescenta sufixo numerico se preciso). */
+  private nomeVisaoUnico(base: string): string {
+    const nomes = new Set(this.hierarquiaViews().map((v: any) => String(v.nome || '').toLowerCase()));
+    if (!nomes.has(base.toLowerCase())) return base;
+    let i = 2;
+    while (nomes.has(`${base} ${i}`.toLowerCase())) i++;
+    return `${base} ${i}`;
+  }
+
   criarNoHierarquia(payload: any) {
+    payload = { ...payload, viewId: this.hierarquiaViewAtiva() || null };
     this.api.createHierarchyNode(this.token(), payload).subscribe({
       next: () => { this.mensagem.set('Estrutura criada.'); this.carregarHierarquia(); },
       error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao criar estrutura.')
@@ -1930,7 +2047,8 @@ export class App {
 
   moverMembroHierarquia(payload: { fromNodeId: string; toNodeId: string; nomePessoa: string }) {
     this.api.moveHierarchyMember(this.token(), payload).subscribe({
-      next: (res) => { this.hierarquia.set(res || []); },
+      // O endpoint devolve todos os nos (todas as visoes); recarregamos so a visao ativa.
+      next: () => { this.carregarHierarquia(); },
       error: (err) => { this.mensagem.set(err?.error?.error ?? 'Falha ao mover pessoa.'); this.carregarHierarquia(); }
     });
   }

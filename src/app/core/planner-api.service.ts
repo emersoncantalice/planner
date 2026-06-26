@@ -175,11 +175,29 @@ export class PlannerApiService {
   }
 
   // Hierarquia organizacional
-  listHierarchy(token: string) {
-    return this.http.get<any[]>(`${this.api}/hierarchy`, { headers: this.headers(token) });
+  listHierarchy(token: string, viewId?: string) {
+    const qs = viewId ? `?viewId=${encodeURIComponent(viewId)}` : '';
+    return this.http.get<any[]>(`${this.api}/hierarchy${qs}`, { headers: this.headers(token) });
   }
-  createHierarchyNode(token: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
+  createHierarchyNode(token: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[]; viewId?: string | null }) {
     return this.http.post<any>(`${this.api}/hierarchy`, payload, { headers: this.headers(token) });
+  }
+
+  // Visoes/cenarios da hierarquia (abas)
+  listHierarchyViews(token: string) {
+    return this.http.get<any[]>(`${this.api}/hierarchy/views`, { headers: this.headers(token) });
+  }
+  createHierarchyView(token: string, nome: string) {
+    return this.http.post<any>(`${this.api}/hierarchy/views`, { nome }, { headers: this.headers(token) });
+  }
+  duplicateHierarchyView(token: string, viewId: string, nome: string) {
+    return this.http.post<any>(`${this.api}/hierarchy/views/${viewId}/duplicate`, { nome }, { headers: this.headers(token) });
+  }
+  renameHierarchyView(token: string, viewId: string, nome: string) {
+    return this.http.put<any>(`${this.api}/hierarchy/views/${viewId}`, { nome }, { headers: this.headers(token) });
+  }
+  deleteHierarchyView(token: string, viewId: string) {
+    return this.http.delete<void>(`${this.api}/hierarchy/views/${viewId}`, { headers: this.headers(token) });
   }
   updateHierarchyNode(token: string, nodeId: string, payload: { tipo: string; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[] }) {
     return this.http.put<any>(`${this.api}/hierarchy/${nodeId}`, payload, { headers: this.headers(token) });

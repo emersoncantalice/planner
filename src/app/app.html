@@ -784,6 +784,52 @@
         </app-indicators-panel>
       }
       @if (secaoAtiva() === 'hierarquia') {
+        <div class="full-row hier-views-wrap">
+        @if (hierarquiaViews().length > 0) {
+        <div class="hier-views-bar">
+          <div class="hier-views-tabs">
+            @for (view of hierarquiaViews(); track view.id) {
+              @if (hierarquiaViewEditId() === view.id) {
+                <input
+                  class="hier-view-edit"
+                  [value]="hierarquiaViewEditNome()"
+                  (input)="hierarquiaViewEditNome.set($any($event.target).value)"
+                  (keydown.enter)="salvarEdicaoView()"
+                  (keydown.escape)="cancelarEdicaoView()"
+                  (blur)="salvarEdicaoView()"
+                  autofocus
+                  maxlength="60"
+                  placeholder="Nome da visao" />
+              } @else {
+                <button
+                  type="button"
+                  class="tab-btn hier-view-tab"
+                  [class.active]="view.id === hierarquiaViewAtiva()"
+                  (click)="selecionarHierarquiaView(view.id)"
+                  (dblclick)="iniciarEdicaoView(view)">
+                  <span class="hier-view-nome">{{ view.nome }}</span>
+                  @if (view.id === hierarquiaViewAtiva()) {
+                    <span class="hier-view-acoes">
+                      <span class="hier-view-act" title="Renomear visao"
+                            (click)="$event.stopPropagation(); iniciarEdicaoView(view)">✎</span>
+                      @if (hierarquiaViews().length > 1) {
+                        <span class="hier-view-act hier-view-del" title="Excluir visao"
+                              (click)="$event.stopPropagation(); excluirHierarquiaView(view)">✕</span>
+                      }
+                    </span>
+                  }
+                </button>
+              }
+            }
+          </div>
+          <div class="hier-views-actions">
+            <button type="button" class="hier-view-btn" (click)="copiarHierarquiaView()"
+                    title="Duplicar a hierarquia atual em uma nova visao/cenario">⧉ Copiar hierarquia</button>
+            <button type="button" class="hier-view-btn" (click)="novaHierarquiaView()"
+                    title="Criar uma visao/cenario vazio">＋ Nova visao</button>
+          </div>
+        </div>
+        }
         <app-hierarchy-panel
           [nodes]="hierarquia()"
           [pessoas]="pessoas()"
@@ -799,6 +845,7 @@
           (remove)="excluirNoHierarquia($event)"
           (moveMember)="moverMembroHierarquia($event)">
         </app-hierarchy-panel>
+        </div>
       }
       @if (secaoAtiva() === 'orcamento_projeto') {
         <app-project-budget-panel
