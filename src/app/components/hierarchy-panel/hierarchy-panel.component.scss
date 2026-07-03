@@ -713,6 +713,11 @@
 .t-TRIBO .node-tipo { color: #0891b2; }
 .t-SQUAD > .node-card { border-top: 4px solid #059669; }
 .t-SQUAD .node-tipo { color: #059669; }
+.t-CUSTOM > .node-card { border-top: 4px solid #db2777; }
+.t-CUSTOM .node-tipo { color: #db2777; }
+
+/* Campo de rótulo do tipo personalizado (aparece só quando tipo = CUSTOM) */
+.tipo-rotulo-input { margin-top: 8px; width: 100%; }
 
 /* Conectores estilo organograma — suporta múltiplos filhos, sempre centralizados */
 .node-children {

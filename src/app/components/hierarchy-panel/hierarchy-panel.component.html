@@ -8,7 +8,7 @@
       <select class="export-root-select" [(ngModel)]="exportRootId" (ngModelChange)="onExportRootChange()" [disabled]="!nodes.length" title="Escolher a estrutura raiz da exportação">
         <option value="">Árvore completa</option>
         @for (n of nodesParaExportar(); track n.id) {
-          <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
+          <option [value]="n.id">{{ rotuloNode(n) }} · {{ n.nome }}</option>
         }
       </select>
       <label class="export-hide-toggle" title="Ocultar valores das LOs, alocação (%) e FTE — na tela e na exportação">
@@ -53,8 +53,8 @@
       <div class="hidden-root-marker">
         <span>{{ raizesOcultas().length }} cadeia{{ raizesOcultas().length !== 1 ? 's' : '' }} raiz oculta{{ raizesOcultas().length !== 1 ? 's' : '' }}</span>
         @for (n of raizesOcultas(); track n.id) {
-          <button type="button" class="hidden-chip" (click)="mostrarCadeia(n.id)" [title]="'Mostrar ' + tipoLabel(n.tipo) + ' · ' + n.nome">
-            {{ tipoLabel(n.tipo) }} · {{ n.nome }}
+          <button type="button" class="hidden-chip" (click)="mostrarCadeia(n.id)" [title]="'Mostrar ' + rotuloNode(n) + ' · ' + n.nome">
+            {{ rotuloNode(n) }} · {{ n.nome }}
           </button>
         }
       </div>
@@ -93,7 +93,7 @@
            (dragleave)="onNodeDragLeave(node)"
            (drop)="onNodeDrop(node, $event)">
         <div class="node-top">
-          <span class="node-tipo">{{ tipoLabel(node.tipo) }}</span>
+          <span class="node-tipo">{{ rotuloNode(node) }}</span>
           @if (mostrarFteTotal(node)) {
             <span class="node-fte-chip" title="FTE Total do time (folha + terceiros)">FTE {{ formatFte(fteTotalNode(node)) }}</span>
           }
@@ -239,7 +239,7 @@
         <div class="hidden-child-marker">
           <span>{{ ocultosDiretosRenderDe(node.id).length }} cadeia{{ ocultosDiretosRenderDe(node.id).length !== 1 ? 's' : '' }} oculta{{ ocultosDiretosRenderDe(node.id).length !== 1 ? 's' : '' }}</span>
           @for (filho of ocultosDiretosRenderDe(node.id); track filho.id) {
-            <button type="button" class="hidden-chip" (click)="mostrarCadeia(filho.id)" [title]="'Mostrar ' + tipoLabel(filho.tipo) + ' · ' + filho.nome + ' (' + countCadeia(filho) + ' estrutura(s))'">
+            <button type="button" class="hidden-chip" (click)="mostrarCadeia(filho.id)" [title]="'Mostrar ' + rotuloNode(filho) + ' · ' + filho.nome + ' (' + countCadeia(filho) + ' estrutura(s))'">
               {{ filho.nome }}
             </button>
           }
@@ -277,7 +277,7 @@
           <select [(ngModel)]="gerarParentId">
             <option value="">Nenhuma (raiz)</option>
             @for (n of nodes; track n.id) {
-              <option [value]="n.id">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</option>
+              <option [value]="n.id">{{ rotuloNode(n) }} · {{ n.nome }}</option>
             }
           </select>
         </div>
@@ -306,6 +306,10 @@
               <option [value]="t">{{ tipoLabel(t) }}</option>
             }
           </select>
+          @if (form.tipo === 'CUSTOM') {
+            <input class="tipo-rotulo-input" [(ngModel)]="form.tipoRotulo" maxlength="40"
+                   placeholder="Nome do tipo (ex.: Chapter, Guilda, Comitê)" autocomplete="off" />
+          }
         </div>
         <div>
           <label>Estruturas superiores (uma ou mais)</label>
@@ -325,7 +329,7 @@
                       <label class="multi-select-option" [class.on]="parentVinculado(n.id)">
                         <input type="checkbox" [checked]="parentVinculado(n.id)" (change)="toggleParent(n.id)" />
                         <span class="checkmark" aria-hidden="true"></span>
-                        <span class="option-main">{{ tipoLabel(n.tipo) }} · {{ n.nome }}</span>
+                        <span class="option-main">{{ rotuloNode(n) }} · {{ n.nome }}</span>
                       </label>
                     } @empty {
                       <div class="multi-select-empty">Nenhuma estrutura encontrada.</div>
@@ -515,7 +519,7 @@
   <div class="modal-backdrop hierarchy-modal-backdrop" (click)="fecharFteDetalhe()"></div>
   <div class="modal-card modal-card-lg hierarchy-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <div class="form-box fte-detalhe">
-      <h3>Detalhamento de FTE · {{ tipoLabel(fteDetalheNode.tipo) }} {{ fteDetalheNode.nome }}</h3>
+      <h3>Detalhamento de FTE · {{ rotuloNode(fteDetalheNode) }} {{ fteDetalheNode.nome }}</h3>
       <div class="fte-det-total">FTE Total: <strong>{{ formatFte(fteTotalNode(fteDetalheNode)) }}</strong></div>
 
       <h4>Por perfil</h4>
