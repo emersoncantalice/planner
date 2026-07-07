@@ -556,10 +556,64 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     // deixa o overlay pintar antes do trabalho pesado do html2canvas
     await new Promise(res => setTimeout(res, 50));
     try {
-      await this.exportar();
+      // No layout livre, exporta capturando a árvore real (posições + conectores como estão na tela).
+      await (this.layoutLivre ? this.exportarLivre() : this.exportar());
     } finally {
       ov.remove();
       this.exportando = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  /**
+   * Exportação do LAYOUT LIVRE: captura o próprio `.tree` da tela (cards nas posições X/Y
+   * definidas pelo usuário + conectores reais), zerando zoom/pan para pegar tudo em tamanho natural.
+   */
+  private async exportarLivre(): Promise<void> {
+    const cont = this.treeContainer?.nativeElement;
+    if (!cont || !this.nosVisiveisFlat().length) return;
+    // Guarda o estado de navegação e neutraliza zoom/pan para a captura sair completa e nítida.
+    const zoom0 = this.zoom, px0 = this.panX, py0 = this.panY;
+    const vinc0 = this.vinculoDestacado;
+    this.vinculoDestacado = null;
+    this.zoom = 1; this.panX = 0; this.panY = 0;
+    cont.classList.add('exportando-livre');
+    this.cdr.markForCheck();
+    // Espera o reflow e reconstrói os conectores já no zoom 1.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try { this.recomputeLinhas(); } catch { }
+    await new Promise(r => requestAnimationFrame(r));
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      // Recorta na caixa real dos cards (com margem), evitando a folga do canvas na tela.
+      const crect = cont.getBoundingClientRect();
+      let minL = Infinity, minT = Infinity, maxR = 0, maxB = 0;
+      for (const el of Array.from(cont.querySelectorAll<HTMLElement>('.node-card'))) {
+        const r = el.getBoundingClientRect();
+        minL = Math.min(minL, r.left - crect.left); minT = Math.min(minT, r.top - crect.top);
+        maxR = Math.max(maxR, r.right - crect.left); maxB = Math.max(maxB, r.bottom - crect.top);
+      }
+      const M = 40;
+      const x = Math.max(0, Math.floor(minL - M));
+      const y = Math.max(0, Math.floor(minT - M));
+      const width = Math.ceil(maxR - x + M);
+      const height = Math.ceil(maxB - y + M);
+      const canvas = await html2canvas(cont, {
+        scale: Math.max(3, window.devicePixelRatio || 1),
+        useCORS: true, allowTaint: false, backgroundColor: '#ffffff', logging: false,
+        x, y, width, height, windowWidth: cont.scrollWidth, windowHeight: cont.scrollHeight,
+      });
+      const alvo = this.exportRootId ? this.nodes.find((n: any) => n.id === this.exportRootId) : null;
+      const nome = alvo ? alvo.nome : 'Hierarquia Organizacional';
+      const a = document.createElement('a');
+      a.download = `hierarquia_${this.safeFilePart(nome)}_${new Date().toISOString().slice(0, 10)}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    } finally {
+      cont.classList.remove('exportando-livre');
+      this.zoom = zoom0; this.panX = px0; this.panY = py0;
+      this.vinculoDestacado = vinc0;
+      this.agendarRecalcLinhas();
       this.cdr.markForCheck();
     }
   }
