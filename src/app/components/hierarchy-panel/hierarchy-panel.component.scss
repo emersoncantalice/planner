@@ -650,6 +650,61 @@
   outline: 2px dashed #6366f1; outline-offset: 2px; background: #eef2ff;
 }
 
+/* arrastar a própria estrutura para reposicioná-la */
+.node-card { cursor: grab; }
+.node-card:active { cursor: grabbing; }
+/* handles internos mantêm o cursor próprio */
+.node-card .node-acts button,
+.node-card .node-m,
+.node-card input,
+.node-card select,
+.node-card textarea,
+.node-card button { cursor: pointer; }
+.node-card .node-m { cursor: grab; }
+.node-card.arrastando { opacity: .45; }
+.node-card.alvo-invalido { opacity: .5; cursor: no-drop; }
+
+/* faixa-dica para soltar a estrutura como raiz (só visual — o drop é no canvas inteiro) */
+.tree-root-drop {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5;
+  padding: 8px 16px; border-radius: 10px; font-size: .8rem; color: #4338ca;
+  background: #eef2ff; border: 2px dashed #a5b4fc; box-shadow: 0 4px 14px rgba(15,23,42,.12);
+  pointer-events: none; white-space: nowrap;
+}
+.tree-root-drop.over { background: #c7d2fe; border-color: #6366f1; color: #312e81; }
+
+/* dica ao selecionar um conector: apertar Del remove a ligação */
+.tree-vinc-hint {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 6;
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 6px 10px 6px 14px; border-radius: 10px; font-size: .8rem; color: #7c2d12;
+  background: #fff7ed; border: 1px solid #fed7aa; box-shadow: 0 4px 14px rgba(15,23,42,.12);
+}
+.tree-vinc-hint kbd {
+  font: inherit; font-weight: 700; padding: 1px 6px; border-radius: 5px;
+  background: #fff; border: 1px solid #fdba74; color: #9a3412;
+}
+.tree-vinc-hint button {
+  border: none; border-radius: 7px; padding: 3px 10px; font-size: .76rem; font-weight: 700;
+  background: #ea580c; color: #fff; cursor: pointer;
+}
+.tree-vinc-hint button:hover { background: #c2410c; }
+
+/* enquanto arrasta uma estrutura, o espaço livre da árvore é uma zona de "soltar (raiz)" */
+.tree-wrap.root-drop-hint { outline: 2px dashed transparent; outline-offset: -6px; transition: outline-color .12s, background .12s; }
+.tree-wrap.root-drop-over { outline-color: #6366f1; background: rgba(99,102,241,.05); }
+
+/* ── Layout livre: cards posicionados por coordenada (X/Y) ────────────────── */
+.tree.livre { display: block; }              /* abandona o flex; cards são absolutos */
+.node-free { position: absolute; }
+.tree.livre .node-card { cursor: move; }     /* arrastar move o card livremente */
+.tree.livre .node-card:active { cursor: grabbing; }
+.node-card.free-moving {
+  z-index: 4;
+  box-shadow: 0 12px 28px rgba(15,23,42,.28);
+  opacity: .95;
+}
+
 .multi-parent-links {
   display: flex;
   justify-content: center;
