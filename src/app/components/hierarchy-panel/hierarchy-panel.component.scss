@@ -709,7 +709,10 @@
 .tree.exportando-livre { background: #ffffff; }
 .tree.exportando-livre .node-acts,
 .tree.exportando-livre .node-m-del,
+.tree.exportando-livre .node-m-alert,
+.tree.exportando-livre .node-m-overalloc,
 .tree.exportando-livre .node-m-pct.zero { display: none !important; }
+.tree.exportando-livre .node-m.fora-lo { background: transparent; border-color: transparent; }
 .tree.exportando-livre .node-card { box-shadow: 0 6px 18px rgba(15,23,42,.12); }
 
 .multi-parent-links {

@@ -89,10 +89,14 @@
            [style.minHeight.px]="layoutLivre ? freeCanvasSize().h : null">
         <svg class="conectores-svg" [attr.width]="svgW" [attr.height]="svgH" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" [class.tem-destaque]="!!vinculoDestacado">
           @for (l of linhas; track l.id) {
-            <path class="conector-hit" [attr.d]="l.d" (click)="alternarVinculo(l.de, l.para, $event)">
+            <path class="conector-hit" fill="none" [attr.d]="l.d" (click)="alternarVinculo(l.de, l.para, $event)">
               <title>{{ nomePorId(l.de) }} → {{ nomePorId(l.para) }}</title>
             </path>
-            <path class="conector-line" [class.ativo]="vinculoAtivo(l.de, l.para)" [attr.d]="l.d"></path>
+            <!-- Atributos de apresentação (não só CSS): o html2canvas serializa o SVG sem
+                 os estilos do documento, então sem eles as linhas não saem na exportação. -->
+            <path class="conector-line" fill="none" stroke="#cbd5e1" stroke-width="2"
+                  stroke-linejoin="round" stroke-linecap="round"
+                  [class.ativo]="vinculoAtivo(l.de, l.para)" [attr.d]="l.d"></path>
           }
         </svg>
         @if (layoutLivre) {
