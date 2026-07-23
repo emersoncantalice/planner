@@ -99,3 +99,63 @@ export function nthBusinessDay(start: Date, n: number): Date {
   }
   return cur;
 }
+
+// ── Ausências ───────────────────────────────────────────────────────────────
+
+function normalizeNome(value: string): string {
+  return (value || '').trim().toLowerCase();
+}
+
+/**
+ * Conta os dias úteis (segunda a sexta) de ausência de uma pessoa dentro de um
+ * mês/ano. Fins de semana são ignorados — é essa contagem que é debitada das
+ * alocações de terceiros. Feriados NÃO são excluídos (regra de negócio atual).
+ *
+ * @param nomePessoa  nome da pessoa (casado por nome normalizado ou por id)
+ * @param monthIndex  mês 0-based (0 = janeiro)
+ * @param ano         ano de referência
+ * @param pessoas     lista de pessoas (para resolver o id a partir do nome)
+ * @param ausencias   lista de ausências registradas
+ */
+export function diasUteisAusenciaNoMes(
+  nomePessoa: string,
+  monthIndex: number,
+  ano: number,
+  pessoas: any[],
+  ausencias: any[]
+): number {
+  const nomeNorm = normalizeNome(nomePessoa || '');
+  if (!nomeNorm) return 0;
+  const pessoa = (pessoas || []).find((p: any) => normalizeNome(p?.nome || '') === nomeNorm);
+  const pessoaId = String(pessoa?.id || '').trim();
+  const monthStart = new Date(ano, monthIndex, 1);
+  const monthEnd = new Date(ano, monthIndex + 1, 0);
+  const dias = new Set<string>();
+
+  for (const a of (ausencias || [])) {
+    const aid = String(a?.pessoaId || '').trim();
+    const anome = normalizeNome(a?.pessoaNome || '');
+    if (!(pessoaId && aid === pessoaId) && anome !== nomeNorm) continue;
+
+    const inicioRaw = String(a?.inicio || '');
+    const fimRaw = String(a?.fim || '');
+    if (!inicioRaw || !fimRaw) continue;
+    const inicio = new Date((a?.recorrente ? `${ano}-${inicioRaw.slice(5)}` : inicioRaw) + 'T00:00:00');
+    const fim = new Date((a?.recorrente ? `${ano}-${fimRaw.slice(5)}` : fimRaw) + 'T00:00:00');
+    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) continue;
+
+    const clampStart = inicio > monthStart ? inicio : monthStart;
+    const clampEnd = fim < monthEnd ? fim : monthEnd;
+    if (clampStart > clampEnd) continue;
+
+    const cursor = new Date(clampStart.getTime());
+    while (cursor <= clampEnd) {
+      const dow = cursor.getDay();
+      // Apenas dias úteis (segunda a sexta) contam como ausência debitável.
+      if (dow !== 0 && dow !== 6) dias.add(cursor.toISOString().slice(0, 10));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  return dias.size;
+}

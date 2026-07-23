@@ -50,6 +50,18 @@ export class AusenciasPanelComponent implements OnChanges {
   
   ano = new Date().getFullYear();
   mesHover = -1;
+  private readonly hoje = new Date();
+
+  /**
+   * Posição (em %) da linha do dia atual dentro da coluna do mês `mes`,
+   * ou null quando não é o mês/ano corrente (nenhuma linha é desenhada).
+   */
+  marcadorHoje(mes: number): number | null {
+    if (this.ano !== this.hoje.getFullYear() || mes !== this.hoje.getMonth()) return null;
+    const diasNoMes = new Date(this.ano, mes + 1, 0).getDate();
+    // Centraliza a linha no dia de hoje.
+    return ((this.hoje.getDate() - 0.5) / diasNoMes) * 100;
+  }
 
   
   formOpen = false;

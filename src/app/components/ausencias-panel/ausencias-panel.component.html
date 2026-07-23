@@ -179,6 +179,9 @@
               </td>
               @for (mes of MESES; track $index) {
                 <td class="abs-cell-mes">
+                  @if (marcadorHoje($index) !== null) {
+                    <div class="abs-today-line" [style.left.%]="marcadorHoje($index)" title="Hoje"></div>
+                  }
                   <div class="abs-month-bar-wrap">
                     @for (bar of barsForPersonMonth(p.id, $index); track bar.ab.id) {
                       <div class="abs-bar"

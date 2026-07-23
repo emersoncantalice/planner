@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { diasUteisAusenciaNoMes } from './business-days';
 
 /**
  * Fonte única de verdade para os cálculos financeiros das Linhas Orçamentárias (LOs).
@@ -138,40 +139,7 @@ export class LoFinanceCalculator {
   }
 
   private diasAusenciaNoMes(nomePessoa: string, monthIndex: number, ano: number): number {
-    const nomeNorm = this.normalized(nomePessoa || '');
-    if (!nomeNorm) return 0;
-    const pessoa = this.ctx.pessoas.find((p: any) => this.normalized(p?.nome || '') === nomeNorm);
-    const pessoaId = String(pessoa?.id || '').trim();
-    const monthStart = new Date(ano, monthIndex, 1);
-    const monthEnd = new Date(ano, monthIndex + 1, 0);
-    const dias = new Set<string>();
-
-    for (const a of (this.ctx.ausencias || [])) {
-      const aid = String(a?.pessoaId || '').trim();
-      const anome = this.normalized(a?.pessoaNome || '');
-      if (!(pessoaId && aid === pessoaId) && anome !== nomeNorm) continue;
-
-      const inicioRaw = String(a?.inicio || '');
-      const fimRaw = String(a?.fim || '');
-      if (!inicioRaw || !fimRaw) continue;
-      const inicio = new Date((a?.recorrente ? `${ano}-${inicioRaw.slice(5)}` : inicioRaw) + 'T00:00:00');
-      const fim = new Date((a?.recorrente ? `${ano}-${fimRaw.slice(5)}` : fimRaw) + 'T00:00:00');
-      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) continue;
-
-      const clampStart = inicio > monthStart ? inicio : monthStart;
-      const clampEnd = fim < monthEnd ? fim : monthEnd;
-      if (clampStart > clampEnd) continue;
-
-      const cursor = new Date(clampStart.getTime());
-      while (cursor <= clampEnd) {
-        const dow = cursor.getDay();
-        // Apenas dias úteis (segunda a sexta) contam como ausência debitável.
-        if (dow !== 0 && dow !== 6) dias.add(cursor.toISOString().slice(0, 10));
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    }
-
-    return dias.size;
+    return diasUteisAusenciaNoMes(nomePessoa, monthIndex, ano, this.ctx.pessoas, this.ctx.ausencias);
   }
 
   private horasEfetivas(
