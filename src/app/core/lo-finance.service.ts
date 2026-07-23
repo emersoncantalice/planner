@@ -164,7 +164,9 @@ export class LoFinanceCalculator {
 
       const cursor = new Date(clampStart.getTime());
       while (cursor <= clampEnd) {
-        dias.add(cursor.toISOString().slice(0, 10));
+        const dow = cursor.getDay();
+        // Apenas dias úteis (segunda a sexta) contam como ausência debitável.
+        if (dow !== 0 && dow !== 6) dias.add(cursor.toISOString().slice(0, 10));
         cursor.setDate(cursor.getDate() + 1);
       }
     }
