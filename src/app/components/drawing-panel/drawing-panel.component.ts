@@ -8,7 +8,17 @@ import { PlannerApiService } from '../../core/planner-api.service';
 import { ToastService } from '../../core/toast.service';
 import { uid as genUid } from '../../core/uid';
 
-export type Tool = 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'triangle' | 'diamond' | 'star' | 'image';
+export type Tool =
+  | 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'image'
+  // Formas geométricas (desenhadas por path — ver shapePathFor)
+  | 'triangle' | 'diamond' | 'star' | 'roundRect' | 'rightTriangle'
+  | 'pentagon' | 'hexagon' | 'octagon' | 'trapezoid' | 'parallelogram'
+  | 'cross' | 'chevron' | 'arrowBlock' | 'cylinder' | 'cloud'
+  | 'speech' | 'heart' | 'document'
+  // Componentes de arquitetura (ver archPathFor)
+  | 'archZone' | 'archUser' | 'archBrowser' | 'archMobile' | 'archServer'
+  | 'archComponent' | 'archDatabase' | 'archStorage' | 'archQueue' | 'archCache'
+  | 'archApi' | 'archBalancer' | 'archFirewall' | 'archNetwork' | 'archFunction';
 type AnchorId = 'top' | 'right' | 'bottom' | 'left';
 export type DashStyle = 'solid' | 'dashed' | 'dotted';
 
@@ -54,6 +64,25 @@ interface AlignmentGuide { axis: 'x' | 'y'; value: number; from: number; to: num
 
 const HANDLE_SIZE = 8;
 const MIN_SIZE    = 10;
+
+/** Formas geométricas desenhadas por um único <path> (ver shapePathFor). */
+const GEO_SHAPES: Tool[] = [
+  'triangle', 'rightTriangle', 'diamond', 'roundRect', 'pentagon', 'hexagon', 'octagon',
+  'trapezoid', 'parallelogram', 'star', 'cross', 'chevron', 'arrowBlock',
+  'cylinder', 'cloud', 'speech', 'heart', 'document'
+];
+
+/**
+ * Componentes de diagrama de arquitetura: um glifo no topo da caixa e o rótulo
+ * logo abaixo (ver archPathFor / TEXT_OFFSET).
+ */
+const ARCH_SHAPES: Tool[] = [
+  'archZone', 'archUser', 'archBrowser', 'archMobile', 'archServer',
+  'archComponent', 'archDatabase', 'archStorage', 'archQueue', 'archCache',
+  'archApi', 'archBalancer', 'archFirewall', 'archNetwork', 'archFunction'
+];
+
+const PATH_SHAPES: Tool[] = [...GEO_SHAPES, ...ARCH_SHAPES];
 
 @Component({
   selector: 'app-drawing-panel',
@@ -164,6 +193,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   fontFamily  = 'Inter, system-ui, sans-serif';
   // ── Painéis ───────────────────────────────────────────────────────────────
   showShortcuts = false;
+  /** Galeria de formas extras — evita lotar a barra de ferramentas. */
+  showShapeMenu = false;
   /** Menu lateral de opções (substitui os controles que lotavam a barra). */
   showProps     = true;
   /** Seções abertas do menu lateral. */
@@ -171,6 +202,24 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   private closePopovers() {
     this.showShortcuts = false;
+    this.showShapeMenu = false;
+  }
+
+  toggleShapeMenu() {
+    this.showShapeMenu = !this.showShapeMenu;
+    if (this.showShapeMenu) this.showShortcuts = false;
+    this.cdr.markForCheck();
+  }
+
+  /** A ferramenta ativa é uma das formas do menu (mantém o botão destacado). */
+  isExtraShapeActive(): boolean {
+    return this.shapeGroups.some(g => g.items.includes(this.tool));
+  }
+
+  pickShape(t: Tool) {
+    this.setTool(t);
+    this.showShapeMenu = false;
+    this.cdr.markForCheck();
   }
 
   toggleProps() {
@@ -351,7 +400,17 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   get currentDash(): DashStyle  { return this.sel?.dash ?? this.dashStyle; }
 
   readonly Math = Math;
-  readonly toolsList: Tool[] = ['select','pen','rect','ellipse','arrow','text','sticky','line','triangle','diamond','star'];
+  readonly toolsList: Tool[] = [
+    'select','pen','rect','ellipse','arrow','text','sticky','line',
+    ...PATH_SHAPES
+  ];
+  /** Formas do menu "mais formas" (as três da barra ficam de fora). */
+  readonly extraShapes: Tool[] = GEO_SHAPES.filter(t => !['triangle','diamond','star'].includes(t));
+  /** Seções da galeria de formas. */
+  readonly shapeGroups: { label: string; hint: string; items: Tool[] }[] = [
+    { label: 'Formas',      hint: 'Geometria e fluxogramas', items: this.extraShapes },
+    { label: 'Arquitetura', hint: 'Componentes de sistema e infraestrutura', items: ARCH_SHAPES }
+  ];
   readonly strokePresets = ['#1e293b','#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#ffffff','#94a3b8'];
   readonly fillPresets   = ['transparent','#ffffff','#fef08a','#dbeafe','#dcfce7','#fee2e2','#ede9fe','#fce7f3'];
   readonly stickyColors  = ['#fef08a','#bbf7d0','#bfdbfe','#fecaca','#e9d5ff','#fed7aa'];
@@ -1278,6 +1337,9 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
             h: finish.y - start.y
           });
         }
+        // A zona envolve outros componentes: vai para o fundo da pilha para
+        // não roubar os cliques de quem está dentro dela.
+        if (drawTool === 'archZone') this.shapes = [s, ...this.shapes.filter(o => o.id !== s.id)];
         // Criado o elemento, volta para "Selecionar" — a não ser que a
         // ferramenta esteja travada (Q) para desenhar vários seguidos.
         if (!this.lockTool) this.tool = 'select';
@@ -1383,13 +1445,15 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       id: this.uid(), type,
       x, y, w: w || 120, h: h || (type === 'text' ? 40 : type === 'sticky' ? 120 : 80),
       stroke: this.strokeColor,
-      fill:   type === 'rect' || type === 'ellipse' ? this.fillColor : 'transparent',
+      fill:   type === 'rect' || type === 'ellipse' || this.isPathShape(type) ? this.fillColor : 'transparent',
       lw:     this.lineWidth,
       opacity: this.opacity,
       text:   '',
       fontSize: this.fontSize,
       fontFamily: this.fontFamily,
-      dash:   this.dashStyle === 'solid' ? undefined : this.dashStyle,
+      // A zona é um limite (VPC, contexto): nasce tracejada para não competir
+      // visualmente com os componentes que ela envolve.
+      dash:   type === 'archZone' ? 'dashed' : this.dashStyle === 'solid' ? undefined : this.dashStyle,
       stickyBg: type === 'sticky' ? this.stickyBg : undefined,
       pts:    type === 'pen' ? [] : undefined,
     };
@@ -2168,24 +2232,290 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   }
 
   // ── Geometric shape path generators ──────────────────────────────────────
-  trianglePts(s: DrawShape): string {
-    return `${s.x + s.w / 2},${s.y} ${s.x + s.w},${s.y + s.h} ${s.x},${s.y + s.h}`;
+  /** Toda forma geométrica é um único <path>: um gerador só serve canvas e ícones. */
+  isPathShape(type: Tool): boolean {
+    return PATH_SHAPES.includes(type);
   }
 
-  diamondPts(s: DrawShape): string {
-    return `${s.x + s.w / 2},${s.y} ${s.x + s.w},${s.y + s.h / 2} ${s.x + s.w / 2},${s.y + s.h} ${s.x},${s.y + s.h / 2}`;
+  shapePath(s: DrawShape): string {
+    const b = this.shapeBounds(s);
+    return this.shapePathFor(s.type, b.x, b.y, Math.max(1, b.w), Math.max(1, b.h));
   }
 
-  starPts(s: DrawShape): string {
-    const cx = s.x + s.w / 2; const cy = s.y + s.h / 2;
-    const ro = Math.min(s.w, s.h) / 2; const ri = ro * 0.42;
-    const pts: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const r = i % 2 === 0 ? ro : ri;
-      const a = (Math.PI * i / 5) - Math.PI / 2;
-      pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
+  /** Ícone da forma dentro de um viewBox 0 0 24 24 (usado no menu de formas). */
+  shapeIconPath(type: Tool): string {
+    return this.shapePathFor(type, 2.5, 3, 19, 18);
+  }
+
+  shapePathFor(type: Tool, x: number, y: number, w: number, h: number): string {
+    if (ARCH_SHAPES.includes(type)) return this.archPathFor(type, x, y, w, h);
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const n  = (v: number) => Math.round(v * 100) / 100;
+    const poly = (pts: [number, number][]) =>
+      'M' + pts.map(([px, py]) => `${n(px)} ${n(py)}`).join(' L') + ' Z';
+    // Polígono regular inscrito na caixa; offset gira o primeiro vértice.
+    const regular = (sides: number, offset: number) => {
+      const pts: [number, number][] = [];
+      for (let i = 0; i < sides; i++) {
+        const a = offset + (Math.PI * 2 * i) / sides;
+        pts.push([cx + (w / 2) * Math.cos(a), cy + (h / 2) * Math.sin(a)]);
+      }
+      return poly(pts);
+    };
+
+    switch (type) {
+      case 'triangle':
+        return poly([[cx, y], [x + w, y + h], [x, y + h]]);
+
+      case 'rightTriangle':
+        return poly([[x, y], [x + w, y + h], [x, y + h]]);
+
+      case 'diamond':
+        return poly([[cx, y], [x + w, cy], [cx, y + h], [x, cy]]);
+
+      case 'roundRect': {
+        const r = Math.min(w, h) * 0.18;
+        return `M${n(x + r)} ${n(y)} L${n(x + w - r)} ${n(y)} A${n(r)} ${n(r)} 0 0 1 ${n(x + w)} ${n(y + r)}`
+             + ` L${n(x + w)} ${n(y + h - r)} A${n(r)} ${n(r)} 0 0 1 ${n(x + w - r)} ${n(y + h)}`
+             + ` L${n(x + r)} ${n(y + h)} A${n(r)} ${n(r)} 0 0 1 ${n(x)} ${n(y + h - r)}`
+             + ` L${n(x)} ${n(y + r)} A${n(r)} ${n(r)} 0 0 1 ${n(x + r)} ${n(y)} Z`;
+      }
+
+      case 'pentagon': return regular(5, -Math.PI / 2);
+      case 'hexagon':  return regular(6, 0);
+      case 'octagon':  return regular(8, Math.PI / 8);
+
+      case 'trapezoid':
+        return poly([[x + w * 0.22, y], [x + w * 0.78, y], [x + w, y + h], [x, y + h]]);
+
+      case 'parallelogram':
+        return poly([[x + w * 0.24, y], [x + w, y], [x + w * 0.76, y + h], [x, y + h]]);
+
+      case 'star': {
+        const ro = Math.min(w, h) / 2;
+        const ri = ro * 0.42;
+        const pts: [number, number][] = [];
+        for (let i = 0; i < 10; i++) {
+          const r = i % 2 === 0 ? ro : ri;
+          const a = (Math.PI * i / 5) - Math.PI / 2;
+          pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+        }
+        return poly(pts);
+      }
+
+      case 'cross': {
+        const ax = w * 0.33;
+        const ay = h * 0.33;
+        return poly([
+          [x + ax, y], [x + w - ax, y], [x + w - ax, y + ay], [x + w, y + ay],
+          [x + w, y + h - ay], [x + w - ax, y + h - ay], [x + w - ax, y + h], [x + ax, y + h],
+          [x + ax, y + h - ay], [x, y + h - ay], [x, y + ay], [x + ax, y + ay]
+        ]);
+      }
+
+      case 'chevron': {
+        const k = Math.min(w * 0.28, h * 0.5);
+        return poly([
+          [x, y], [x + w - k, y], [x + w, cy], [x + w - k, y + h], [x, y + h], [x + k, cy]
+        ]);
+      }
+
+      case 'arrowBlock': {
+        const head = Math.min(w * 0.42, w - 1);
+        const top  = y + h * 0.27;
+        const bot  = y + h * 0.73;
+        return poly([
+          [x, top], [x + w - head, top], [x + w - head, y], [x + w, cy],
+          [x + w - head, y + h], [x + w - head, bot], [x, bot]
+        ]);
+      }
+
+      case 'cylinder': {
+        const rx = w / 2;
+        const ry = Math.min(h * 0.16, h / 2 - 0.5);
+        // Corpo (sentido horário) + a "boca" da frente no mesmo sentido, para
+        // que o preenchimento não vire um buraco pela regra nonzero.
+        return `M${n(x)} ${n(y + ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x + w)} ${n(y + ry)}`
+             + ` L${n(x + w)} ${n(y + h - ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x)} ${n(y + h - ry)} Z`
+             + ` M${n(x + w)} ${n(y + ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x)} ${n(y + ry)}`;
+      }
+
+      case 'cloud':
+        return `M${n(x + w * 0.13)} ${n(y + h * 0.95)}`
+             + ` A${n(w * 0.18)} ${n(h * 0.27)} 0 0 1 ${n(x + w * 0.15)} ${n(y + h * 0.43)}`
+             + ` A${n(w * 0.22)} ${n(h * 0.32)} 0 0 1 ${n(x + w * 0.52)} ${n(y + h * 0.20)}`
+             + ` A${n(w * 0.22)} ${n(h * 0.28)} 0 0 1 ${n(x + w * 0.87)} ${n(y + h * 0.46)}`
+             + ` A${n(w * 0.16)} ${n(h * 0.26)} 0 0 1 ${n(x + w * 0.89)} ${n(y + h * 0.95)} Z`;
+
+      case 'speech': {
+        const bh = y + h * 0.78;
+        const r  = Math.min(w, h * 0.78) * 0.16;
+        return `M${n(x + r)} ${n(y)} L${n(x + w - r)} ${n(y)} A${n(r)} ${n(r)} 0 0 1 ${n(x + w)} ${n(y + r)}`
+             + ` L${n(x + w)} ${n(bh - r)} A${n(r)} ${n(r)} 0 0 1 ${n(x + w - r)} ${n(bh)}`
+             + ` L${n(x + w * 0.42)} ${n(bh)} L${n(x + w * 0.20)} ${n(y + h)} L${n(x + w * 0.28)} ${n(bh)}`
+             + ` L${n(x + r)} ${n(bh)} A${n(r)} ${n(r)} 0 0 1 ${n(x)} ${n(bh - r)}`
+             + ` L${n(x)} ${n(y + r)} A${n(r)} ${n(r)} 0 0 1 ${n(x + r)} ${n(y)} Z`;
+      }
+
+      case 'heart':
+        return `M${n(cx)} ${n(y + h)}`
+             + ` C${n(x)} ${n(y + h * 0.66)} ${n(x)} ${n(y + h * 0.30)} ${n(x + w * 0.25)} ${n(y + h * 0.18)}`
+             + ` C${n(x + w * 0.40)} ${n(y + h * 0.10)} ${n(cx)} ${n(y + h * 0.20)} ${n(cx)} ${n(y + h * 0.32)}`
+             + ` C${n(cx)} ${n(y + h * 0.20)} ${n(x + w * 0.60)} ${n(y + h * 0.10)} ${n(x + w * 0.75)} ${n(y + h * 0.18)}`
+             + ` C${n(x + w)} ${n(y + h * 0.30)} ${n(x + w)} ${n(y + h * 0.66)} ${n(cx)} ${n(y + h)} Z`;
+
+      case 'document':
+        return `M${n(x)} ${n(y)} L${n(x + w)} ${n(y)} L${n(x + w)} ${n(y + h * 0.84)}`
+             + ` C${n(x + w * 0.72)} ${n(y + h * 1.02)} ${n(x + w * 0.28)} ${n(y + h * 0.64)} ${n(x)} ${n(y + h * 0.84)} Z`;
+
+      default:
+        return poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
     }
-    return pts.join(' ');
+  }
+
+  /**
+   * Componentes de arquitetura. O glifo é desenhado num quadrado no topo da
+   * caixa (assim não distorce em caixas largas) e o rótulo cai logo abaixo.
+   *
+   * Os detalhes internos são traços abertos (área zero) ou contornos fechados
+   * no mesmo sentido do corpo: sob a regra nonzero do SVG, sentidos opostos
+   * sobrepostos virariam buraco no preenchimento.
+   */
+  private archPathFor(type: Tool, x: number, y: number, w: number, h: number): string {
+    // A zona é a própria caixa (agrupa outros componentes), não um ícone.
+    if (type === 'archZone') return this.shapePathFor('roundRect', x, y, w, h);
+
+    const n  = (v: number) => Math.round(v * 100) / 100;
+    const g  = Math.min(w * 0.9, h * 0.66);
+    const gx = x + (w - g) / 2;
+    const gy = y + h * 0.06;
+    const P  = (u: number, v: number) => `${n(gx + u * g)} ${n(gy + v * g)}`;
+
+    /** Traço solto: sem área, então só o contorno aparece. */
+    const line = (u1: number, v1: number, u2: number, v2: number) => ` M${P(u1, v1)} L${P(u2, v2)}`;
+    /** Polígono no sentido horário (topo→direita→base→esquerda). */
+    const poly = (pts: [number, number][], close = true) =>
+      ' M' + pts.map(([u, v]) => P(u, v)).join(' L') + (close ? ' Z' : '');
+    const rect = (u1: number, v1: number, u2: number, v2: number) =>
+      poly([[u1, v1], [u2, v1], [u2, v2], [u1, v2]]);
+    const arc = (u1: number, v1: number, ru: number, rv: number, u2: number, v2: number) =>
+      ` M${P(u1, v1)} A${n(ru * g)} ${n(rv * g)} 0 0 1 ${P(u2, v2)}`;
+
+    switch (type) {
+      case 'archUser':
+        // Cabeça + ombros (mesmo sentido horário: senão o encontro vira buraco)
+        return (`M${P(0.33, 0.22)} A${n(0.17 * g)} ${n(0.17 * g)} 0 1 1 ${P(0.67, 0.22)}`
+              + ` A${n(0.17 * g)} ${n(0.17 * g)} 0 1 1 ${P(0.33, 0.22)} Z`
+              + ` M${P(0.08, 0.98)} C${P(0.08, 0.30)} ${P(0.92, 0.30)} ${P(0.92, 0.98)} Z`).trim();
+
+      case 'archBrowser':
+        return (rect(0.04, 0.10, 0.96, 0.74)
+              + line(0.04, 0.28, 0.96, 0.28)
+              + poly([[0.38, 0.74], [0.34, 0.97], [0.66, 0.97], [0.62, 0.74]], false)).trim();
+
+      case 'archMobile':
+        return (rect(0.28, 0.03, 0.72, 0.97)
+              + line(0.43, 0.13, 0.57, 0.13)
+              + line(0.42, 0.88, 0.58, 0.88)).trim();
+
+      case 'archServer':
+        return (rect(0.12, 0.05, 0.88, 0.95)
+              + line(0.12, 0.35, 0.88, 0.35)
+              + line(0.12, 0.65, 0.88, 0.65)
+              + line(0.20, 0.20, 0.32, 0.20)
+              + line(0.20, 0.50, 0.32, 0.50)
+              + line(0.20, 0.80, 0.32, 0.80)).trim();
+
+      case 'archComponent':
+        // Componente UML: caixa com as duas abas laterais
+        return (rect(0.24, 0.10, 0.98, 0.90)
+              + rect(0.02, 0.24, 0.42, 0.40)
+              + rect(0.02, 0.60, 0.42, 0.76)).trim();
+
+      case 'archDatabase':
+        return (`M${P(0.06, 0.18)} A${n(0.44 * g)} ${n(0.13 * g)} 0 0 1 ${P(0.94, 0.18)}`
+              + ` L${P(0.94, 0.82)} A${n(0.44 * g)} ${n(0.13 * g)} 0 0 1 ${P(0.06, 0.82)} Z`
+              + arc(0.94, 0.18, 0.44, 0.13, 0.06, 0.18)).trim();
+
+      case 'archStorage':
+        // Balde de armazenamento (objetos/arquivos)
+        return (poly([[0.10, 0.20], [0.90, 0.20], [0.76, 0.94], [0.24, 0.94]])
+              + arc(0.10, 0.20, 0.40, 0.10, 0.90, 0.20)).trim();
+
+      case 'archQueue':
+        return (rect(0.04, 0.26, 0.96, 0.74)
+              + line(0.36, 0.26, 0.36, 0.74)
+              + line(0.68, 0.26, 0.68, 0.74)).trim();
+
+      case 'archCache':
+        // Módulo de memória: corpo + pinos
+        return (rect(0.06, 0.26, 0.94, 0.66)
+              + line(0.22, 0.66, 0.22, 0.86)
+              + line(0.41, 0.66, 0.41, 0.86)
+              + line(0.59, 0.66, 0.59, 0.86)
+              + line(0.78, 0.66, 0.78, 0.86)).trim();
+
+      case 'archApi':
+        // Gateway: hexágono com a requisição passando
+        return (poly([[0.24, 0.10], [0.76, 0.10], [1, 0.5], [0.76, 0.90], [0.24, 0.90], [0, 0.5]])
+              + line(0.26, 0.50, 0.70, 0.50)
+              + line(0.70, 0.50, 0.60, 0.40)
+              + line(0.70, 0.50, 0.60, 0.60)).trim();
+
+      case 'archBalancer':
+        // Entra uma requisição, saem várias
+        return (`M${P(0.28, 0.50)} A${n(0.22 * g)} ${n(0.22 * g)} 0 1 1 ${P(0.72, 0.50)}`
+              + ` A${n(0.22 * g)} ${n(0.22 * g)} 0 1 1 ${P(0.28, 0.50)} Z`
+              + line(0, 0.50, 0.28, 0.50)
+              + line(0.72, 0.50, 1, 0.18)
+              + line(0.72, 0.50, 1, 0.50)
+              + line(0.72, 0.50, 1, 0.82)).trim();
+
+      case 'archFirewall':
+        // Parede de tijolos
+        return (rect(0.04, 0.16, 0.96, 0.84)
+              + line(0.04, 0.39, 0.96, 0.39)
+              + line(0.04, 0.61, 0.96, 0.61)
+              + line(0.50, 0.16, 0.50, 0.39)
+              + line(0.27, 0.39, 0.27, 0.61)
+              + line(0.73, 0.39, 0.73, 0.61)
+              + line(0.50, 0.61, 0.50, 0.84)).trim();
+
+      case 'archNetwork':
+        // Switch com portas para cima e para baixo
+        return (rect(0.10, 0.36, 0.90, 0.64)
+              + line(0.30, 0.36, 0.30, 0.06)
+              + line(0.70, 0.36, 0.70, 0.06)
+              + line(0.30, 0.64, 0.30, 0.94)
+              + line(0.70, 0.64, 0.70, 0.94)).trim();
+
+      case 'archFunction':
+        // Raio: função serverless / evento
+        return poly([
+          [0.58, 0.04], [0.22, 0.54], [0.46, 0.54], [0.38, 0.96], [0.78, 0.42], [0.52, 0.42]
+        ]).trim();
+
+      default:
+        return rect(0, 0, 1, 1).trim();
+    }
+  }
+
+  /**
+   * Deslocamento vertical do texto em formas cujo "miolo" não é o centro da
+   * caixa (triângulo afunila no topo, balão tem rabicho embaixo, etc.).
+   */
+  private static readonly TEXT_OFFSET: Partial<Record<Tool, number>> = {
+    triangle: 0.18, rightTriangle: 0.14, chevron: 0, cloud: 0.04,
+    speech: -0.10, heart: 0.08, document: -0.04, trapezoid: 0.06
+  };
+
+  shapeTextCenterY(s: DrawShape, index: number, total: number): number {
+    // Componentes de arquitetura: rótulo abaixo do glifo (na zona, no topo).
+    const ratio = ARCH_SHAPES.includes(s.type)
+      ? (s.type === 'archZone' ? -0.38 : 0.37)
+      : DrawingPanelComponent.TEXT_OFFSET[s.type] ?? 0;
+    return this.shapeTextY(s, index, total) + Math.abs(s.h) * ratio;
   }
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -2453,6 +2783,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         n: 'sticky',
         d: 'diamond',
         i: 'triangle',
+        h: 'hexagon',
       };
       const tool = toolMap[key];
       if (tool) { e.preventDefault(); this.setTool(tool); return; }
@@ -2583,8 +2914,20 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     const m: Record<Tool, string> = {
       select: 'Selecionar (V)', pen: 'Desenho livre (P)', rect: 'Retângulo (R)',
       ellipse: 'Elipse (E)', arrow: 'Seta (A)', text: 'Texto (T)', sticky: 'Nota (S)',
-      line: 'Linha (L)', triangle: 'Triângulo', diamond: 'Losango', star: 'Estrela',
-      image: 'Imagem'
+      line: 'Linha (L)', triangle: 'Triângulo (I)', diamond: 'Losango (D)', star: 'Estrela',
+      image: 'Imagem',
+      roundRect: 'Retângulo arredondado', rightTriangle: 'Triângulo retângulo',
+      pentagon: 'Pentágono', hexagon: 'Hexágono (H)', octagon: 'Octógono',
+      trapezoid: 'Trapézio', parallelogram: 'Paralelogramo',
+      cross: 'Cruz', chevron: 'Chevron (etapa)', arrowBlock: 'Seta em bloco',
+      cylinder: 'Cilindro', cloud: 'Nuvem', speech: 'Balão de fala',
+      heart: 'Coração', document: 'Documento',
+      archZone: 'Zona / limite', archUser: 'Usuário', archBrowser: 'Navegador / web',
+      archMobile: 'App mobile', archServer: 'Servidor', archComponent: 'Componente',
+      archDatabase: 'Banco de dados', archStorage: 'Armazenamento',
+      archQueue: 'Fila de mensagens', archCache: 'Cache', archApi: 'API / gateway',
+      archBalancer: 'Balanceador', archFirewall: 'Firewall', archNetwork: 'Rede / switch',
+      archFunction: 'Função serverless'
     };
     return m[t];
   }

@@ -141,6 +141,11 @@
           <button class="tool-btn" [class.active]="tool === 'star'" (click)="setTool('star')" title="Estrela">
             <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4.2 2.4-7.3L2 9.4h7.6z"/></svg>
           </button>
+          <button class="tool-btn shape-menu-btn" [class.active]="showShapeMenu || isExtraShapeActive()"
+                  (click)="toggleShapeMenu()" title="Mais formas">
+            <svg viewBox="0 0 24 24"><path d="M6.5 2 1 11h11L6.5 2zm11 .5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM3 14h8v8H3v-8zm11 4 4-4 4 4-4 4-4-4z"/></svg>
+            <span class="shape-menu-caret"></span>
+          </button>
         </div>
 
         <div class="tool-sep"></div>
@@ -207,6 +212,31 @@
       </div>
     }
 
+    <!-- Galeria de formas: fora da barra para ela não crescer/rolar na horizontal -->
+    @if (showShapeMenu) {
+      <div class="shape-menu">
+        <div class="sm-header">
+          <strong>Mais formas</strong>
+          <button (click)="showShapeMenu = false; cdr.markForCheck()">×</button>
+        </div>
+        @for (group of shapeGroups; track group.label) {
+          <div class="sm-group" [title]="group.hint">{{ group.label }}</div>
+          <div class="sm-grid">
+            @for (sh of group.items; track sh) {
+              <button class="sm-item" [class.active]="tool === sh"
+                      (click)="pickShape(sh)" [title]="toolLabel(sh)">
+                <svg viewBox="0 0 24 24">
+                  <path [attr.d]="shapeIconPath(sh)" fill="none" stroke="currentColor"
+                        stroke-width="1.6" stroke-linejoin="round"/>
+                </svg>
+                <span>{{ toolLabel(sh) }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+
     @if (showShortcuts) {
       <div class="shortcuts-panel">
         <div class="sc-header">
@@ -221,6 +251,7 @@
           <span class="sc-key">E / O</span><span>Elipse</span>
           <span class="sc-key">D</span><span>Losango</span>
           <span class="sc-key">I</span><span>Triângulo</span>
+          <span class="sc-key">H</span><span>Hexágono</span>
           <span class="sc-key">A</span><span>Seta</span>
           <span class="sc-key">L</span><span>Linha</span>
           <span class="sc-key">T</span><span>Texto</span>
@@ -456,50 +487,17 @@
                         [attr.opacity]="s.opacity" stroke-linecap="round"/>
                 </g>
               }
-              @case ('triangle') {
+              <!-- Formas geométricas: todas saem do mesmo gerador de path -->
+              @default {
                 <g [attr.transform]="shapeTransform(s)" [style.cursor]="shapeCursor()"
                    (mousedown)="onShapeMouseDown($event, s)"
                    (dblclick)="onShapeDblClick($event, s)">
-                  <polygon [attr.points]="trianglePts(s)"
-                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
-                           [attr.stroke-dasharray]="dashArray(s)"
-                           [attr.opacity]="s.opacity"/>
+                  <path [attr.d]="shapePath(s)"
+                        [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
+                        [attr.stroke-dasharray]="dashArray(s)"
+                        [attr.opacity]="s.opacity" stroke-linejoin="round"/>
                   @for (line of shapeTextLines(s); track $index) {
-                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length) + Math.abs(s.h) * 0.18"
-                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
-                          [attr.font-family]="s.fontFamily || null"
-                          [attr.font-weight]="s.bold ? 'bold' : null"
-                          [attr.font-style]="s.italic ? 'italic' : null">{{ line }}</text>
-                  }
-                </g>
-              }
-              @case ('diamond') {
-                <g [attr.transform]="shapeTransform(s)" [style.cursor]="shapeCursor()"
-                   (mousedown)="onShapeMouseDown($event, s)"
-                   (dblclick)="onShapeDblClick($event, s)">
-                  <polygon [attr.points]="diamondPts(s)"
-                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
-                           [attr.stroke-dasharray]="dashArray(s)"
-                           [attr.opacity]="s.opacity"/>
-                  @for (line of shapeTextLines(s); track $index) {
-                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
-                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
-                          [attr.font-family]="s.fontFamily || null"
-                          [attr.font-weight]="s.bold ? 'bold' : null"
-                          [attr.font-style]="s.italic ? 'italic' : null">{{ line }}</text>
-                  }
-                </g>
-              }
-              @case ('star') {
-                <g [attr.transform]="shapeTransform(s)" [style.cursor]="shapeCursor()"
-                   (mousedown)="onShapeMouseDown($event, s)"
-                   (dblclick)="onShapeDblClick($event, s)">
-                  <polygon [attr.points]="starPts(s)"
-                           [attr.stroke]="s.stroke" [attr.fill]="s.fill" [attr.stroke-width]="s.lw"
-                           [attr.stroke-dasharray]="dashArray(s)"
-                           [attr.opacity]="s.opacity"/>
-                  @for (line of shapeTextLines(s); track $index) {
-                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextCenterY(s, $index, shapeTextLines(s).length)"
                           text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
                           [attr.font-family]="s.fontFamily || null"
                           [attr.font-weight]="s.bold ? 'bold' : null"
