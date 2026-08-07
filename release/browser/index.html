@@ -19,9 +19,10 @@
   <script src="env.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
     }
   </script>
-<link rel="modulepreload" href="chunk-HJPZNSAR.js"><link rel="modulepreload" href="chunk-HZ6M6AS2.js"><script src="main-47XDS2NX.js" type="module"></script></body>
+<link rel="modulepreload" href="chunk-HJPZNSAR.js"><link rel="modulepreload" href="chunk-HZ6M6AS2.js"><script src="main-2IS6AHEG.js" type="module"></script></body>
 </html>
