@@ -456,7 +456,11 @@
             <div class="dash-ev-avatar" [style.background]="ev.tipo === 'aniversario' ? '#f59e0b22' : ev.cor + '22'"
                  [style.color]="ev.tipo === 'aniversario' ? '#b45309' : ev.cor"
                  [style.border-color]="ev.tipo === 'aniversario' ? '#fde68a' : ev.cor + '55'">
-              {{ (ev.pessoa.nome || '?').charAt(0).toUpperCase() }}
+              @if (fotoDePessoa(ev.pessoa)) {
+                <img [src]="fotoDePessoa(ev.pessoa)" [alt]="ev.pessoa.nome" />
+              } @else {
+                {{ iniciaisPessoa(ev.pessoa) }}
+              }
             </div>
 
             
@@ -474,10 +478,19 @@
               </span>
             </div>
 
-            
+
+            @if (ev.tipo === 'aniversario') {
+              <button class="dash-ev-arte" (click)="abrirArte(ev)"
+                      [title]="'Gerar arte de aniversário de ' + ev.pessoa.nome">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6a2 2 0 0 0 2-2c0-1.1-2-3-2-3S10 2.9 10 4a2 2 0 0 0 2 2zm6 3h-5V7h-2v2H6a3 3 0 0 0-3 3v2c1 0 1.6.5 2.2.9.5.4 1 .7 1.8.7s1.3-.3 1.8-.7c.6-.4 1.2-.9 2.2-.9s1.6.5 2.2.9c.5.4 1 .7 1.8.7s1.3-.3 1.8-.7c.6-.4 1.2-.9 2.2-.9v-2a3 3 0 0 0-3-3zm1 8.6c-.8 0-1.3.3-1.8.7-.6.4-1.2.9-2.2.9s-1.6-.5-2.2-.9c-.5-.4-1-.7-1.8-.7s-1.3.3-1.8.7c-.6.4-1.2.9-2.2.9s-1.6-.5-2.2-.9c-.5-.4-1-.7-1.8-.7V21h18v-3.4z"/></svg>
+                Arte
+              </button>
+            }
+
+
             <span class="dash-ev-data">{{ ev.dataLabel }}</span>
 
-            
+
             <span class="dash-ev-badge"
                   [class.ev-badge-today]="ev.diasAte === 0"
                   [class.ev-badge-soon]="ev.diasAte > 0 && ev.diasAte <= 3"
@@ -492,6 +505,106 @@
       <div class="dash-events-footer">
         <button class="dash-link-btn" (click)="navigate.emit('pessoas')">Ver cadastro de pessoas</button>
         <button class="dash-link-btn" (click)="navigate.emit('ausencias')">Ver férias &amp; ausências</button>
+      </div>
+    </div>
+  }
+
+  <!-- Arte de aniversário: pré-visualização e download -->
+  @if (arte) {
+    <div class="arte-backdrop" (click)="fecharArte()"></div>
+    <div class="arte-modal" role="dialog" aria-label="Arte de aniversário">
+      <div class="arte-head">
+        <div class="arte-head-title">
+          <span class="arte-emoji">🎂</span>
+          <div>
+            <strong>Arte de aniversário</strong>
+            <span class="arte-sub">{{ arte.pessoa.nome }} · {{ arte.dataLabel }}</span>
+          </div>
+        </div>
+        <button class="arte-close" (click)="fecharArte()" title="Fechar">×</button>
+      </div>
+
+      <div class="arte-preview">
+        @if (arte.gerando) {
+          <div class="arte-loading">Gerando arte…</div>
+        }
+        @if (arte.dataUrl) {
+          <img [src]="arte.dataUrl" [alt]="'Arte de aniversário de ' + arte.pessoa.nome"/>
+        }
+      </div>
+
+      @if (!fotoDePessoa(arte.pessoa)) {
+        <p class="arte-aviso">
+          Esta pessoa não tem foto cadastrada — a arte usa as iniciais.
+          <button class="dash-link-btn" (click)="fecharArte(); navigate.emit('pessoas')">Adicionar foto</button>
+        </p>
+      }
+
+      <div class="arte-opcoes">
+        <div class="arte-secao">
+          <span class="arte-secao-titulo">Fundo</span>
+          <div class="arte-temas">
+            @for (t of temasArte; track t.id) {
+              <button class="arte-tema" [class.active]="arte.tema === t.id"
+                      (click)="trocarTemaArte(t.id)" [title]="t.label">
+                <span class="arte-tema-chip"
+                      [style.background]="'linear-gradient(135deg, ' + t.de + ', ' + t.para + ')'"></span>
+                {{ t.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="arte-secao">
+          <span class="arte-secao-titulo">
+            Textos
+            <button class="arte-reset" (click)="restaurarTextosArte()" title="Voltar aos textos padrão">
+              Restaurar padrão
+            </button>
+          </span>
+
+          <label class="arte-campo">
+            <span>Saudação</span>
+            <input type="text" [value]="arte.titulo" maxlength="60"
+                   (input)="onTextoArteChange('titulo', $any($event.target).value)"
+                   placeholder="Deixe vazio para ocultar"/>
+          </label>
+
+          <label class="arte-campo">
+            <span>Nome</span>
+            <input type="text" [value]="arte.nome" maxlength="40"
+                   (input)="onTextoArteChange('nome', $any($event.target).value)"/>
+          </label>
+
+          <label class="arte-campo">
+            <span>Linha da data</span>
+            <input type="text" [value]="arte.subtitulo" maxlength="60"
+                   (input)="onTextoArteChange('subtitulo', $any($event.target).value)"
+                   placeholder="Deixe vazio para ocultar"/>
+          </label>
+
+          <label class="arte-campo">
+            <span>Mensagem</span>
+            <textarea rows="2" [value]="arte.assinatura" maxlength="140"
+                      (input)="onTextoArteChange('assinatura', $any($event.target).value)"
+                      placeholder="Deixe vazio para ocultar"></textarea>
+          </label>
+
+          @if (arte.idade) {
+            <label class="arte-check">
+              <input type="checkbox" [checked]="arte.mostrarIdade" (change)="alternarIdadeArte()"/>
+              Incluir a idade ({{ arte.idade }} anos) na linha da data
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="arte-acoes">
+        <button class="dash-link-btn" (click)="fecharArte()">Fechar</button>
+        <button class="arte-download" [disabled]="!arte.dataUrl || arte.gerando" (click)="baixarArte()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></svg>
+          Baixar PNG
+        </button>
       </div>
     </div>
   }

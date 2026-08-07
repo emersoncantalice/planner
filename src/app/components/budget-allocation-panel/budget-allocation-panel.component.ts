@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
@@ -32,6 +32,12 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private panDeltaX = 0;
   private panDeltaY = 0;
   private onDocumentDragOverRef: ((e: DragEvent) => void) | null = null;
+  private onTableDragOverRef: ((e: DragEvent) => void) | null = null;
+  private onTableDragLeaveRef: ((e: DragEvent) => void) | null = null;
+  private onPanMoveRef: ((e: MouseEvent) => void) | null = null;
+  private onPanUpRef: (() => void) | null = null;
+  private panComBotaoMeio = false;
+  private zone = inject(NgZone);
 
   scrollToCurrentMonth() {
     if (this.anoSelecionado !== this.currentYear) return;
@@ -48,50 +54,74 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.scrollToCurrentMonth();
     const el = this.tableWrapRef?.nativeElement;
     if (!el) return;
+    // Todo o arrasto roda fora do Angular: cada mousemove/quadro aqui dentro
+    // dispararia um ciclo de change detection sobre a tabela inteira (centenas
+    // de células com chamadas de função), o que travava a rolagem.
+    this.zone.runOutsideAngular(() => this.registrarInteracoesArrasto(el));
+  }
+
+  private registrarInteracoesArrasto(el: HTMLElement) {
     el.addEventListener('mousedown', (e: MouseEvent) => {
-      if (e.button !== 0) return;
+      const botaoMeio = e.button === 1;
+      if (e.button !== 0 && !botaoMeio) return;
       if ((e.target as HTMLElement).closest('span.drag-handle')) return;
+
       this.dragScrollCandidate = true;
+      this.panComBotaoMeio = botaoMeio;
       this.dragScrolling = false;
       this.dragScrollStartX = e.clientX;
       this.dragScrollStartY = e.clientY;
       this.dragScrollLeft = el.scrollLeft;
       this.dragScrollTop = el.scrollTop;
+
+      // Com a rolagem pressionada o gesto é inequívoco: começa na hora e sem
+      // limiar. O preventDefault corta o auto-scroll nativo do navegador (o
+      // ícone de bússola), que brigaria com a nossa rolagem.
+      if (botaoMeio) {
+        e.preventDefault();
+        this.iniciarPan(el, e.clientX, e.clientY);
+      }
     });
-    el.addEventListener('mouseleave', () => {
-      this.dragScrollCandidate = false;
-      this.dragScrolling = false;
-      el.style.cursor = '';
-      el.style.userSelect = '';
+
+    // Botão do meio: bloqueia o clique auxiliar (colar no Linux, abrir em nova aba).
+    el.addEventListener('auxclick', (e: MouseEvent) => {
+      if (e.button === 1 && Date.now() < this.suppressClickUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     });
-    el.addEventListener('mouseup', () => {
-      if (this.dragScrolling) this.suppressClickUntil = Date.now() + 120;
-      this.dragScrollCandidate = false;
-      this.dragScrolling = false;
-      el.style.cursor = '';
-      el.style.userSelect = '';
-    });
-    el.addEventListener('mousemove', (e: MouseEvent) => {
+
+    // mousemove/mouseup ficam no documento: assim o arrasto continua mesmo se o
+    // ponteiro sair da tabela, e termina corretamente ao soltar fora dela.
+    this.onPanMoveRef = (e: MouseEvent) => {
       if (!this.dragScrollCandidate) return;
-      const dx = e.clientX - this.dragScrollStartX;
-      const dy = e.clientY - this.dragScrollStartY;
+
       if (!this.dragScrolling) {
+        const dx = e.clientX - this.dragScrollStartX;
+        const dy = e.clientY - this.dragScrollStartY;
         if ((Math.abs(dx) + Math.abs(dy)) < this.dragScrollThreshold) return;
-        this.dragScrolling = true;
-        this.panLastMouseX = e.clientX;
-        this.panLastMouseY = e.clientY;
-        this.panDeltaX = 0;
-        this.panDeltaY = 0;
-        this.startPanLoop();
-        el.style.cursor = 'grabbing';
-        el.style.userSelect = 'none';
+        this.iniciarPan(el, e.clientX, e.clientY);
       }
       e.preventDefault();
       this.panDeltaX += (e.clientX - this.panLastMouseX);
       this.panDeltaY += (e.clientY - this.panLastMouseY);
       this.panLastMouseX = e.clientX;
       this.panLastMouseY = e.clientY;
-    });
+    };
+    document.addEventListener('mousemove', this.onPanMoveRef);
+
+    this.onPanUpRef = () => {
+      if (!this.dragScrollCandidate && !this.dragScrolling) return;
+      if (this.dragScrolling) this.suppressClickUntil = Date.now() + 120;
+      this.dragScrollCandidate = false;
+      this.dragScrolling = false;
+      this.panComBotaoMeio = false;
+      el.style.cursor = '';
+      el.style.userSelect = '';
+      this.stopPanLoop();
+    };
+    document.addEventListener('mouseup', this.onPanUpRef);
+
     el.addEventListener('click', (e: MouseEvent) => {
       if (Date.now() < this.suppressClickUntil) {
         e.preventDefault();
@@ -106,9 +136,53 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     };
     document.addEventListener('dragover', this.onDocumentDragOverRef);
 
-    const stopPan = () => this.stopPanLoop();
-    el.addEventListener('mouseup', stopPan);
-    el.addEventListener('mouseleave', stopPan);
+    // Reordenação de linhas por delegação: um único listener para a tabela toda.
+    // O realce só entra no Angular quando muda de linha — não a cada evento.
+    this.onTableDragOverRef = (e: DragEvent) => {
+      if (this.dragSourceIndex == null) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      this.dragPointerX = e.clientX;
+      this.dragPointerY = e.clientY;
+
+      const linha = (e.target as HTMLElement | null)?.closest?.('tr[data-row-index]') as HTMLElement | null;
+      const attr = linha?.getAttribute('data-row-index');
+      const idx = attr == null ? null : Number(attr);
+      this.definirDragOverIndex(Number.isFinite(idx as number) ? idx : null);
+    };
+    el.addEventListener('dragover', this.onTableDragOverRef);
+
+    this.onTableDragLeaveRef = (e: DragEvent) => {
+      if (this.dragSourceIndex == null) return;
+      // Só limpa ao sair de fato da tabela (e não ao trocar de célula).
+      if (el.contains(e.relatedTarget as Node | null)) return;
+      this.definirDragOverIndex(null);
+    };
+    el.addEventListener('dragleave', this.onTableDragLeaveRef);
+
+    document.addEventListener('mousemove', this.onDocumentMouseMoveRef);
+  }
+
+  /** Entra em modo de arrasto da tabela a partir do ponto informado. */
+  private iniciarPan(el: HTMLElement, x: number, y: number) {
+    this.dragScrolling = true;
+    this.panLastMouseX = x;
+    this.panLastMouseY = y;
+    this.panDeltaX = 0;
+    this.panDeltaY = 0;
+    // Botão do meio usa o cursor de deslocamento livre; botão esquerdo, a mão fechada.
+    el.style.cursor = this.panComBotaoMeio ? 'all-scroll' : 'grabbing';
+    el.style.userSelect = 'none';
+    this.startPanLoop();
+  }
+
+  /** Atualiza o realce de linha entrando no Angular apenas quando o índice muda. */
+  private definirDragOverIndex(idx: number | null) {
+    if (this.dragOverIndex === idx) return;
+    this.zone.run(() => {
+      this.dragOverIndex = idx;
+      this.cdr.markForCheck();
+    });
   }
   @Input() linhasOrcamentarias: any[] = [];
   @Input() ajustes: any[] = [];
@@ -461,11 +535,27 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       document.removeEventListener('dragover', this.onDocumentDragOverRef);
       this.onDocumentDragOverRef = null;
     }
+    document.removeEventListener('mousemove', this.onDocumentMouseMoveRef);
+    if (this.onPanMoveRef) { document.removeEventListener('mousemove', this.onPanMoveRef); this.onPanMoveRef = null; }
+    if (this.onPanUpRef)   { document.removeEventListener('mouseup', this.onPanUpRef);     this.onPanUpRef = null; }
+    const el = this.tableWrapRef?.nativeElement;
+    if (el) {
+      if (this.onTableDragOverRef)  el.removeEventListener('dragover', this.onTableDragOverRef);
+      if (this.onTableDragLeaveRef) el.removeEventListener('dragleave', this.onTableDragLeaveRef);
+    }
+    this.onTableDragOverRef = null;
+    this.onTableDragLeaveRef = null;
     this.stopPanLoop();
+    this.stopDragAutoScrollLoop();
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onMouseMove(event: MouseEvent) {
+  /**
+   * Cursor colaborativo. Fica fora do Angular de propósito: como HostListener,
+   * cada mousemove da página inteira disparava um ciclo de change detection
+   * nesta tabela — mesmo sem nada para atualizar na tela, já que a posição só
+   * é enviada ao backend e os cursores dos outros chegam por polling.
+   */
+  private onDocumentMouseMoveRef = (event: MouseEvent) => {
     if (!this.token || !this.loSelecionadaId) return;
     const w = Math.max(1, window.innerWidth);
     const h = Math.max(1, window.innerHeight);
@@ -474,7 +564,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.latestCursorPos = { x, y };
     const now = Date.now();
     if (now - this.lastCursorSendAt >= 120) this.pushCursor();
-  }
+  };
 
   anosDisponiveis(): number[] {
     const anos = Array.from(new Set(this.linhasOrcamentarias.map((lo: any) => Number(lo?.ano || 0)).filter((a: number) => a > 0)));
@@ -3449,29 +3539,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.startDragAutoScrollLoop();
   }
 
-  onDragOver(event: DragEvent, idx: number) {
-    event.preventDefault();
-    if (this.dragSourceIndex == null) return;
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    this.dragOverIndex = idx;
-    this.dragPointerX = event.clientX;
-    this.dragPointerY = event.clientY;
-    this.autoScrollTableWhileDragging(event);
-    this.autoScrollTableByRowPosition(event);
-  }
-
-  onTableDragOver(event: DragEvent) {
-    if (this.dragSourceIndex == null) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    this.dragPointerX = event.clientX;
-    this.dragPointerY = event.clientY;
-    this.autoScrollTableWhileDragging(event);
-  }
-
-  onDragLeave() {
-    this.dragOverIndex = null;
-  }
+  /**
+   * O auto-scroll das bordas é responsabilidade exclusiva do loop de
+   * requestAnimationFrame (`startDragAutoScrollLoop`), que usa a última posição
+   * conhecida do ponteiro. Aplicá-lo também a cada evento de dragover fazia a
+   * tabela rolar duas ou três vezes por quadro, em ritmo irregular — era isso
+   * que dava a sensação de travamento.
+   */
 
   onDragEnd() {
     this.dragSourceIndex = null;
@@ -3495,65 +3569,13 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.onDragEnd();
   }
 
-  private autoScrollTableWhileDragging(event: DragEvent) {
-    const wrap = this.tableWrapRef?.nativeElement;
-    if (!wrap) return;
-    const rect = wrap.getBoundingClientRect();
-    const x = event.clientX;
-    const y = event.clientY;
-
-    const topDist = y - rect.top;
-    const bottomDist = rect.bottom - y;
-    const leftDist = x - rect.left;
-    const rightDist = rect.right - x;
-
-    if (y < rect.top) {
-      wrap.scrollTop -= this.dragAutoScrollMaxStep;
-    } else if (y > rect.bottom) {
-      wrap.scrollTop += this.dragAutoScrollMaxStep;
-    } else if (topDist >= 0 && topDist < this.dragAutoScrollEdge) {
-      const ratio = (this.dragAutoScrollEdge - topDist) / this.dragAutoScrollEdge;
-      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
-      wrap.scrollTop -= step;
-    } else if (bottomDist >= 0 && bottomDist < this.dragAutoScrollEdge) {
-      const ratio = (this.dragAutoScrollEdge - bottomDist) / this.dragAutoScrollEdge;
-      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
-      wrap.scrollTop += step;
-    }
-
-    if (x < rect.left) {
-      wrap.scrollLeft -= this.dragAutoScrollMaxStep;
-    } else if (x > rect.right) {
-      wrap.scrollLeft += this.dragAutoScrollMaxStep;
-    } else if (leftDist >= 0 && leftDist < this.dragAutoScrollEdge) {
-      const ratio = (this.dragAutoScrollEdge - leftDist) / this.dragAutoScrollEdge;
-      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
-      wrap.scrollLeft -= step;
-    } else if (rightDist >= 0 && rightDist < this.dragAutoScrollEdge) {
-      const ratio = (this.dragAutoScrollEdge - rightDist) / this.dragAutoScrollEdge;
-      const step = Math.max(1, Math.round(this.dragAutoScrollMaxStep * ratio * ratio));
-      wrap.scrollLeft += step;
-    }
-  }
-
-  private autoScrollTableByRowPosition(event: DragEvent) {
-    const wrap = this.tableWrapRef?.nativeElement;
-    const row = event.currentTarget as HTMLElement | null;
-    if (!wrap || !row) return;
-    const wrapRect = wrap.getBoundingClientRect();
-    const rowRect = row.getBoundingClientRect();
-    const edge = 44;
-    const step = Math.max(8, Math.round(this.dragAutoScrollMaxStep * 0.8));
-
-    if (rowRect.bottom > (wrapRect.bottom - edge)) {
-      wrap.scrollTop += step;
-    } else if (rowRect.top < (wrapRect.top + edge)) {
-      wrap.scrollTop -= step;
-    }
-  }
-
   private startDragAutoScrollLoop() {
     this.stopDragAutoScrollLoop();
+    // Fora do Angular: o loop só mexe em scrollTop/scrollLeft, sem bindings.
+    this.zone.runOutsideAngular(() => this.dragAutoScrollTick());
+  }
+
+  private dragAutoScrollTick() {
     const tick = () => {
       if (this.dragSourceIndex == null) {
         this.dragAutoScrollRaf = null;
@@ -3620,6 +3642,10 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     this.stopPanLoop();
     const wrap = this.tableWrapRef?.nativeElement;
     if (!wrap) return;
+    this.zone.runOutsideAngular(() => this.panTick(wrap));
+  }
+
+  private panTick(wrap: HTMLElement) {
     const tick = () => {
       if (!this.dragScrolling) {
         this.panRaf = null;

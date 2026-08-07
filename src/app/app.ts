@@ -2098,7 +2098,7 @@ export class App {
   private verificarNotificacoesHoje(): void {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const hojeStr  = hoje.toISOString().slice(0, 10); 
+    const hojeStr  = dateToYmd(hoje); 
     const hojeMMDD = hojeStr.slice(5);                
 
     const eventos: Array<{ id: string; titulo: string; corpo: string }> = [];

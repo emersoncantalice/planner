@@ -421,7 +421,7 @@
     </div>
   }
 
-  <section class="alloc-table-wrap" #tableWrap (dragover)="onTableDragOver($event)">
+  <section class="alloc-table-wrap" #tableWrap>
     <div class="table-toolbar">
       <p class="table-hint">Cálculo mensal: Valor/hora x Horas do cadastro do mes x Alocação (%).</p>
 
@@ -609,8 +609,7 @@
             [class.row-terceiro]="!isDraft(a) && !isPessoaPlaneada(a) && getCategoriaDaPessoa(a) === 'TERCEIRO'"
             [class.drag-over]="dragOverIndex === idx && dragSourceIndex !== idx"
             [class.dragging]="dragSourceIndex === idx"
-            (dragover)="onDragOver($event, idx)"
-            (dragleave)="onDragLeave()"
+            [attr.data-row-index]="idx"
             (drop)="onDrop($event, idx)"
             (dragend)="onDragEnd()">
             <td

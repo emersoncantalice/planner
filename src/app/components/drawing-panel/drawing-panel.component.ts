@@ -10,6 +10,7 @@ import { uid as genUid } from '../../core/uid';
 
 export type Tool = 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'triangle' | 'diamond' | 'star' | 'image';
 type AnchorId = 'top' | 'right' | 'bottom' | 'left';
+export type DashStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface DrawShape {
   id: string;
@@ -27,13 +28,21 @@ export interface DrawShape {
   text?: string;
   fontSize?: number;
   bold?: boolean;
+  italic?: boolean;
+  fontFamily?: string;
+  dash?: DashStyle;
+  rot?: number;        // graus, rotação em torno do centro
+  locked?: boolean;    // posição/tamanho travados
   stickyBg?: string;
   groupId?: string;
   src?: string;        // data URL for image shapes
   linkTabId?: string;  // navigates to this tab when its link badge is clicked
 }
 
-interface DrawingTab { id: string; nome: string; shapes: DrawShape[]; background: string; }
+export type PropSection = 'estilo' | 'texto' | 'elemento' | 'alinhar' | 'pagina';
+
+interface TabView { zoom: number; panX: number; panY: number; }
+interface DrawingTab { id: string; nome: string; shapes: DrawShape[]; background: string; view?: TabView; }
 interface DrawingRecord { id: string; nome: string; data: string; pasta?: string; atualizadoEm?: string; }
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; w: number; h: number; }
@@ -89,12 +98,15 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   renamingTabId = '';
   renameTabVal  = '';
   tool:       Tool          = 'select';
+  /** Q: mantém a ferramenta ativa após criar um elemento (padrão: volta para Selecionar). */
+  lockTool    = false;
   zoom        = 1;
   panX        = 0;
   panY        = 0;
   vw  = 1200;
   vh  = 800;
   gridEnabled = true;
+  snapEnabled = false;
   readonly gridSize = 20;
 
   // ── Interaction ───────────────────────────────────────────────────────────
@@ -108,6 +120,19 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   private arrowStartShapeId: string | null = null;
   private arrowStartAnchor: AnchorId | null = null;
   private panStart    = { sx: 0, sy: 0, px: 0, py: 0 };
+  /** Última posição do ponteiro em coordenadas do canvas (usada para colar no cursor). */
+  private lastPt      = { x: 0, y: 0 };
+  private pointerInside = false;
+
+  // ── Clipboard ─────────────────────────────────────────────────────────────
+  private clipboard: DrawShape[] = [];
+  private styleClipboard: Partial<DrawShape> | null = null;
+  private pasteCount = 0;
+  get hasClipboard() { return this.clipboard.length > 0; }
+  get hasStyleClipboard() { return !!this.styleClipboard; }
+
+  // ── Rotação ───────────────────────────────────────────────────────────────
+  private rotStart = { cx: 0, cy: 0, angle: 0, rot: 0 };
 
   // ── Selection / drag ─────────────────────────────────────────────────────
   selectedId:           string | null = null;
@@ -135,37 +160,95 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   fontSize    = 16;
   stickyBg    = '#fef08a';
   opacity     = 1;
-  // ── Color modal (como o painel de atalhos) ────────────────────────────────
-  showColorModal   = false;
-  colorModalTab: 'stroke' | 'fill' = 'stroke';
-  showShortcuts    = false;
+  dashStyle: DashStyle = 'solid';
+  fontFamily  = 'Inter, system-ui, sans-serif';
+  // ── Painéis ───────────────────────────────────────────────────────────────
+  showShortcuts = false;
+  /** Menu lateral de opções (substitui os controles que lotavam a barra). */
+  showProps     = true;
+  /** Seções abertas do menu lateral. */
+  openSections  = new Set<PropSection>(['estilo', 'texto', 'elemento']);
 
-  openColorModal(tab: 'stroke' | 'fill') {
-    this.colorModalTab = tab;
-    this.showColorModal = !this.showColorModal || this.colorModalTab !== tab
-      ? (this.colorModalTab = tab, true)
-      : false;
+  private closePopovers() {
     this.showShortcuts = false;
+  }
+
+  toggleProps() {
+    this.showProps = !this.showProps;
+    this.cdr.markForCheck();
+    // A largura do canvas muda: recalcula o viewBox depois do reflow.
+    setTimeout(() => this.resize(), 0);
+  }
+
+  toggleShortcuts() {
+    this.showShortcuts = !this.showShortcuts;
+    this.cdr.markForCheck();
+  }
+
+  isSectionOpen(id: PropSection) { return this.openSections.has(id); }
+
+  toggleSection(id: PropSection) {
+    if (this.openSections.has(id)) this.openSections.delete(id);
+    else this.openSections.add(id);
+    this.cdr.markForCheck();
+  }
+
+  /** Abre o menu lateral já na seção pedida (usado pelo menu de contexto). */
+  openSection(id: PropSection) {
+    this.showProps = true;
+    this.openSections.add(id);
     this.cdr.markForCheck();
   }
 
   setStroke(color: string) {
     this.strokeColor = color;
-    if (this.sel) this.updateSelProp({ stroke: color });
-    else this.cdr.markForCheck();
+    this.applyToSelection({ stroke: color });
   }
 
   setFill(color: string) {
     this.fillColor = color;
-    if (this.sel) this.updateSelProp({ fill: color });
-    else this.cdr.markForCheck();
+    this.applyToSelection({ fill: color });
+  }
+
+  /** Aplica um patch de estilo em todos os elementos selecionados. */
+  applyToSelection(patch: Partial<DrawShape>) {
+    const ids = this.selectedIds.length ? this.selectedIds : this.selectedId ? [this.selectedId] : [];
+    if (!ids.length) { this.cdr.markForCheck(); return; }
+    for (const id of ids) this.updateShape(id, patch);
+    if (this.editingId) {
+      const editing = this.findShape(this.editingId);
+      if (editing) this.recalcEditStyle(editing);
+    }
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * O seletor nativo dispara `input` assim que uma cor é escolhida na paleta e
+   * `change` só ao confirmar (OK/Enter). Aplicamos no `input` para valer já no
+   * clique, sem gravar histórico a cada tom percorrido; o `change` confirma.
+   */
+  onCustomStrokeColorInput(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    this.strokeColor = input.value;
+    for (const s of this.selectedShapes()) this.updateShape(s.id, { stroke: input.value });
+    this.cdr.markForCheck();
   }
 
   onCustomStrokeColorChange(event: Event) {
     const input = event.target as HTMLInputElement | null;
     if (!input) return;
     this.setStroke(input.value);
-    this.showColorModal = false;
+    this.cdr.markForCheck();
+  }
+
+  onCustomFillColorInput(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    this.fillColor = input.value;
+    for (const s of this.selectedShapes()) this.updateShape(s.id, { fill: input.value });
     this.cdr.markForCheck();
   }
 
@@ -173,21 +256,99 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     const input = event.target as HTMLInputElement | null;
     if (!input) return;
     this.setFill(input.value);
-    this.showColorModal = false;
     this.cdr.markForCheck();
   }
 
   setLineWidth(lw: number) {
-    this.lineWidth = lw;
-    if (this.sel) this.updateSelProp({ lw });
-    else this.cdr.markForCheck();
+    this.lineWidth = Math.max(1, Number(lw) || 1);
+    if (!this.shapes.length) {
+      this.cdr.markForCheck();
+      return;
+    }
+    this.shapes = this.shapes.map(shape => ({ ...shape, lw: this.lineWidth }));
+    if (this.editingId) {
+      const editing = this.findShape(this.editingId);
+      if (editing) this.recalcEditStyle(editing);
+    }
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  setDashStyle(dash: DashStyle) {
+    this.dashStyle = dash;
+    this.applyToSelection({ dash });
+  }
+
+  /** Feedback ao vivo enquanto o slider é arrastado (sem gravar no histórico). */
+  previewOpacity(value: number | string) {
+    const opacity = Math.min(1, Math.max(0.1, Number(value) || 1));
+    this.opacity = opacity;
+    for (const s of this.selectedShapes()) this.updateShape(s.id, { opacity });
+    this.cdr.markForCheck();
+  }
+
+  setOpacity(value: number | string) {
+    const opacity = Math.min(1, Math.max(0.1, Number(value) || 1));
+    this.opacity = opacity;
+    this.applyToSelection({ opacity });
+  }
+
+  previewRotation(value: number | string) {
+    const rot = ((Math.round(Number(value) || 0) % 360) + 360) % 360;
+    for (const s of this.selectedShapes()) {
+      if (this.canRotate(s) && !s.locked) this.updateShape(s.id, { rot: rot || undefined });
+    }
+    this.cdr.markForCheck();
+  }
+
+  setFontFamily(family: string) {
+    this.fontFamily = family;
+    this.applyToSelection({ fontFamily: family });
   }
 
   setStickyBg(color: string) {
     this.stickyBg = color;
-    if (this.sel?.type === 'sticky') this.updateSelProp({ stickyBg: color });
-    else this.cdr.markForCheck();
+    const ids = this.selectedShapes().filter(s => s.type === 'sticky').map(s => s.id);
+    if (!ids.length) { this.cdr.markForCheck(); return; }
+    for (const id of ids) this.updateShape(id, { stickyBg: color });
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
   }
+
+  // ── Tamanho da fonte ───────────────────────────────────────────────────────
+  setFontSize(size: number | string) {
+    const fs = Math.min(160, Math.max(6, Math.round(Number(size) || 16)));
+    this.fontSize = fs;
+    this.applyToSelection({ fontSize: fs });
+  }
+
+  /** Aumenta/diminui a fonte dos elementos selecionados (ou o padrão, se nada selecionado). */
+  bumpFontSize(delta: number) {
+    const targets = this.selectedShapes();
+    if (!targets.length) { this.setFontSize(this.fontSize + delta); return; }
+    for (const s of targets) {
+      const next = Math.min(160, Math.max(6, (s.fontSize || 16) + delta));
+      this.updateShape(s.id, { fontSize: next });
+    }
+    this.fontSize = Math.min(160, Math.max(6, (this.sel?.fontSize || this.fontSize) + delta));
+    if (this.editingId) {
+      const editing = this.findShape(this.editingId);
+      if (editing) this.recalcEditStyle(editing);
+    }
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  toggleBold()   { this.applyToSelection({ bold:   !(this.sel?.bold) }); }
+  toggleItalic() { this.applyToSelection({ italic: !(this.sel?.italic) }); }
+
+  /** Font-size mostrado na barra: o do elemento selecionado, ou o padrão. */
+  get currentFontSize(): number { return this.sel?.fontSize ?? this.fontSize; }
+  get currentOpacity(): number  { return this.sel?.opacity ?? this.opacity; }
+  get currentDash(): DashStyle  { return this.sel?.dash ?? this.dashStyle; }
 
   readonly Math = Math;
   readonly toolsList: Tool[] = ['select','pen','rect','ellipse','arrow','text','sticky','line','triangle','diamond','star'];
@@ -195,6 +356,19 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   readonly fillPresets   = ['transparent','#ffffff','#fef08a','#dbeafe','#dcfce7','#fee2e2','#ede9fe','#fce7f3'];
   readonly stickyColors  = ['#fef08a','#bbf7d0','#bfdbfe','#fecaca','#e9d5ff','#fed7aa'];
   readonly lineWidths    = [1, 2, 4, 8];
+  readonly fontSizes     = [10, 12, 14, 16, 20, 24, 32, 40, 56, 72];
+  readonly dashStyles: { id: DashStyle; label: string }[] = [
+    { id: 'solid',  label: 'Traço contínuo' },
+    { id: 'dashed', label: 'Tracejado' },
+    { id: 'dotted', label: 'Pontilhado' }
+  ];
+  readonly fontFamilies = [
+    { id: 'Inter, system-ui, sans-serif', label: 'Sans (padrão)' },
+    { id: 'Georgia, "Times New Roman", serif', label: 'Serif' },
+    { id: 'ui-monospace, Consolas, monospace', label: 'Mono' },
+    { id: '"Comic Sans MS", "Segoe Print", cursive', label: 'Manuscrito' }
+  ];
+  readonly pageColors = ['#ffffff','#f8fafc','#f1f5f9','#fefce8','#eff6ff','#f0fdf4','#fdf2f8','#1e293b'];
 
   // ── History ───────────────────────────────────────────────────────────────
   private history:    string[] = [];
@@ -245,7 +419,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     window.removeEventListener('resize', () => this.resize());
   }
 
-  private resize() {
+  resize() {
     const r = this.svgRef?.nativeElement?.getBoundingClientRect();
     if (!r) return;
     this.vw = r.width  || 1200;
@@ -280,14 +454,24 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         id: t.id || this.uid(),
         nome: t.nome || 'Aba',
         shapes: Array.isArray(t.shapes) ? t.shapes : [],
-        background: t.background || '#ffffff'
+        background: t.background || '#ffffff',
+        view: this.normalizeView(t.view)
       }));
     } else {
-      this.tabs = [{ id: this.uid(), nome: 'Aba 1', shapes: parsed.shapes || [], background: parsed.background || '#ffffff' }];
+      this.tabs = [{ id: this.uid(), nome: 'Aba 1', shapes: parsed.shapes || [], background: parsed.background || '#ffffff', view: this.normalizeView(parsed.view) }];
     }
     this.activeTabId = this.tabs[0].id;
     this.loadActiveTab();
     this.cdr.markForCheck();
+  }
+
+  private normalizeView(view: any): TabView | undefined {
+    if (!view || typeof view !== 'object') return undefined;
+    const zoom = Number(view.zoom);
+    const panX = Number(view.panX);
+    const panY = Number(view.panY);
+    if (!isFinite(zoom) || !isFinite(panX) || !isFinite(panY)) return undefined;
+    return { zoom: Math.min(8, Math.max(0.1, zoom)), panX, panY };
   }
 
   private loadActiveTab() {
@@ -296,14 +480,41 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.activeTabId = t.id;
     this.shapes      = t.shapes;
     this.background  = t.background;
+    // Restaura o posicionamento salvo (zoom + pan) da aba.
+    if (t.view) { this.zoom = t.view.zoom; this.panX = t.view.panX; this.panY = t.view.panY; }
+    else        { this.zoom = 1; this.panX = 0; this.panY = 0; }
     this.clearSelection();
     this.resetHistory();
   }
 
-  /** Salva o estado atual do canvas de volta na aba ativa. */
+  /** Salva o estado atual do canvas (formas, fundo e posicionamento) de volta na aba ativa. */
   private syncActiveTab() {
     const t = this.tabs.find(x => x.id === this.activeTabId);
-    if (t) { t.shapes = this.shapes; t.background = this.background; }
+    if (t) {
+      t.shapes = this.shapes;
+      t.background = this.background;
+      t.view = { zoom: this.zoom, panX: this.panX, panY: this.panY };
+    }
+  }
+
+  /** Grava zoom/pan atuais como posicionamento padrão da aba. */
+  saveViewPosition() {
+    if (!this.current) return;
+    this.syncActiveTab();
+    this.persistNow();
+    this.toast.show('Posicionamento da vista salvo nesta aba.', 'success', 3000);
+  }
+
+  setBackground(color: string) {
+    this.background = color;
+    this.syncActiveTab();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  onBackgroundInput(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    if (input) this.setBackground(input.value);
   }
 
   get activeTab(): DrawingTab | null {
@@ -570,34 +781,120 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   private uid() { return genUid(); }
 
+  /** Arredonda para a grade quando o snap está ativo. */
+  private snapV(v: number): number {
+    return this.snapEnabled ? Math.round(v / this.gridSize) * this.gridSize : v;
+  }
+
+  private snapPoint(p: Point): Point {
+    return this.snapEnabled ? { x: this.snapV(p.x), y: this.snapV(p.y) } : p;
+  }
+
+  private rotateVec(v: Point, deg: number): Point {
+    const a = deg * Math.PI / 180;
+    const cos = Math.cos(a); const sin = Math.sin(a);
+    return { x: v.x * cos - v.y * sin, y: v.x * sin + v.y * cos };
+  }
+
+  private rotatePoint(p: Point, center: Point, deg: number): Point {
+    const r = this.rotateVec({ x: p.x - center.x, y: p.y - center.y }, deg);
+    return { x: center.x + r.x, y: center.y + r.y };
+  }
+
+  /** Ponto oposto ao handle arrastado — mantido fixo ao redimensionar formas rotacionadas. */
+  private oppositeAnchor(handle: string, r: Rect): Point {
+    const x = handle.includes('l') ? r.x + r.w : handle.includes('r') ? r.x : r.x + r.w / 2;
+    const y = handle.includes('t') ? r.y + r.h : handle.includes('b') ? r.y : r.y + r.h / 2;
+    return { x, y };
+  }
+
+  /** Formas que aceitam rotação (as baseadas em path/linha são ignoradas). */
+  canRotate(s: DrawShape | null): boolean {
+    return !!s && s.type !== 'pen' && s.type !== 'arrow' && s.type !== 'line';
+  }
+
+  shapeTransform(s: DrawShape): string | null {
+    if (!s.rot || !this.canRotate(s)) return null;
+    const b = this.shapeBounds(s);
+    return `rotate(${s.rot} ${b.x + b.w / 2} ${b.y + b.h / 2})`;
+  }
+
+  dashArray(s: DrawShape): string | null {
+    const lw = Math.max(1, s.lw || 1);
+    if (s.dash === 'dashed') return `${lw * 4} ${lw * 3}`;
+    if (s.dash === 'dotted') return `${lw} ${lw * 2.2}`;
+    return null;
+  }
+
   // ── Zoom / Pan ────────────────────────────────────────────────────────────
   onWheel(e: WheelEvent) {
     e.preventDefault();
-    const p       = this.pt(e as any);
+    const p = this.pt(e as any);
+
+    // Shift/Alt + roda = deslocar a tela; roda pura (ou Ctrl+roda) = zoom.
+    if (e.shiftKey || e.altKey) {
+      const step = 60 / this.zoom;
+      const dir  = e.deltaY > 0 ? 1 : -1;
+      if (e.shiftKey) this.panX += dir * step;
+      else            this.panY += dir * step;
+      this.scheduleViewSave();
+      this.cdr.markForCheck();
+      return;
+    }
+
     const delta   = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.min(8, Math.max(0.1, this.zoom * delta));
     this.panX     = p.x - (p.x - this.panX) * (this.zoom / newZoom);
     this.panY     = p.y - (p.y - this.panY) * (this.zoom / newZoom);
     this.zoom     = newZoom;
+    this.scheduleViewSave();
     this.cdr.markForCheck();
+  }
+
+  /** Guarda o posicionamento da vista na aba e agenda a persistência. */
+  private scheduleViewSave() {
+    if (!this.current) return;
+    this.syncActiveTab();
+    this.scheduleSave();
   }
 
   resetZoom() {
     this.zoom = 1; this.panX = 0; this.panY = 0;
+    this.scheduleViewSave();
+    this.cdr.markForCheck();
+  }
+
+  /** Enquadra a seleção atual (ou todo o conteúdo, se nada estiver selecionado). */
+  zoomToSelection() {
+    const selected = this.selectedShapes();
+    if (!selected.length) { this.fitContent(); return; }
+    const bounds = selected.map(s => this.outerBounds(s));
+    const minX = Math.min(...bounds.map(b => b.x)) - 60;
+    const minY = Math.min(...bounds.map(b => b.y)) - 60;
+    const maxX = Math.max(...bounds.map(b => b.x + b.w)) + 60;
+    const maxY = Math.max(...bounds.map(b => b.y + b.h)) + 60;
+    const cw = Math.max(1, maxX - minX); const ch = Math.max(1, maxY - minY);
+    const z  = Math.min(this.vw / cw, this.vh / ch, 4);
+    this.zoom = z;
+    this.panX = minX - (this.vw / z - cw) / 2;
+    this.panY = minY - (this.vh / z - ch) / 2;
+    this.scheduleViewSave();
     this.cdr.markForCheck();
   }
 
   fitContent() {
     if (!this.shapes.length) { this.resetZoom(); return; }
-    const xs = this.shapes.flatMap(s => [s.x, s.x + s.w]);
-    const ys = this.shapes.flatMap(s => [s.y, s.y + s.h]);
+    const boxes = this.shapes.map(s => this.outerBounds(s));
+    const xs = boxes.flatMap(b => [b.x, b.x + b.w]);
+    const ys = boxes.flatMap(b => [b.y, b.y + b.h]);
     const minX = Math.min(...xs) - 40; const maxX = Math.max(...xs) + 40;
     const minY = Math.min(...ys) - 40; const maxY = Math.max(...ys) + 40;
-    const cw   = maxX - minX;         const ch   = maxY - minY;
+    const cw   = Math.max(1, maxX - minX); const ch = Math.max(1, maxY - minY);
     const z    = Math.min(this.vw / cw, this.vh / ch, 2);
     this.zoom  = z;
     this.panX  = minX - (this.vw / z - cw) / 2;
     this.panY  = minY - (this.vh / z - ch) / 2;
+    this.scheduleViewSave();
     this.cdr.markForCheck();
   }
 
@@ -605,6 +902,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   onSvgMouseDown(e: MouseEvent) {
     if (e.button !== 0 && e.button !== 1) return;
     const p = this.pt(e);
+    this.closePopovers();
 
     if (e.button === 1 || (e.button === 0 && this.spaceDown)) {
       e.preventDefault();
@@ -621,7 +919,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
     this.isDrawing = true;
     this.activeDrawTool = this.tool;
-    this.startPt   = p;
+    this.startPt   = this.tool === 'pen' ? p : this.snapPoint(p);
     this.drawId    = this.uid();
     this.arrowStartShapeId = this.tool === 'arrow' ? this.shapeAtPoint(p)?.id ?? null : null;
     this.arrowStartAnchor = null;
@@ -633,7 +931,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       this.shapes = [...this.shapes, s];
     } else {
       // Create shape at click point immediately — size will update on mousemove
-      const s = this.makeShape(this.tool, p.x, p.y, 1, 1);
+      const s = this.makeShape(this.tool, this.startPt.x, this.startPt.y, 1, 1);
       s.id = this.drawId;
       if (this.tool === 'arrow' && this.arrowStartShapeId) s.fromId = this.arrowStartShapeId;
       this.shapes = [...this.shapes, s];
@@ -646,6 +944,23 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     if (e.button !== 0) return;
     if (this.spaceDown) { this.onSvgMouseDown(e); return; }
     if (this.tool !== 'select') { this.onSvgMouseDown(e); return; }
+    this.closePopovers();
+    // Alt + arrastar = duplicar e arrastar a cópia (padrão de editores gráficos).
+    if (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      if (!this.isSelected(shape.id)) this.setSelection([shape.id]);
+      this.duplicateSelected(0, 0);
+      const target = this.sel;
+      if (target) {
+        this.isDragging = true;
+        this.dragPt     = this.pt(e);
+        this.dragOrig   = { x: target.x, y: target.y, w: target.w, h: target.h };
+        this.captureDragOrigins();
+        this.activeHandle = '';
+      }
+      this.cdr.markForCheck();
+      return;
+    }
     if (e.shiftKey || e.ctrlKey || e.metaKey) {
       e.preventDefault();
       if (this.isSelected(shape.id)) {
@@ -660,6 +975,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     } else {
       this.syncPrimarySelection(shape.id);
     }
+    if (shape.locked) { this.cdr.markForCheck(); return; }  // travado: seleciona mas não move
     this.isDragging   = true;
     this.dragPt       = this.pt(e);
     this.dragOrig     = { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
@@ -670,12 +986,51 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   onHandleMouseDown(e: MouseEvent, handle: string) {
     e.stopPropagation();
-    if (!this.sel) return;
+    if (!this.sel || this.sel.locked) return;
     this.activeHandle = handle;
     this.isDragging   = true;
     this.dragPt       = this.pt(e);
     this.dragOrig     = { x: this.sel.x, y: this.sel.y, w: this.sel.w, h: this.sel.h };
     this.captureDragOrigins([this.sel.id]);
+
+    if (handle === 'rotate') {
+      const b = this.shapeBounds(this.sel);
+      const cx = b.x + b.w / 2; const cy = b.y + b.h / 2;
+      const p = this.dragPt;
+      this.rotStart = {
+        cx, cy,
+        angle: Math.atan2(p.y - cy, p.x - cx) * 180 / Math.PI,
+        rot: this.sel.rot || 0
+      };
+    }
+  }
+
+  /** Posição do handle de rotação (acima do centro superior da forma). */
+  rotateHandlePoint(s: DrawShape): Point {
+    const b = this.shapeBounds(s);
+    return { x: b.x + b.w / 2, y: b.y - 26 / Math.max(this.zoom, 0.15) };
+  }
+
+  setRotation(deg: number | string) {
+    const rot = ((Math.round(Number(deg) || 0) % 360) + 360) % 360;
+    const targets = this.selectedShapes().filter(s => this.canRotate(s) && !s.locked);
+    if (!targets.length) return;
+    for (const s of targets) this.updateShape(s.id, { rot: rot || undefined });
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  rotateSelection(delta: number) {
+    const targets = this.selectedShapes().filter(s => this.canRotate(s) && !s.locked);
+    if (!targets.length) return;
+    for (const s of targets) {
+      const rot = ((((s.rot || 0) + delta) % 360) + 360) % 360;
+      this.updateShape(s.id, { rot: rot || undefined });
+    }
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
   }
 
   onAnchorMouseDown(e: MouseEvent, shape: DrawShape, anchor: AnchorId) {
@@ -712,6 +1067,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     }
 
     const p = this.pt(e);
+    this.lastPt = p;
+    this.pointerInside = true;
 
     if (this.isMultiSelecting) {
       this.selectionRect = this.normalizeRect(this.selectionStart, p);
@@ -735,19 +1092,30 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         this.shapes = [...this.shapes.slice(0, idx), s, ...this.shapes.slice(idx + 1)];
       } else {
         let s = { ...this.shapes[idx] };
+        const q = this.snapPoint(p);
         if (drawTool === 'arrow') {
           const fromShape = s.fromId ? this.findShape(s.fromId) : null;
-          const start = fromShape && s.fromAnchor ? this.anchorPoint(fromShape, s.fromAnchor) : fromShape ? this.edgePoint(fromShape, p) : this.startPt;
+          const start = fromShape && s.fromAnchor ? this.anchorPoint(fromShape, s.fromAnchor) : fromShape ? this.edgePoint(fromShape, q) : this.startPt;
+          const end = e.shiftKey ? this.constrainAngle(start, q) : q;
           s.x = start.x; s.y = start.y;
-          s.w = p.x - start.x; s.h = p.y - start.y;
+          s.w = end.x - start.x; s.h = end.y - start.y;
         } else if (drawTool === 'line') {
+          const end = e.shiftKey ? this.constrainAngle(this.startPt, q) : q;
           s.x = this.startPt.x; s.y = this.startPt.y;
-          s.w = p.x - this.startPt.x; s.h = p.y - this.startPt.y;
+          s.w = end.x - this.startPt.x; s.h = end.y - this.startPt.y;
         } else {
-          s.x = Math.min(this.startPt.x, p.x);
-          s.y = Math.min(this.startPt.y, p.y);
-          s.w = Math.max(MIN_SIZE, Math.abs(p.x - this.startPt.x));
-          s.h = Math.max(MIN_SIZE, Math.abs(p.y - this.startPt.y));
+          let dw = q.x - this.startPt.x;
+          let dh = q.y - this.startPt.y;
+          // Shift = proporção 1:1 (quadrado / círculo perfeito)
+          if (e.shiftKey) {
+            const size = Math.max(Math.abs(dw), Math.abs(dh));
+            dw = size * (dw < 0 ? -1 : 1);
+            dh = size * (dh < 0 ? -1 : 1);
+          }
+          s.x = Math.min(this.startPt.x, this.startPt.x + dw);
+          s.y = Math.min(this.startPt.y, this.startPt.y + dh);
+          s.w = Math.max(MIN_SIZE, Math.abs(dw));
+          s.h = Math.max(MIN_SIZE, Math.abs(dh));
         }
         this.shapes = [...this.shapes.slice(0, idx), s, ...this.shapes.slice(idx + 1)];
       }
@@ -760,8 +1128,31 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     // drag / resize — only when mouse button is held (isDragging flag)
     if (!this.isDragging || !this.sel) return;
 
-    const dx = p.x - this.dragPt.x;
-    const dy = p.y - this.dragPt.y;
+    let dx = p.x - this.dragPt.x;
+    let dy = p.y - this.dragPt.y;
+
+    // ── Rotação ──
+    if (this.activeHandle === 'rotate') {
+      const angle = Math.atan2(p.y - this.rotStart.cy, p.x - this.rotStart.cx) * 180 / Math.PI;
+      let rot = this.rotStart.rot + (angle - this.rotStart.angle);
+      if (e.shiftKey) rot = Math.round(rot / 15) * 15;
+      rot = ((Math.round(rot) % 360) + 360) % 360;
+      for (const s of this.selectedShapes()) {
+        if (this.canRotate(s) && !s.locked) this.updateShape(s.id, { rot: rot || undefined });
+      }
+      this.alignmentGuides = [];
+      this.cdr.markForCheck();
+      return;
+    }
+
+    if (!this.activeHandle) {
+      // Shift ao mover = trava um eixo; snap alinha à grade.
+      if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+      if (this.snapEnabled) {
+        dx = this.snapV(this.dragOrig.x + dx) - this.dragOrig.x;
+        dy = this.snapV(this.dragOrig.y + dy) - this.dragOrig.y;
+      }
+    }
 
     if (!this.activeHandle && (this.selectedIds.length > 1 || this.sel.type === 'pen')) {
       this.moveSelectedBy(dx, dy);
@@ -779,25 +1170,59 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       this.alignmentGuides = moved ? this.computeAlignmentGuides(this.selectionHandleBounds(moved), new Set([moved.id])) : [];
     } else if (this.sel.type === 'line') {
       if (this.activeHandle === 'line-start') {
-        const endX = this.dragOrig.x + this.dragOrig.w;
-        const endY = this.dragOrig.y + this.dragOrig.h;
-        const x = this.dragOrig.x + dx;
-        const y = this.dragOrig.y + dy;
-        this.updateShape(this.sel.id, { x, y, w: endX - x, h: endY - y });
+        const end = { x: this.dragOrig.x + this.dragOrig.w, y: this.dragOrig.y + this.dragOrig.h };
+        let start = this.snapPoint({ x: this.dragOrig.x + dx, y: this.dragOrig.y + dy });
+        if (e.shiftKey) start = this.constrainAngle(end, start);
+        this.updateShape(this.sel.id, { x: start.x, y: start.y, w: end.x - start.x, h: end.y - start.y });
       } else if (this.activeHandle === 'line-end') {
-        this.updateShape(this.sel.id, { w: this.dragOrig.w + dx, h: this.dragOrig.h + dy });
+        const start = { x: this.dragOrig.x, y: this.dragOrig.y };
+        let end = this.snapPoint({ x: start.x + this.dragOrig.w + dx, y: start.y + this.dragOrig.h + dy });
+        if (e.shiftKey) end = this.constrainAngle(start, end);
+        this.updateShape(this.sel.id, { w: end.x - start.x, h: end.y - start.y });
       }
       const resized = this.findShape(this.sel.id);
       this.alignmentGuides = resized ? this.computeAlignmentGuides(this.selectionHandleBounds(resized), new Set([resized.id])) : [];
     } else {
-      let { x, y, w, h } = this.dragOrig;
-      const hnd = this.activeHandle;
-      if (hnd.includes('l')) { x += dx; w -= dx; }
-      if (hnd.includes('r')) { w += dx; }
-      if (hnd.includes('t')) { y += dy; h -= dy; }
-      if (hnd.includes('b')) { h += dy; }
-      if (w < MIN_SIZE) { if (hnd.includes('l')) x = this.dragOrig.x + this.dragOrig.w - MIN_SIZE; w = MIN_SIZE; }
-      if (h < MIN_SIZE) { if (hnd.includes('t')) y = this.dragOrig.y + this.dragOrig.h - MIN_SIZE; h = MIN_SIZE; }
+      const orig = this.dragOrig;
+      const rot  = this.sel.rot || 0;
+      const hnd  = this.activeHandle;
+      // Em formas rotacionadas o delta do mouse precisa voltar ao espaço local.
+      const local = rot ? this.rotateVec({ x: dx, y: dy }, -rot) : { x: dx, y: dy };
+      let { x, y, w, h } = orig;
+      if (hnd.includes('l')) { x += local.x; w -= local.x; }
+      if (hnd.includes('r')) { w += local.x; }
+      if (hnd.includes('t')) { y += local.y; h -= local.y; }
+      if (hnd.includes('b')) { h += local.y; }
+
+      // Shift em handle de canto = manter proporção original.
+      const isCorner = /^(tl|tr|bl|br)$/.test(hnd);
+      if (e.shiftKey && isCorner && orig.w > 0 && orig.h > 0) {
+        const ratio = orig.w / orig.h;
+        if (Math.abs(w) / ratio > Math.abs(h)) h = Math.abs(w) / ratio;
+        else                                   w = Math.abs(h) * ratio;
+        if (hnd.includes('l')) x = orig.x + orig.w - w;
+        if (hnd.includes('t')) y = orig.y + orig.h - h;
+      }
+
+      if (this.snapEnabled) {
+        if (hnd.includes('l')) { const nx = this.snapV(x); w += x - nx; x = nx; }
+        if (hnd.includes('r')) { w = this.snapV(x + w) - x; }
+        if (hnd.includes('t')) { const ny = this.snapV(y); h += y - ny; y = ny; }
+        if (hnd.includes('b')) { h = this.snapV(y + h) - y; }
+      }
+
+      if (w < MIN_SIZE) { if (hnd.includes('l')) x = orig.x + orig.w - MIN_SIZE; w = MIN_SIZE; }
+      if (h < MIN_SIZE) { if (hnd.includes('t')) y = orig.y + orig.h - MIN_SIZE; h = MIN_SIZE; }
+
+      // Rotação: compensa o deslocamento do centro para o canto oposto ficar fixo.
+      if (rot) {
+        const fixedOld = this.oppositeAnchor(hnd, orig);
+        const fixedNew = this.oppositeAnchor(hnd, { x, y, w, h });
+        const worldOld = this.rotatePoint(fixedOld, { x: orig.x + orig.w / 2, y: orig.y + orig.h / 2 }, rot);
+        const worldNew = this.rotatePoint(fixedNew, { x: x + w / 2, y: y + h / 2 }, rot);
+        x += worldOld.x - worldNew.x;
+        y += worldOld.y - worldNew.y;
+      }
       this.updateShape(this.sel.id, { x, y, w, h });
       const resized = this.findShape(this.sel.id);
       this.alignmentGuides = resized ? this.computeAlignmentGuides(this.selectionHandleBounds(resized), new Set([resized.id])) : [];
@@ -853,6 +1278,9 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
             h: finish.y - start.y
           });
         }
+        // Criado o elemento, volta para "Selecionar" — a não ser que a
+        // ferramenta esteja travada (Q) para desenhar vários seguidos.
+        if (!this.lockTool) this.tool = 'select';
         if (drawTool === 'text' || drawTool === 'sticky') {
           this.setSelection([s.id]);
           this.startEdit(s);
@@ -920,6 +1348,11 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       top: `${isArrow ? sy + sh / 2 - 18 : sy}px`, left: `${isArrow ? sx + sw / 2 - 80 : sx}px`,
       width: `${isArrow ? 160 : sw}px`, height: `${isArrow ? 36 : sh}px`,
       fontSize: `${(s.fontSize || 16) * (r.width / vb.width)}px`,
+      fontFamily: s.fontFamily || 'inherit',
+      fontWeight: s.bold ? '700' : '400',
+      fontStyle: s.italic ? 'italic' : 'normal',
+      transform: s.rot && this.canRotate(s) ? `rotate(${s.rot}deg)` : 'none',
+      transformOrigin: 'center center',
       background: isArrow ? 'rgba(255,255,255,0.96)' : s.stickyBg || 'rgba(255,255,255,0.95)',
       color: s.stroke,
       border: '2px solid #3b82f6',
@@ -955,6 +1388,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       opacity: this.opacity,
       text:   '',
       fontSize: this.fontSize,
+      fontFamily: this.fontFamily,
+      dash:   this.dashStyle === 'solid' ? undefined : this.dashStyle,
       stickyBg: type === 'sticky' ? this.stickyBg : undefined,
       pts:    type === 'pen' ? [] : undefined,
     };
@@ -1017,7 +1452,10 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     if (hit && !this.isSelected(hit.id)) {
       this.setSelection([hit.id]);
     }
-    if (!this.selectedIds.length) { this.canvasContextMenu = null; return; }
+    // Sem seleção o menu ainda aparece quando há algo para colar.
+    if (!this.selectedIds.length && !this.clipboard.length) { this.canvasContextMenu = null; return; }
+    this.lastPt = p;
+    this.pointerInside = true;
     e.preventDefault();
     e.stopPropagation();
     this.canvasContextMenu = { x: e.clientX, y: e.clientY };
@@ -1082,7 +1520,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       return;
     }
     const selected = this.shapes
-      .filter(shape => this.rectsIntersect(this.selectionHandleBounds(shape), this.selectionRect!))
+      .filter(shape => this.rectsIntersect(this.outerBounds(shape), this.selectionRect!))
       .map(shape => shape.id);
     this.setSelection(this.selectionAdditive ? [...this.selectionBaseIds, ...selected] : selected);
     this.selectionAdditive = false;
@@ -1117,7 +1555,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   private moveSelectedBy(dx: number, dy: number) {
     const ids = new Set(this.selectedIds.length ? this.selectedIds : this.selectedId ? [this.selectedId] : []);
     this.shapes = this.shapes.map(shape => {
-      if (!ids.has(shape.id)) return shape;
+      if (!ids.has(shape.id) || shape.locked) return shape;
       const origin = this.dragOrigins.get(shape.id);
       if (!origin) return shape;
       return {
@@ -1136,7 +1574,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       this.alignmentGuides = [];
       return;
     }
-    const bounds = selected.map(shape => this.selectionHandleBounds(shape));
+    const bounds = selected.map(shape => this.outerBounds(shape));
     const minX = Math.min(...bounds.map(b => b.x));
     const minY = Math.min(...bounds.map(b => b.y));
     const maxX = Math.max(...bounds.map(b => b.x + b.w));
@@ -1154,7 +1592,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     const guides: AlignmentGuide[] = [];
     for (const shape of this.shapes) {
       if (activeIds.has(shape.id)) continue;
-      const bounds = this.selectionHandleBounds(shape);
+      const bounds = this.outerBounds(shape);
       const targetX = [bounds.x, bounds.x + bounds.w / 2, bounds.x + bounds.w];
       const targetY = [bounds.y, bounds.y + bounds.h / 2, bounds.y + bounds.h];
       for (const value of activeX) {
@@ -1194,7 +1632,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   selectionBounds(): Rect | null {
     const selected = this.selectedShapes();
     if (selected.length <= 1) return null;
-    const bounds = selected.map(shape => this.shapeBounds(shape));
+    const bounds = selected.map(shape => this.outerBounds(shape));
     const minX = Math.min(...bounds.map(b => b.x));
     const minY = Math.min(...bounds.map(b => b.y));
     const maxX = Math.max(...bounds.map(b => b.x + b.w));
@@ -1208,9 +1646,38 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     return this.shapeBounds(s);
   }
 
+  /** Retângulo envolvente considerando a rotação — usado por marquee, guias e enquadramento. */
+  outerBounds(s: DrawShape): Rect {
+    const b = this.selectionHandleBounds(s);
+    if (!s.rot || !this.canRotate(s)) return b;
+    const c = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+    const corners = [
+      { x: b.x, y: b.y }, { x: b.x + b.w, y: b.y },
+      { x: b.x + b.w, y: b.y + b.h }, { x: b.x, y: b.y + b.h }
+    ].map(p => this.rotatePoint(p, c, s.rot!));
+    const xs = corners.map(p => p.x); const ys = corners.map(p => p.y);
+    const minX = Math.min(...xs); const minY = Math.min(...ys);
+    return { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY };
+  }
+
+  /** Trava um segmento em múltiplos de 45° (usado com Shift). */
+  private constrainAngle(start: Point, end: Point): Point {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const len = Math.hypot(dx, dy);
+    if (!len) return end;
+    const step = Math.PI / 4;
+    const angle = Math.round(Math.atan2(dy, dx) / step) * step;
+    return { x: start.x + Math.cos(angle) * len, y: start.y + Math.sin(angle) * len };
+  }
+
   deleteSelected() {
-    const deletingIds = this.selectedIds.length ? this.selectedIds : this.selectedId ? [this.selectedId] : [];
-    if (!deletingIds.length) return;
+    const deletingIds = (this.selectedIds.length ? this.selectedIds : this.selectedId ? [this.selectedId] : [])
+      .filter(id => !this.findShape(id)?.locked);
+    if (!deletingIds.length) {
+      if (this.selectedIds.length) this.toast.show('Elemento travado. Use Ctrl+L para destravar.', 'info', 3000);
+      return;
+    }
     const deleting = new Set(deletingIds);
     this.shapes = this.shapes.filter(s => !deleting.has(s.id) && !deleting.has(s.fromId || '') && !deleting.has(s.toId || ''));
     this.clearSelection();
@@ -1219,21 +1686,11 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.cdr.markForCheck();
   }
 
-  duplicateSelected() {
+  duplicateSelected(offsetX = 20, offsetY = 20) {
     const selected = this.selectedShapes();
     if (!selected.length && this.sel) selected.push(this.sel);
     if (!selected.length) return;
-    const copies = selected.map(shape => ({
-      ...shape,
-      id: this.uid(),
-      x: shape.x + 20,
-      y: shape.y + 20,
-      fromId: undefined,
-      toId: undefined,
-      fromAnchor: undefined,
-      toAnchor: undefined,
-      pts: shape.pts ? shape.pts.map((value, index) => value + (index % 2 === 0 ? 20 : 20)) : undefined
-    }));
+    const copies = this.cloneShapes(selected, offsetX, offsetY);
     this.shapes = [...this.shapes, ...copies];
     this.setSelection(copies.map(copy => copy.id));
     this.pushHistory();
@@ -1241,27 +1698,235 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.cdr.markForCheck();
   }
 
-  bringForward() {
-    const idx = this.shapes.findIndex(s => s.id === this.selectedId);
-    if (idx < 0 || idx === this.shapes.length - 1) return;
-    const arr = [...this.shapes];
-    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-    this.shapes = arr;
+  /** Clona formas preservando grupos internos e deslocando por (dx, dy). */
+  private cloneShapes(source: DrawShape[], dx: number, dy: number): DrawShape[] {
+    const groupMap = new Map<string, string>();
+    return source.map(shape => {
+      let groupId = shape.groupId;
+      if (groupId) {
+        if (!groupMap.has(groupId)) groupMap.set(groupId, this.uid());
+        groupId = groupMap.get(groupId)!;
+      }
+      return {
+        ...shape,
+        id: this.uid(),
+        groupId,
+        x: shape.x + dx,
+        y: shape.y + dy,
+        lw: this.lineWidth,
+        fromId: undefined,
+        toId: undefined,
+        fromAnchor: undefined,
+        toAnchor: undefined,
+        pts: shape.pts ? shape.pts.map((v, i) => v + (i % 2 === 0 ? dx : dy)) : undefined
+      };
+    });
+  }
+
+  // ── Copiar / colar ────────────────────────────────────────────────────────
+  copySelection(silent = false): boolean {
+    const selected = this.selectedShapes();
+    if (!selected.length) return false;
+    this.clipboard = selected.map(s => ({ ...s, pts: s.pts ? [...s.pts] : undefined }));
+    this.pasteCount = 0;
+    this.writeSystemClipboard(this.clipboard);
+    if (!silent) this.toast.show(`${selected.length} elemento(s) copiado(s).`, 'success', 2000);
+    this.cdr.markForCheck();
+    return true;
+  }
+
+  cutSelection() {
+    if (!this.copySelection(true)) return;
+    const count = this.selectedShapes().length;
+    this.deleteSelected();
+    this.toast.show(`${count} elemento(s) recortado(s).`, 'success', 2000);
+  }
+
+  /** Cola no cursor (se o ponteiro estiver sobre o canvas) ou com deslocamento em cascata. */
+  pasteClipboard(atCursor = true) {
+    if (!this.clipboard.length || !this.current) return;
+    const boxes = this.clipboard.map(s => this.selectionHandleBounds(s));
+    const minX = Math.min(...boxes.map(b => b.x));
+    const minY = Math.min(...boxes.map(b => b.y));
+
+    let dx: number; let dy: number;
+    if (atCursor && this.pointerInside) {
+      const target = this.snapPoint(this.lastPt);
+      dx = target.x - minX;
+      dy = target.y - minY;
+    } else {
+      this.pasteCount++;
+      dx = 20 * this.pasteCount;
+      dy = 20 * this.pasteCount;
+    }
+
+    const copies = this.cloneShapes(this.clipboard, dx, dy);
+    this.shapes = [...this.shapes, ...copies];
+    this.setTool('select');
+    this.setSelection(copies.map(c => c.id));
+    this.pushHistory();
     this.scheduleSave();
     this.cdr.markForCheck();
   }
 
-  sendBackward() {
-    const idx = this.shapes.findIndex(s => s.id === this.selectedId);
-    if (idx <= 0) return;
-    const arr = [...this.shapes];
-    [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
-    this.shapes = arr;
+  /** Espelha as formas no clipboard do sistema, permitindo colar em outra janela do planner. */
+  private writeSystemClipboard(shapes: DrawShape[]) {
+    try {
+      const payload = JSON.stringify({ source: 'planner-drawing-clipboard', shapes });
+      navigator.clipboard?.writeText?.(payload).catch(() => {});
+    } catch { /* clipboard indisponível — usa apenas o clipboard interno */ }
+  }
+
+  // ── Copiar / colar apenas o estilo ────────────────────────────────────────
+  copyStyle() {
+    const s = this.sel;
+    if (!s) return;
+    this.styleClipboard = {
+      stroke: s.stroke, fill: s.fill, lw: s.lw, opacity: s.opacity,
+      dash: s.dash, fontSize: s.fontSize, bold: s.bold, italic: s.italic,
+      fontFamily: s.fontFamily, stickyBg: s.stickyBg
+    };
+    this.toast.show('Estilo copiado (Ctrl+Alt+V para aplicar).', 'success', 2500);
+    this.cdr.markForCheck();
+  }
+
+  pasteStyle() {
+    if (!this.styleClipboard) return;
+    this.applyToSelection({ ...this.styleClipboard });
+  }
+
+  // ── Travar posição ────────────────────────────────────────────────────────
+  toggleLock() {
+    const selected = this.selectedShapes();
+    if (!selected.length) return;
+    const lock = !selected.every(s => s.locked);
+    for (const s of selected) this.updateShape(s.id, { locked: lock || undefined });
+    this.pushHistory();
+    this.scheduleSave();
+    this.toast.show(lock ? 'Posição travada.' : 'Posição destravada.', 'info', 2000);
+    this.cdr.markForCheck();
+  }
+
+  get selectionLocked(): boolean {
+    const selected = this.selectedShapes();
+    return selected.length > 0 && selected.every(s => s.locked);
+  }
+
+  // ── Ordem das camadas ─────────────────────────────────────────────────────
+  private reorder(mode: 'front' | 'back' | 'forward' | 'backward') {
+    const ids = new Set(this.selectedIds.length ? this.selectedIds : this.selectedId ? [this.selectedId] : []);
+    if (!ids.size) return;
+    const moving = this.shapes.filter(s => ids.has(s.id));
+    const rest   = this.shapes.filter(s => !ids.has(s.id));
+
+    if (mode === 'front')      this.shapes = [...rest, ...moving];
+    else if (mode === 'back')  this.shapes = [...moving, ...rest];
+    else {
+      const arr = [...this.shapes];
+      const indexes = arr.map((s, i) => ids.has(s.id) ? i : -1).filter(i => i >= 0);
+      const ordered = mode === 'forward' ? [...indexes].reverse() : indexes;
+      for (const i of ordered) {
+        const j = mode === 'forward' ? i + 1 : i - 1;
+        if (j < 0 || j >= arr.length || ids.has(arr[j].id)) continue;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      this.shapes = arr;
+    }
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  bringForward()   { this.reorder('forward'); }
+  sendBackward()   { this.reorder('backward'); }
+  bringToFront()   { this.reorder('front'); }
+  sendToBack()     { this.reorder('back'); }
+
+  // ── Alinhar / distribuir ──────────────────────────────────────────────────
+  canAlign(): boolean { return this.selectedShapes().filter(s => !s.locked).length >= 2; }
+  canDistribute(): boolean { return this.selectedShapes().filter(s => !s.locked).length >= 3; }
+
+  align(mode: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom') {
+    const targets = this.selectedShapes().filter(s => !s.locked);
+    if (targets.length < 2) return;
+    const boxes = targets.map(s => this.outerBounds(s));
+    const minX = Math.min(...boxes.map(b => b.x));
+    const maxX = Math.max(...boxes.map(b => b.x + b.w));
+    const minY = Math.min(...boxes.map(b => b.y));
+    const maxY = Math.max(...boxes.map(b => b.y + b.h));
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    targets.forEach((shape, i) => {
+      const b = boxes[i];
+      let dx = 0; let dy = 0;
+      if (mode === 'left')         dx = minX - b.x;
+      else if (mode === 'right')   dx = maxX - (b.x + b.w);
+      else if (mode === 'hcenter') dx = cx - (b.x + b.w / 2);
+      else if (mode === 'top')     dy = minY - b.y;
+      else if (mode === 'bottom')  dy = maxY - (b.y + b.h);
+      else if (mode === 'vcenter') dy = cy - (b.y + b.h / 2);
+      this.translateShape(shape, dx, dy);
+    });
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  distribute(axis: 'h' | 'v') {
+    const targets = this.selectedShapes().filter(s => !s.locked);
+    if (targets.length < 3) return;
+    const items = targets
+      .map(s => ({ shape: s, box: this.outerBounds(s) }))
+      .sort((a, b) => axis === 'h' ? a.box.x - b.box.x : a.box.y - b.box.y);
+
+    const first = items[0].box;
+    const last  = items[items.length - 1].box;
+    const total = axis === 'h'
+      ? (last.x + last.w) - first.x
+      : (last.y + last.h) - first.y;
+    const used = items.reduce((sum, it) => sum + (axis === 'h' ? it.box.w : it.box.h), 0);
+    const gap  = (total - used) / (items.length - 1);
+
+    let cursor = axis === 'h' ? first.x : first.y;
+    for (const it of items) {
+      const current = axis === 'h' ? it.box.x : it.box.y;
+      const delta = cursor - current;
+      this.translateShape(it.shape, axis === 'h' ? delta : 0, axis === 'h' ? 0 : delta);
+      cursor += (axis === 'h' ? it.box.w : it.box.h) + gap;
+    }
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  private translateShape(shape: DrawShape, dx: number, dy: number) {
+    if (!dx && !dy) return;
+    this.updateShape(shape.id, {
+      x: shape.x + dx,
+      y: shape.y + dy,
+      pts: shape.pts ? shape.pts.map((v, i) => v + (i % 2 === 0 ? dx : dy)) : undefined
+    });
+  }
+
+  /** Iguala largura/altura de toda a seleção ao elemento principal. */
+  matchSize(dimension: 'w' | 'h' | 'both') {
+    const ref = this.sel;
+    const targets = this.selectedShapes().filter(s => !s.locked && s.id !== ref?.id && s.type !== 'pen');
+    if (!ref || !targets.length) return;
+    for (const s of targets) {
+      this.updateShape(s.id, {
+        w: dimension === 'h' ? s.w : ref.w,
+        h: dimension === 'w' ? s.h : ref.h
+      });
+    }
+    this.pushHistory();
     this.scheduleSave();
     this.cdr.markForCheck();
   }
 
   clearCanvas() {
+    if (this.shapes.length && !confirm(`Limpar todos os ${this.shapes.length} elementos desta aba?`)) return;
     this.shapes     = [];
     this.clearSelection();
     this.pushHistory();
@@ -1379,10 +2044,13 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   anchorPoint(s: DrawShape, anchor: AnchorId): Point {
     const bounds = this.shapeBounds(s);
-    if (anchor === 'top') return { x: bounds.x + bounds.w / 2, y: bounds.y };
-    if (anchor === 'right') return { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 };
-    if (anchor === 'bottom') return { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h };
-    return { x: bounds.x, y: bounds.y + bounds.h / 2 };
+    const local =
+      anchor === 'top'    ? { x: bounds.x + bounds.w / 2, y: bounds.y } :
+      anchor === 'right'  ? { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 } :
+      anchor === 'bottom' ? { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h } :
+                            { x: bounds.x, y: bounds.y + bounds.h / 2 };
+    if (!s.rot || !this.canRotate(s)) return local;
+    return this.rotatePoint(local, { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }, s.rot);
   }
 
   anchorCursor(anchor: AnchorId): string {
@@ -1394,7 +2062,10 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       const s = this.shapes[i];
       if (s.id === excludeId || s.type === 'arrow' || s.type === 'line') continue;
       const bounds = this.shapeBounds(s);
-      if (p.x >= bounds.x && p.x <= bounds.x + bounds.w && p.y >= bounds.y && p.y <= bounds.y + bounds.h) return s;
+      const q = s.rot && this.canRotate(s)
+        ? this.rotatePoint(p, { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }, -s.rot)
+        : p;
+      if (q.x >= bounds.x && q.x <= bounds.x + bounds.w && q.y >= bounds.y && q.y <= bounds.y + bounds.h) return s;
     }
     return null;
   }
@@ -1420,14 +2091,17 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   private edgePoint(s: DrawShape, target: Point): Point {
     const bounds = this.shapeBounds(s);
     const center = { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 };
-    const dx = target.x - center.x;
-    const dy = target.y - center.y;
+    const rot = this.canRotate(s) ? (s.rot || 0) : 0;
+    const local = rot ? this.rotatePoint(target, center, -rot) : target;
+    const dx = local.x - center.x;
+    const dy = local.y - center.y;
     if (dx === 0 && dy === 0) return center;
 
     const halfW = Math.max(1, Math.abs(bounds.w) / 2);
     const halfH = Math.max(1, Math.abs(bounds.h) / 2);
     const scale = 1 / Math.max(Math.abs(dx) / halfW, Math.abs(dy) / halfH);
-    return { x: center.x + dx * scale, y: center.y + dy * scale };
+    const edge = { x: center.x + dx * scale, y: center.y + dy * scale };
+    return rot ? this.rotatePoint(edge, center, rot) : edge;
   }
 
   private shapeBounds(s: DrawShape): { x: number; y: number; w: number; h: number } {
@@ -1455,6 +2129,12 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     }
     if (cur) lines.push(cur);
     return lines;
+  }
+
+  /** Linhas do elemento de texto livre (respeita quebras digitadas). */
+  textLines(s: DrawShape): string[] {
+    const txt = s.text ?? '';
+    return txt ? txt.split('\n') : [''];
   }
 
   // Texto centralizado dentro de formas geométricas
@@ -1680,33 +2360,88 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   }
 
   // ── Keyboard ──────────────────────────────────────────────────────────────
-  @HostListener('keydown', ['$event'])
+  /**
+   * Escuta no documento (e não no host) porque o painel só é montado na seção de
+   * desenhos: assim atalhos como Ctrl+D/Ctrl+S funcionam mesmo sem foco no canvas,
+   * evitando que o navegador abra "adicionar favorito"/"salvar página".
+   */
+  @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
-    const tag = (document.activeElement?.tagName ?? '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || this.editingId) {
-      if (e.key === ' ') return; // allow space in inputs
-      // still handle Escape
-      if (e.key === 'Escape') { this.editingId && this.commitText(); }
+    if (!this.current) return;
+    const el  = document.activeElement as HTMLElement | null;
+    const tag = (el?.tagName ?? '').toLowerCase();
+    const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || el?.isContentEditable === true;
+
+    if (typing || this.editingId) {
+      // Durante a edição de texto: só tratamos fonte/negrito/itálico e Escape.
+      if (this.editingId && (e.ctrlKey || e.metaKey)) {
+        if (this.handleFontShortcuts(e)) return;
+      }
+      if (e.key === 'Escape' && this.editingId) this.commitText();
       return;
     }
+
+    const mod = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
 
     // ── Pan ──
     if (e.key === ' ') { e.preventDefault(); this.spaceDown = true; return; }
 
+    // ── Arquivo ──
+    if (mod && key === 's') { e.preventDefault(); this.persistNow(); this.toast.show('Desenho salvo.', 'success', 2000); return; }
+
     // ── History ──
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.undo(); return; }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); this.redo(); return; }
+    if (mod && key === 'z' && !e.shiftKey) { e.preventDefault(); this.undo(); return; }
+    if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); this.redo(); return; }
 
-    // ── Selection actions ──
+    // ── Clipboard ──
+    if (mod && e.altKey && key === 'c') { e.preventDefault(); this.copyStyle();  return; }
+    if (mod && e.altKey && key === 'v') { e.preventDefault(); this.pasteStyle(); return; }
+    if (mod && key === 'c') { e.preventDefault(); this.copySelection(); return; }
+    if (mod && key === 'x') { e.preventDefault(); this.cutSelection();  return; }
+    if (mod && key === 'v') {
+      // Sem clipboard interno deixamos o evento seguir para o handler de paste
+      // (permite colar imagens/JSON vindos de fora).
+      if (!this.clipboard.length) return;
+      e.preventDefault();
+      this.pasteClipboard(!e.shiftKey);
+      return;
+    }
+
+    // ── Fonte / texto ──
+    if (mod && this.handleFontShortcuts(e)) return;
+
+    // ── Ordem das camadas ──
+    if (mod && (e.key === ']' || key === ']')) { e.preventDefault(); e.shiftKey ? this.bringToFront() : this.bringForward(); return; }
+    if (mod && (e.key === '[' || key === '[')) { e.preventDefault(); e.shiftKey ? this.sendToBack()   : this.sendBackward(); return; }
+
+    // ── Seleção ──
     if ((e.key === 'Delete' || e.key === 'Backspace') && (this.selectedId || this.selectedIds.length)) { e.preventDefault(); this.deleteSelected(); return; }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); this.duplicateSelected(); return; }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'a') { e.preventDefault(); this.selectAll(); return; }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && e.shiftKey) { e.preventDefault(); this.ungroupSelection(); return; }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); this.groupSelection(); return; }
-    if (e.key === 'Escape') { this.clearSelection(); this.showColorModal = false; this.showShortcuts = false; this.closeDrawingContextMenu(); this.closeCanvasContextMenu(); this.cdr.markForCheck(); return; }
+    if (mod && key === 'd') { e.preventDefault(); this.duplicateSelected(); return; }
+    if (mod && key === 'a') { e.preventDefault(); this.selectAll(); return; }
+    if (mod && key === 'l') { e.preventDefault(); this.toggleLock(); return; }
+    if (mod && key === 'g' && e.shiftKey) { e.preventDefault(); this.ungroupSelection(); return; }
+    if (mod && key === 'g') { e.preventDefault(); this.groupSelection(); return; }
+    if (e.key === 'Escape') {
+      this.clearSelection();
+      this.closePopovers();
+      this.closeDrawingContextMenu();
+      this.closeCanvasContextMenu();
+      this.cdr.markForCheck();
+      return;
+    }
 
-    // ── Tool shortcuts ──
-    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    // ── Rotação: Alt + ← / → (15°, ou 90° com Shift) ──
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      const step = e.shiftKey ? 90 : 15;
+      this.rotateSelection(e.key === 'ArrowRight' ? step : -step);
+      return;
+    }
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); this.setRotation(0); return; }
+
+    // ── Ferramentas ──
+    if (!mod && !e.altKey && !e.shiftKey) {
       const toolMap: Record<string, Tool> = {
         v: 'select', s: 'select',
         p: 'pen',
@@ -1716,35 +2451,117 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         l: 'line',
         t: 'text',
         n: 'sticky',
+        d: 'diamond',
+        i: 'triangle',
       };
-      const tool = toolMap[e.key.toLowerCase()];
+      const tool = toolMap[key];
       if (tool) { e.preventDefault(); this.setTool(tool); return; }
     }
 
-    // ── Zoom ──
-    if (e.key === '+' || e.key === '=') { e.preventDefault(); this.zoomIn(); return; }
-    if (e.key === '-')                   { e.preventDefault(); this.zoomOut(); return; }
-    if (e.key === '0')                   { e.preventDefault(); this.resetZoom(); return; }
-    if (e.key === 'f' || e.key === 'F')  { e.preventDefault(); this.fitContent(); return; }
+    // ── Vista ──
+    if (!mod && (e.key === '+' || e.key === '=')) { e.preventDefault(); this.zoomIn(); return; }
+    if (!mod && e.key === '-')  { e.preventDefault(); this.zoomOut(); return; }
+    if (!mod && e.key === '0')  { e.preventDefault(); this.resetZoom(); return; }
+    if (!mod && e.key === '1')  { e.preventDefault(); this.fitContent(); return; }
+    if (!mod && e.key === '2')  { e.preventDefault(); this.zoomToSelection(); return; }
+    if (!mod && key === 'f')    { e.preventDefault(); e.shiftKey ? this.zoomToSelection() : this.fitContent(); return; }
+    if (!mod && key === 'g' && e.shiftKey) { e.preventDefault(); this.gridEnabled = !this.gridEnabled; this.cdr.markForCheck(); return; }
+    if (!mod && key === 'm')    { e.preventDefault(); this.toggleSnap(); return; }
+    if (!mod && key === 'q')    { e.preventDefault(); this.toggleToolLock(); return; }
+    if (!mod && (e.key === '?' || (e.key === '/' && e.shiftKey))) { e.preventDefault(); this.toggleShortcuts(); return; }
 
-    // ── Arrow-key nudge ──
-    if ((this.selectedIds.length || this.sel) && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+    // ── Mover com as setas ──
+    if (!e.altKey && (this.selectedIds.length || this.sel) && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
       e.preventDefault();
-      const step = e.shiftKey ? 10 : 1;
+      const step = e.shiftKey ? 10 : this.snapEnabled ? this.gridSize : 1;
       const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
       const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
       this.captureDragOrigins(this.selectedIds.length ? this.selectedIds : this.sel ? [this.sel.id] : []);
       this.moveSelectedBy(dx, dy);
       this.dragOrigins.clear();
+      this.pushHistory();
       this.scheduleSave();
       this.cdr.markForCheck();
     }
   }
 
-  @HostListener('keyup', ['$event'])
+  /** Ctrl+B/I, Ctrl+Shift+> / < — retorna true se o atalho foi consumido. */
+  private handleFontShortcuts(e: KeyboardEvent): boolean {
+    const key = e.key.toLowerCase();
+    if (key === 'b') { e.preventDefault(); this.toggleBold(); return true; }
+    if (key === 'i') { e.preventDefault(); this.toggleItalic(); return true; }
+    if (e.key === '>' || e.key === '.') { e.preventDefault(); this.bumpFontSize(2); return true; }
+    if (e.key === '<' || e.key === ',') { e.preventDefault(); this.bumpFontSize(-2); return true; }
+    return false;
+  }
+
+  toggleToolLock() {
+    this.lockTool = !this.lockTool;
+    this.toast.show(
+      this.lockTool
+        ? 'Ferramenta travada: continua ativa após desenhar.'
+        : 'Ferramenta liberada: volta para Selecionar após desenhar.',
+      'info', 2500
+    );
+    this.cdr.markForCheck();
+  }
+
+  toggleSnap() {
+    this.snapEnabled = !this.snapEnabled;
+    if (this.snapEnabled) this.gridEnabled = true;
+    this.toast.show(this.snapEnabled ? 'Alinhar à grade: ativo.' : 'Alinhar à grade: desativado.', 'info', 2000);
+    this.cdr.markForCheck();
+  }
+
+  /** Colar de fora do app: imagens do sistema ou elementos copiados em outra janela. */
+  @HostListener('document:paste', ['$event'])
+  onPaste(e: ClipboardEvent) {
+    if (!this.current || this.editingId) return;
+    const el  = document.activeElement as HTMLElement | null;
+    const tag = (el?.tagName ?? '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || el?.isContentEditable) return;
+
+    const items = e.clipboardData?.items ? [...e.clipboardData.items] : [];
+    const imageItem = items.find(i => i.type.startsWith('image/'));
+    if (imageItem) {
+      const file = imageItem.getAsFile();
+      if (file) { e.preventDefault(); this.insertImageFile(file); return; }
+    }
+
+    const text = e.clipboardData?.getData('text/plain')?.trim();
+    if (!text) return;
+    // Elementos copiados em outra janela do planner
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.source === 'planner-drawing-clipboard' && Array.isArray(parsed.shapes) && parsed.shapes.length) {
+        e.preventDefault();
+        this.clipboard = parsed.shapes;
+        this.pasteClipboard(true);
+        return;
+      }
+    } catch { /* texto comum */ }
+
+    // Texto simples vira um elemento de texto no cursor
+    e.preventDefault();
+    const target = this.pointerInside ? this.lastPt : { x: this.panX + 60, y: this.panY + 60 };
+    const width  = Math.max(120, Math.min(600, text.length * (this.fontSize * 0.6)));
+    const shape  = this.makeShape('text', target.x, target.y, width, this.fontSize * 1.8);
+    shape.text   = text;
+    this.shapes  = [...this.shapes, shape];
+    this.setTool('select');
+    this.setSelection([shape.id]);
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+  }
+
+  @HostListener('document:keyup', ['$event'])
   onKeyUp(e: KeyboardEvent) {
     if (e.key === ' ') this.spaceDown = false;
   }
+
+  @HostListener('window:blur')
+  onWindowBlur() { this.spaceDown = false; }
 
   selectAll() {
     if (!this.shapes.length) return;
@@ -1764,7 +2581,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   toolLabel(t: Tool): string {
     const m: Record<Tool, string> = {
-      select: 'Selecionar (V)', pen: 'Caneta (P)', rect: 'Retângulo (R)',
+      select: 'Selecionar (V)', pen: 'Desenho livre (P)', rect: 'Retângulo (R)',
       ellipse: 'Elipse (E)', arrow: 'Seta (A)', text: 'Texto (T)', sticky: 'Nota (S)',
       line: 'Linha (L)', triangle: 'Triângulo', diamond: 'Losango', star: 'Estrela',
       image: 'Imagem'
@@ -1785,41 +2602,66 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         this.toast.show('Selecione um arquivo de imagem.', 'error', 4000);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const src = reader.result as string;
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 400;
-          let w = img.naturalWidth  || 300;
-          let h = img.naturalHeight || 200;
-          const scale = Math.min(1, maxDim / Math.max(w, h));
-          w = Math.round(w * scale);
-          h = Math.round(h * scale);
-          // Centraliza na área visível atual do canvas.
-          const cx = this.panX + (this.vw / this.zoom) / 2;
-          const cy = this.panY + (this.vh / this.zoom) / 2;
-          const shape = this.makeShape('image', cx - w / 2, cy - h / 2, w, h);
-          shape.src  = src;
-          shape.fill = 'transparent';
-          this.shapes = [...this.shapes, shape];
-          this.setTool('select');
-          this.setSelection([shape.id]);
-          this.pushHistory();
-          this.scheduleSave();
-          this.cdr.markForCheck();
-        };
-        img.onerror = () => this.toast.show('Falha ao carregar a imagem.', 'error', 4000);
-        img.src = src;
-      };
-      reader.readAsDataURL(file);
+      this.insertImageFile(file);
     };
     input.click();
   }
 
-  svgCursor(): string {
-    if (this.spaceDown || this.isPanning) return 'grabbing';
-    if (this.tool === 'select') return 'default';
-    return 'crosshair';
+  /** Insere um arquivo de imagem no canvas (upload ou colagem via Ctrl+V). */
+  private insertImageFile(file: File, at?: Point) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 400;
+        let w = img.naturalWidth  || 300;
+        let h = img.naturalHeight || 200;
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+        // No ponto informado, no cursor, ou centralizado na área visível.
+        const center = at ?? (this.pointerInside ? this.lastPt : {
+          x: this.panX + (this.vw / this.zoom) / 2,
+          y: this.panY + (this.vh / this.zoom) / 2
+        });
+        const shape = this.makeShape('image', center.x - w / 2, center.y - h / 2, w, h);
+        shape.src  = src;
+        shape.fill = 'transparent';
+        this.shapes = [...this.shapes, shape];
+        this.setTool('select');
+        this.setSelection([shape.id]);
+        this.pushHistory();
+        this.scheduleSave();
+        this.cdr.markForCheck();
+      };
+      img.onerror = () => this.toast.show('Falha ao carregar a imagem.', 'error', 4000);
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  onCanvasLeave(e: MouseEvent) {
+    this.pointerInside = false;
+    this.onMouseUp(e);
+  }
+
+  /**
+   * Modo do cursor do canvas. O crosshair nativo é uma cruz preta de 1px que
+   * some sobre a grade e em fundos escuros, então usamos um cursor próprio
+   * (com contorno branco) definido no SCSS por classe.
+   */
+  cursorMode(): 'select' | 'draw' | 'text' | 'grab' | 'grabbing' {
+    if (this.isPanning) return 'grabbing';
+    if (this.spaceDown) return 'grab';
+    if (this.tool === 'select') return 'select';
+    if (this.tool === 'text' || this.tool === 'sticky') return 'text';
+    return 'draw';
+  }
+
+  /** Cursor das formas: null herda o cursor do SVG (pan ou desenho). */
+  shapeCursor(): string | null {
+    if (this.spaceDown || this.isPanning) return null;
+    return this.tool === 'select' ? 'move' : null;
   }
 }

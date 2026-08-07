@@ -17,7 +17,11 @@ export class NotificationService {
   
 
   private todayKey(): string {
-    return this.PREFIX + new Date().toISOString().slice(0, 10);
+    return this.PREFIX + this.localYmd(new Date());
+  }
+
+  private localYmd(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   private shownToday(): Set<string> {
@@ -73,19 +77,38 @@ export class NotificationService {
     }
     if (perm !== 'granted') return;
 
+    const optionsFor = (ev: PlannerNotification): NotificationOptions => ({
+      body: ev.corpo,
+      icon: this.APP_ICON,
+      tag: ev.id,
+      badge: this.FALLBACK_ICON,
+    });
+
+    const shownIds: string[] = [];
     for (const ev of pendentes) {
       try {
-        new Notification(ev.titulo, {
-          body:  ev.corpo,
-          icon:  this.APP_ICON,
-          tag:   ev.id,   
-          badge: this.FALLBACK_ICON,
-        });
+        const registration = await this.readyServiceWorkerRegistration();
+        if (registration?.showNotification) {
+          await registration.showNotification(ev.titulo, optionsFor(ev));
+        } else {
+          new Notification(ev.titulo, optionsFor(ev));
+        }
+        shownIds.push(ev.id);
       } catch {
         // Some browsers block new Notification() outside user-gesture context
       }
     }
 
-    this.markShown(pendentes.map(e => e.id));
+    if (shownIds.length) this.markShown(shownIds);
+  }
+
+  private async readyServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+    if (!('serviceWorker' in navigator)) return null;
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    try {
+      return await Promise.race([navigator.serviceWorker.ready, timeout]);
+    } catch {
+      return null;
+    }
   }
 }

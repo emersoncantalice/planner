@@ -2,6 +2,8 @@ import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Inp
 import { CommonModule } from '@angular/common';
 import { PlannerApiService } from '../../core/planner-api.service';
 import { LoFinanceService, LoFinanceCalculator } from '../../core/lo-finance.service';
+import { BirthdayArtService, BirthdayTheme } from '../../core/birthday-art.service';
+import { ToastService } from '../../core/toast.service';
 
 @Component({
   selector: 'app-dashboard-panel',
@@ -15,6 +17,8 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   private api = inject(PlannerApiService);
   private cdr = inject(ChangeDetectorRef);
   private loFinance = inject(LoFinanceService);
+  private birthdayArt = inject(BirthdayArtService);
+  private toast = inject(ToastService);
   @Input() nomeUsuario = '';
   @Input() usernameAtual = '';
   @Input() token = '';
@@ -24,6 +28,7 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
   @Input() alocacoes: any[] = [];
   @Input() perfis: any[] = [];
   @Input() pessoas: any[] = [];
+  @Input() fotos: Record<string, string> = {};
   @Input() horasMes: any[] = [];
   @Input() ausencias: any[] = [];
   @Input() riscos: any[] = [];
@@ -50,6 +55,10 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     if (this.realizadoSyncTimer) {
       clearInterval(this.realizadoSyncTimer);
       this.realizadoSyncTimer = null;
+    }
+    if (this.arteTimer) {
+      clearTimeout(this.arteTimer);
+      this.arteTimer = null;
     }
   }
 
@@ -506,6 +515,20 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     FERIAS: '🏖️', AUSENCIA: '📋', LICENCA: '🩺', OUTRO: '📌',
   };
 
+  fotoDePessoa(pessoa: any): string {
+    return this.fotos?.[this.nomeFotoKey(pessoa?.nome || '')] || '';
+  }
+
+  iniciaisPessoa(pessoa: any): string {
+    const partes = String(pessoa?.nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    return ((partes[0][0] || '') + (partes.length > 1 ? partes[partes.length - 1][0] || '' : '')).toUpperCase();
+  }
+
+  private nomeFotoKey(nome: string): string {
+    return String(nome || '').trim().toLowerCase();
+  }
+
   proximosEventos(): Array<{
     tipo: 'aniversario' | 'ausencia';
     diasAte: number;
@@ -588,6 +611,133 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
     }
 
     return eventos.sort((a, b) => a.diasAte - b.diasAte);
+  }
+
+  // ── Arte de aniversário ───────────────────────────────────────────────────
+
+  readonly temasArte = this.birthdayArt.temas;
+  arte: {
+    pessoa: any;
+    dataLabel: string;
+    idade: number | null;
+    tema: BirthdayTheme;
+    mostrarIdade: boolean;
+    titulo: string;
+    nome: string;
+    subtitulo: string;
+    assinatura: string;
+    dataUrl: string;
+    gerando: boolean;
+  } | null = null;
+  private arteTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Idade que a pessoa completa no aniversário — null quando o ano não é confiável. */
+  idadeNoAniversario(pessoa: any, dataLabelAno?: number): number | null {
+    const dn = String(pessoa?.dataNascimento || '');
+    const [ano, mes, dia] = dn.split('-').map(Number);
+    if (!ano || !mes || !dia || ano < 1900) return null;
+    const hoje = new Date();
+    const anoAniv = dataLabelAno ?? (
+      new Date(hoje.getFullYear(), mes - 1, dia) >= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+        ? hoje.getFullYear()
+        : hoje.getFullYear() + 1
+    );
+    const idade = anoAniv - ano;
+    return idade > 0 && idade < 130 ? idade : null;
+  }
+
+  abrirArte(ev: { pessoa: any; dataLabel: string }) {
+    const idade = this.idadeNoAniversario(ev.pessoa);
+    this.arte = {
+      pessoa: ev.pessoa,
+      dataLabel: ev.dataLabel,
+      idade,
+      tema: 'festa',
+      mostrarIdade: false,
+      titulo: this.birthdayArt.tituloPadrao,
+      nome: ev.pessoa?.nome || '',
+      subtitulo: this.birthdayArt.subtituloPadrao(ev.dataLabel, null),
+      assinatura: this.birthdayArt.assinaturaPadrao,
+      dataUrl: '',
+      gerando: true,
+    };
+    this.cdr.markForCheck();
+    this.renderizarArte();
+  }
+
+  fecharArte() {
+    if (this.arteTimer) { clearTimeout(this.arteTimer); this.arteTimer = null; }
+    this.arte = null;
+    this.cdr.markForCheck();
+  }
+
+  trocarTemaArte(tema: BirthdayTheme) {
+    if (!this.arte || this.arte.tema === tema) return;
+    this.arte.tema = tema;
+    this.renderizarArte();
+  }
+
+  /** Idade entra/sai do subtítulo — sem sobrescrever um texto já personalizado. */
+  alternarIdadeArte() {
+    if (!this.arte) return;
+    const arte = this.arte;
+    const anterior = this.birthdayArt.subtituloPadrao(arte.dataLabel, arte.mostrarIdade ? arte.idade : null);
+    arte.mostrarIdade = !arte.mostrarIdade;
+    if (arte.subtitulo.trim() === anterior) {
+      arte.subtitulo = this.birthdayArt.subtituloPadrao(arte.dataLabel, arte.mostrarIdade ? arte.idade : null);
+    }
+    this.renderizarArte();
+  }
+
+  /** Digitação nos campos de texto: re-renderiza com um respiro. */
+  onTextoArteChange(campo: 'titulo' | 'nome' | 'subtitulo' | 'assinatura', valor: string) {
+    if (!this.arte) return;
+    this.arte[campo] = valor;
+    if (this.arteTimer) clearTimeout(this.arteTimer);
+    this.arteTimer = setTimeout(() => this.renderizarArte(), 260);
+  }
+
+  restaurarTextosArte() {
+    if (!this.arte) return;
+    this.arte.titulo = this.birthdayArt.tituloPadrao;
+    this.arte.nome = this.arte.pessoa?.nome || '';
+    this.arte.subtitulo = this.birthdayArt.subtituloPadrao(this.arte.dataLabel, this.arte.mostrarIdade ? this.arte.idade : null);
+    this.arte.assinatura = this.birthdayArt.assinaturaPadrao;
+    this.renderizarArte();
+  }
+
+  private renderizarArte() {
+    const arte = this.arte;
+    if (!arte) return;
+    arte.gerando = true;
+    this.cdr.markForCheck();
+
+    this.birthdayArt.generate({
+      nome: arte.nome,
+      foto: this.fotoDePessoa(arte.pessoa),
+      dataLabel: arte.dataLabel,
+      idade: arte.mostrarIdade ? arte.idade : null,
+      tema: arte.tema,
+      titulo: arte.titulo,
+      subtitulo: arte.subtitulo,
+      assinatura: arte.assinatura,
+    }).then(dataUrl => {
+      if (this.arte !== arte) return; // modal já foi fechado ou trocou de pessoa
+      arte.dataUrl = dataUrl;
+      arte.gerando = false;
+      this.cdr.markForCheck();
+    }).catch(() => {
+      if (this.arte !== arte) return;
+      arte.gerando = false;
+      this.cdr.markForCheck();
+      this.toast.show('Não foi possível gerar a arte de aniversário.', 'error', 5000);
+    });
+  }
+
+  baixarArte() {
+    if (!this.arte?.dataUrl) return;
+    this.birthdayArt.download(this.arte.dataUrl, this.arte.nome || this.arte.pessoa?.nome || '');
+    this.toast.show('Arte baixada em PNG (1080×1080).', 'success', 3000);
   }
 
   labelDias(dias: number): string {
