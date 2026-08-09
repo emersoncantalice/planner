@@ -7,13 +7,25 @@
       </div>
     }
   </div>
-  <section class="lo-overview">
+  <section class="lo-overview" [class.recolhido]="overviewRecolhido">
     <div class="lo-overview-header">
       <h3 class="lo-overview-title">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
         Visão Geral das LOs — {{ anoSelecionado }}
       </h3>
+      @if (overviewRecolhido) {
+        <span class="bloco-resumo-inline">
+          Orçamento {{ currency(totalOrcamentoGeralLos()) }} ·
+          Comprometido {{ currency(totalComprometidoGeralLos()) }} ·
+          Saldo {{ currency(saldoGeralLos()) }}
+        </span>
+      }
+      <button type="button" class="bloco-toggle" (click)="toggleOverview()"
+              [title]="overviewRecolhido ? 'Expandir a visão geral das LOs' : 'Recolher a visão geral para sobrar espaço na tabela'">
+        {{ overviewRecolhido ? '▾ Expandir' : '▴ Recolher' }}
+      </button>
     </div>
+    @if (!overviewRecolhido) {
     <div class="lo-overview-grid">
 
       <div class="lo-card lo-card-blue">
@@ -131,6 +143,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
         <span>Vagas planejadas não são consideradas nesta visão geral.</span>
       </div>
+    }
     }
   </section>
 
@@ -264,9 +277,24 @@
             </div>
           }
           <span class="lo-summary-badge">{{ numAlocacoesNaLoSelecionada() }} alocações</span>
+          <button type="button" class="bloco-toggle" (click)="toggleResumoLo()"
+                  [title]="resumoLoRecolhido ? 'Expandir os valores da LO' : 'Recolher os valores da LO para sobrar espaço na tabela'">
+            {{ resumoLoRecolhido ? '▾ Valores' : '▴ Recolher' }}
+          </button>
         </div>
       </div>
 
+      @if (resumoLoRecolhido) {
+        <div class="lo-summary-inline">
+          <span>Orçamento <strong>{{ currency(orcamentoLoSelecionada()) }}</strong></span>
+          <span>Comprometido <strong>{{ currency(totalComprometidoClm()) }}</strong></span>
+          <span [class.negativo]="saldoLo() < 0">Saldo <strong>{{ currency(saldoLo()) }}</strong></span>
+          <span>Pago <strong>{{ currency(totalPagoNaLoSelecionada()) }}</strong></span>
+          <span>Utilização <strong>{{ percentualUtilizadoLo() | number:'1.1-1' }}%</strong></span>
+        </div>
+      }
+
+      @if (!resumoLoRecolhido) {
       <div class="lo-summary-kpis">
         <div class="lo-summary-kpi lo-summary-kpi-blue">
           <span class="lo-summary-kpi-label">Orçamento</span>
@@ -324,6 +352,7 @@
           <div class="lo-summary-progress-bar-fill" [style.width.%]="clampPct(percentualUtilizadoLo())" [class.over]="percentualUtilizadoLo() > 100"></div>
         </div>
       </div>
+      }
     </div>
   }
 
@@ -729,13 +758,28 @@
             }
             @if (col('pct')) {
               <td>
-                <input
-                  class="percent-input"
-                  type="text"
-                  inputmode="numeric"
-                  placeholder="0,00"
-                  [ngModel]="getPctMasked(a.id)"
-                  (ngModelChange)="onPctMaskedChange($event, a.id)" />
+                <div class="pct-cell">
+                  <input
+                    class="percent-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="0,00"
+                    [ngModel]="getPctMasked(a.id)"
+                    (ngModelChange)="onPctMaskedChange($event, a.id)" />
+                  <!-- Reajuste é da tarifa da pessoa: só prestador tem valor/hora negociado. -->
+                  @if (podeReajustar(a)) {
+                    <button type="button" class="reajuste-btn"
+                            [class.tem-reajuste]="temReajusteAlocacao(a.id)"
+                            [title]="'Reajustar o valor/hora de ' + a.nomePessoa + ' nos meses em aberto'"
+                            (click)="abrirReajuste(a.nomePessoa, $event)">
+                      @if (temReajusteAlocacao(a.id)) {
+                        ↗ +{{ reajusteVigenteAlocacao(a.id) | number:'1.0-2' }}%
+                      } @else {
+                        ↗ Reajuste
+                      }
+                    </button>
+                  }
+                </div>
               </td>
             }
             @if (col('valorH')) {
@@ -753,6 +797,12 @@
                   <span class="sem-custo-lo">Não cobra da LO</span>
                 } @else if (editingId === a.id) {
                   {{ currency(valorHoraPessoaSelecionadaEdicao()) }}
+                } @else if (temReajusteAlocacao(a.id)) {
+                  <span class="valorh-reajustado"
+                        [title]="'Cadastro ' + currency(getValorHoraDaAlocacao(a)) + ' + reajuste de ' + (reajusteVigenteAlocacao(a.id) | number:'1.0-2') + '% nos meses em aberto'">
+                    {{ currency(valorHoraReajustadaAlocacao(a)) }}
+                    <small>de {{ currency(getValorHoraDaAlocacao(a)) }}</small>
+                  </span>
                 } @else {
                   {{ currency(getValorHoraDaAlocacao(a)) }}
                 }
@@ -962,6 +1012,57 @@
     <div class="alloc-toast-actions">
       <button type="button" class="alloc-toast-ok" (click)="confirmToastAction(true)">Confirmar</button>
       <button type="button" class="alloc-toast-cancel" (click)="confirmToastAction(false)">Cancelar</button>
+    </div>
+  </div>
+}
+
+@if (reajustePessoa) {
+  <div class="modal-backdrop" (click)="fecharReajuste()"></div>
+  <div class="modal-card reajuste-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="panel-head">
+      <h3>Reajuste do valor/hora — {{ reajustePessoa }}</h3>
+      <button class="sec" type="button" (click)="fecharReajuste()">Fechar</button>
+    </div>
+
+    <p class="reajuste-hint">
+      O percentual incide sobre o <strong>valor da hora</strong> (R$/h), não sobre a quantidade de horas:
+      <code>custo = valor/hora × (1 + reajuste) × horas × alocação%</code>.
+      Só os <strong>meses em aberto</strong> são recalculados — meses pagos, cancelados ou bloqueados ficam
+      com a tarifa da época.
+    </p>
+
+    <label class="reajuste-label">Percentual de reajuste (%)</label>
+    <input
+      class="percent-input reajuste-input"
+      type="text"
+      inputmode="numeric"
+      placeholder="0,00"
+      [ngModel]="reajusteMasked"
+      (ngModelChange)="onReajusteMaskedChange($event)"
+      (keydown.enter)="confirmarReajuste()" />
+
+    <div class="reajuste-preview">
+      <div><span>Alocações</span><strong>{{ linhasAfetadasPeloReajuste() }}</strong></div>
+      <div><span>Meses em aberto</span><strong>{{ mesesAfetadosPeloReajuste() }}</strong></div>
+      <div><span>Impacto no ano</span><strong>{{ currency(impactoReajuste()) }}</strong></div>
+    </div>
+
+    @if (losAfetadasPeloReajuste() > 1) {
+      <p class="reajuste-aviso">
+        A tarifa é da pessoa, então o reajuste atinge as
+        <strong>{{ losAfetadasPeloReajuste() }} LOs</strong> em que ela está alocada em {{ anoSelecionado }}:
+        {{ codigosLosAfetadas() }}.
+      </p>
+    }
+
+    <div class="reajuste-actions">
+      <button type="button" class="sec" (click)="confirmarRemocaoReajuste()"
+              title="Zera o reajuste dos meses em aberto e volta ao valor/hora de cadastro">
+        Remover reajuste
+      </button>
+      <button type="button" (click)="confirmarReajuste()" [disabled]="!mesesAfetadosPeloReajuste()">
+        Aplicar reajuste
+      </button>
     </div>
   </div>
 }

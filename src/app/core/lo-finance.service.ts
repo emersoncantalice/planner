@@ -32,6 +32,13 @@ export interface LoFinanceContext {
   manualPercent: (allocationId: string, month: number) => number | null;
   /** Mês pago para a alocação. */
   isPago: (allocationId: string, month: number) => boolean;
+  /**
+   * Reajuste acumulado (%) sobre o VALOR da hora naquele mês (0 = sem reajuste).
+   * Reajusta a tarifa, nunca a quantidade de horas. É por mês porque só entra
+   * nos meses que estavam em aberto quando o reajuste foi lançado — os meses já
+   * pagos guardam a tarifa da época. Opcional: quem não informa lê 0.
+   */
+  rateAdjust?: (allocationId: string, month: number) => number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -128,6 +135,16 @@ export class LoFinanceCalculator {
       if (perfil?.valorHora != null) return Number(perfil.valorHora);
     }
     return Number(a?.valorHora || 0);
+  }
+
+  /**
+   * VALOR da hora no mês: a tarifa da alocação vezes o reajuste acumulado
+   * daquele mês. Meses já pagos guardam o reajuste vigente quando foram pagos,
+   * então o histórico não se move quando um novo reajuste é lançado.
+   */
+  private valorHoraMes(allocationId: string, valorHora: number, month: number): number {
+    const pct = Number(this.ctx.rateAdjust?.(allocationId, month) || 0);
+    return (valorHora || 0) * (1 + pct / 100);
   }
 
   // ── horas efetivas (com desconto de ausências para TERCEIRO) ──────────────
@@ -228,7 +245,7 @@ export class LoFinanceCalculator {
       this.nomePessoaDaAlocacao(allocationId),
       isDraftAloc
     );
-    return (valorHora || 0) * horas * (percentual / 100);
+    return this.valorHoraMes(allocationId, valorHora, month) * horas * (percentual / 100);
   }
 
   /** Custo mensal canônico usado pela Visão Geral. */
@@ -240,7 +257,7 @@ export class LoFinanceCalculator {
     const percentual = this.getPercentualEfetivoMes(allocationId, month);
     const isDraftAloc = !!(this.ctx.alocacoes.find((a: any) => a.id === allocationId)?.draft);
     const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), undefined, isDraftAloc);
-    return (valorHora || 0) * horas * (percentual / 100);
+    return this.valorHoraMes(allocationId, valorHora, month) * horas * (percentual / 100);
   }
 
   /** Custo anual de uma alocação (12 meses), arredondando mês a mês como na tela. */

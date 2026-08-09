@@ -1,10 +1,13 @@
-<div class="drawing-root" tabindex="0" (click)="closeDrawingContextMenu()">
+<div class="drawing-root" tabindex="0" (click)="closeSidebarMenus()">
 
   <!-- ── Drawings sidebar ── -->
   @if (showList) {
     <aside class="drawing-sidebar">
       <div class="sidebar-header">
         <span class="sidebar-title">Meus Desenhos</span>
+        <button class="btn-icon" (click)="openFolderContextMenu($event, ''); startSubfolder('')" title="Nova pasta">
+          <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6zm2 6h-2v2H8v2h2v2h2v-2h2v-2h-2v-2z"/></svg>
+        </button>
         <button class="btn-icon" (click)="showNewModal = true" title="Novo desenho">
           <svg viewBox="0 0 24 24"><path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         </button>
@@ -15,30 +18,39 @@
         <input [(ngModel)]="drawingSearch" placeholder="Buscar desenho ou pasta"/>
       </div>
 
-      @if (!drawings.length) {
+      @if (!drawings.length && !customFolders.size) {
         <div class="sidebar-empty">
           <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83a1 1 0 0 0 0-1.41z"/></svg>
           <p>Nenhum desenho ainda</p>
           <button class="btn-primary" (click)="showNewModal = true">Criar desenho</button>
         </div>
-      } @else if (!filteredDrawings().length) {
+      } @else if (!drawingFolderGroups().length) {
         <div class="sidebar-empty compact">
           <p>Nenhum desenho encontrado</p>
         </div>
       } @else {
-        <div class="drawing-list">
+        <!-- Botão direito no vazio da lista cria pasta na raiz -->
+        <div class="drawing-list" (contextmenu)="openFolderContextMenu($event, '')">
           @for (group of drawingFolderGroups(); track group.path) {
             <div class="folder-group">
-              <button class="folder-title" [class.open]="isFolderOpen(group.path)" [style.padding-left.px]="8 + folderDepth(group.path) * 12" (click)="toggleFolder(group.path); $event.stopPropagation()">
-                <svg class="folder-caret" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <button class="folder-title" [class.open]="isFolderOpen(group.path)"
+                      [style.padding-left.px]="8 + group.depth * 13"
+                      (click)="toggleFolder(group.path); $event.stopPropagation()"
+                      (contextmenu)="openFolderContextMenu($event, group.path)"
+                      [title]="group.path || 'Desenhos sem pasta'">
+                <svg class="folder-caret" [class.hidden]="!group.hasChildren && !group.drawings.length" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6z"/></svg>
                 <span>{{ group.label }}</span>
-                <em>{{ group.drawings.length }}</em>
+                <em>{{ group.total }}</em>
               </button>
               @if (isFolderOpen(group.path)) {
+                @if (!group.drawings.length && !group.hasChildren) {
+                  <div class="folder-empty" [style.padding-left.px]="26 + group.depth * 13">Pasta vazia</div>
+                }
                 @for (d of group.drawings; track d.id) {
                   <button class="drawing-item"
                           [class.active]="d.id === current?.id"
+                          [style.padding-left.px]="22 + group.depth * 13"
                           (click)="open(d)"
                           (contextmenu)="openDrawingContextMenu($event, d)">
                     <span class="drawing-name">{{ d.nome }}</span>
@@ -142,8 +154,9 @@
             <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4.2 2.4-7.3L2 9.4h7.6z"/></svg>
           </button>
           <button class="tool-btn shape-menu-btn" [class.active]="showShapeMenu || isExtraShapeActive()"
-                  (click)="toggleShapeMenu()" title="Mais formas">
+                  (click)="toggleShapeMenu($event)" title="Mais formas (geometria, fluxograma e arquitetura)">
             <svg viewBox="0 0 24 24"><path d="M6.5 2 1 11h11L6.5 2zm11 .5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM3 14h8v8H3v-8zm11 4 4-4 4 4-4 4-4-4z"/></svg>
+            <span class="shape-menu-label">Mais formas</span>
             <span class="shape-menu-caret"></span>
           </button>
         </div>
@@ -214,12 +227,18 @@
 
     <!-- Galeria de formas: fora da barra para ela não crescer/rolar na horizontal -->
     @if (showShapeMenu) {
-      <div class="shape-menu">
+      <div class="ctx-backdrop" (mousedown)="showShapeMenu = false; cdr.markForCheck()"></div>
+      <div class="shape-menu" [style.left.px]="shapeMenuPos.x" [style.top.px]="shapeMenuPos.y"
+           (mousedown)="$event.stopPropagation()">
         <div class="sm-header">
           <strong>Mais formas</strong>
           <button (click)="showShapeMenu = false; cdr.markForCheck()">×</button>
         </div>
-        @for (group of shapeGroups; track group.label) {
+        <div class="sm-search">
+          <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.17 10.44l4.44 4.45-1.42 1.41-4.44-4.44A6.5 6.5 0 1 1 9.5 3zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
+          <input [(ngModel)]="shapeSearch" placeholder="Buscar forma (ex: cilindro, fila…)"/>
+        </div>
+        @for (group of filteredShapeGroups(); track group.label) {
           <div class="sm-group" [title]="group.hint">{{ group.label }}</div>
           <div class="sm-grid">
             @for (sh of group.items; track sh) {
@@ -233,6 +252,9 @@
               </button>
             }
           </div>
+        }
+        @if (!filteredShapeGroups().length) {
+          <div class="sm-empty">Nenhuma forma com “{{ shapeSearch }}”.</div>
         }
       </div>
     }
@@ -1058,13 +1080,81 @@
         }
       </div>
       <div class="ctx-new-folder">
-        <input [(ngModel)]="contextMoveFolder" placeholder="Nova pasta"/>
+        <input [(ngModel)]="contextMoveFolder" placeholder="Pasta ex: Produto/Fluxos"/>
         <button (click)="moveDrawingTo(drawingContextMenu.drawing, contextMoveFolder)">Mover</button>
       </div>
+      <div class="ctx-sep"></div>
+      @if (subfolderParent === null) {
+        <button class="ctx-item" (click)="startSubfolder(normalizeFolder(drawingContextMenu.drawing.pasta))">
+          <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6zm2 6h-2v2H8v2h2v2h2v-2h2v-2h-2v-2z"/></svg>
+          Nova subpasta em “{{ folderLabel(normalizeFolder(drawingContextMenu.drawing.pasta)) }}”
+        </button>
+      } @else {
+        <div class="ctx-new-folder">
+          <input [(ngModel)]="subfolderName" placeholder="Nome da subpasta" autofocus
+                 (keydown.enter)="createSubfolder(subfolderParent)"
+                 (keydown.escape)="subfolderParent = null"/>
+          <button (click)="createSubfolder(subfolderParent)">Criar</button>
+        </div>
+      }
+      <div class="ctx-sep"></div>
       <button class="ctx-item danger" (click)="deleteDrawingRecord(drawingContextMenu.drawing)">
         <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
         Excluir desenho
       </button>
+    </div>
+  }
+
+  <!-- Menu de contexto da pasta: subpastas, renomear, excluir -->
+  @if (folderContextMenu) {
+    <div class="drawing-context-menu"
+         [style.left.px]="folderContextMenu.x"
+         [style.top.px]="folderContextMenu.y"
+         (click)="$event.stopPropagation()"
+         (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
+      <div class="ctx-title">
+        <svg class="ctx-title-icon" viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6z"/></svg>
+        {{ folderContextMenu.path || 'Raiz' }}
+      </div>
+
+      @if (subfolderParent !== null) {
+        <div class="ctx-section-title">Nova subpasta em “{{ folderLabel(subfolderParent) }}”</div>
+        <div class="ctx-new-folder">
+          <input [(ngModel)]="subfolderName" placeholder="Nome da pasta" autofocus
+                 (keydown.enter)="createSubfolder(subfolderParent)"
+                 (keydown.escape)="subfolderParent = null"/>
+          <button (click)="createSubfolder(subfolderParent)">Criar</button>
+        </div>
+      } @else if (renamingFolder) {
+        <div class="ctx-section-title">Renomear pasta</div>
+        <div class="ctx-new-folder">
+          <input [(ngModel)]="folderRenameVal" placeholder="Novo nome" autofocus
+                 (keydown.enter)="confirmRenameFolder(renamingFolder)"
+                 (keydown.escape)="renamingFolder = ''"/>
+          <button (click)="confirmRenameFolder(renamingFolder)">Salvar</button>
+        </div>
+      } @else {
+        <button class="ctx-item" (click)="startSubfolder(folderContextMenu.path)">
+          <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6zm2 6h-2v2H8v2h2v2h2v-2h2v-2h-2v-2z"/></svg>
+          Nova subpasta
+        </button>
+        <button class="ctx-item" (click)="newDrawingInFolder(folderContextMenu.path)">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>
+          Novo desenho aqui
+        </button>
+        @if (folderContextMenu.path) {
+          <div class="ctx-sep"></div>
+          <button class="ctx-item" (click)="startRenameFolder(folderContextMenu.path)">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83a1 1 0 0 0 0-1.41z"/></svg>
+            Renomear pasta
+          </button>
+          <button class="ctx-item danger" (click)="deleteFolder(folderContextMenu.path)"
+                  title="Os desenhos não são apagados — sobem para a pasta acima">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Excluir pasta
+          </button>
+        }
+      }
     </div>
   }
 

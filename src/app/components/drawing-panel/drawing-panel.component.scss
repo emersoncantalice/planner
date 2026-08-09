@@ -77,6 +77,7 @@
 
 .drawing-list {
   margin: 0; padding: 6px;
+  min-height: 80px;          // área vazia clicável para o menu de contexto da raiz
   overflow-y: auto;
   flex: 1;
 }
@@ -112,6 +113,7 @@
     transition: transform .12s ease;
   }
   &.open .folder-caret { transform: rotate(90deg); }
+  .folder-caret.hidden { visibility: hidden; }
   span {
     min-width: 0;
     overflow: hidden;
@@ -147,6 +149,13 @@
 .drawing-name { font-size: .83rem; font-weight: 600; color: #1e293b; }
 .drawing-date { font-size: .65rem; color: #94a3b8; }
 
+.folder-empty {
+  padding: 5px 10px 7px;
+  font-size: .68rem;
+  font-style: italic;
+  color: #b6c2d4;
+}
+
 .drawing-context-menu {
   position: fixed;
   z-index: 1200;
@@ -164,6 +173,9 @@
 }
 
 .ctx-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 8px 7px;
   font-size: .78rem;
   font-weight: 800;
@@ -172,6 +184,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  .ctx-title-icon { width: 14px; height: 14px; fill: #4a6da6; flex-shrink: 0; }
+}
+
+.ctx-sep {
+  height: 1px;
+  background: #eef2f9;
+  margin: 2px 0;
+  flex-shrink: 0;
 }
 
 .ctx-section-title {
@@ -550,23 +570,29 @@
 // ── Galeria de formas ────────────────────────────────────────────────────────
 .shape-menu-btn {
   position: relative;
+  width: auto;
+  gap: 5px;
+  padding: 0 8px;
+  .shape-menu-label {
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
   .shape-menu-caret {
-    position: absolute;
-    right: 3px; bottom: 3px;
     width: 0; height: 0;
     border-left: 4px solid transparent;
-    border-top: 4px solid currentColor;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
   }
 }
 
 .shape-menu {
-  position: absolute;
-  top: 46px; left: 12px;
+  position: fixed;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 10px 12px 12px;
-  z-index: 300;
+  z-index: 1200;
   box-shadow: 0 8px 32px rgba(0,0,0,.16);
   width: 342px;
   max-width: calc(100vw - 24px);
@@ -583,6 +609,31 @@
     color: #94a3b8; line-height: 1;
     &:hover { color: #475569; }
   }
+}
+
+.sm-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 5px 8px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  svg { width: 14px; height: 14px; fill: #94a3b8; flex-shrink: 0; }
+  input {
+    min-width: 0; width: 100%;
+    border: 0; outline: 0;
+    font-size: .74rem; color: #1e293b;
+    background: transparent;
+  }
+}
+
+.sm-empty {
+  padding: 14px 4px;
+  text-align: center;
+  font-size: .74rem;
+  color: #94a3b8;
 }
 
 .sm-group {

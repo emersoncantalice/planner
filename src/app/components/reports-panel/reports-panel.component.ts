@@ -108,6 +108,10 @@ export class ReportsPanelComponent {
       isPago: (id, m) => this.pagamentos.some((p: any) =>
         String(p?.allocationId || '') === String(id || '') && Number(p?.month) === m && !!p?.paid
       ),
+      rateAdjust: (id, m) => {
+        const e = this.estadoMensal(id, m);
+        return (e?.rateAdjust != null && e?.rateAdjust !== '') ? Number(e.rateAdjust || 0) : 0;
+      },
     });
   }
 

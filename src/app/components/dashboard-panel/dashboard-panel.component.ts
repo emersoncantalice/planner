@@ -268,6 +268,10 @@ export class DashboardPanelComponent implements OnChanges, OnDestroy {
         return Math.max(0, Math.min(100, this.num(st.manualPercent)));
       },
       isPago: (id, m) => this.isPago(id, m),
+      rateAdjust: (id, m) => {
+        const st = this.monthlyState(id, m);
+        return (st?.rateAdjust != null && st?.rateAdjust !== '') ? this.num(st.rateAdjust) : 0;
+      },
     });
   }
 

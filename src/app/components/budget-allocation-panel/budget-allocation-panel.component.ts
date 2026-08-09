@@ -256,6 +256,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       manualValue: (id, m) => this.getValorMensalManual(id, m),
       manualPercent: (id, m) => this.getPercentualMensalManual(id, m),
       isPago: (id, m) => this.isPago(id, m),
+      rateAdjust: (id, m) => this.getReajusteMes(id, m),
     });
   }
   private paymentsSyncTimer: ReturnType<typeof setInterval> | null = null;
@@ -272,9 +273,19 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private valorMensalManual: Record<string, number> = {};
   private valorMensalMaskedMap: Record<string, string> = {};
   private percentualMensalManual: Record<string, number> = {};
+  /**
+   * Reajuste acumulado (%) do VALOR da hora, por alocação e mês. Fica por mês
+   * porque um reajuste só entra nos meses em aberto — os meses já pagos guardam
+   * a tarifa da época.
+   */
+  private reajusteMensal: Record<string, number> = {};
   percentualAviso = '';
   // Quando ligado, descontos de horas por ausência/férias entram no custo (tela e extração).
   descontarAusencias = this.carregarDescontarAusencias();
+  // Blocos recolhíveis: a tabela é o que se trabalha, os painéis de números
+  // acima dela roubam a altura útil. A preferência fica no navegador.
+  overviewRecolhido = this.carregarRecolhido('planner_lo_overview_recolhido');
+  resumoLoRecolhido = this.carregarRecolhido('planner_lo_resumo_recolhido');
   // Filtros da tabela
   filtroPerfil = '';
   filtroCategoria: '' | 'FOLHA' | 'TERCEIRO' = '';
@@ -750,7 +761,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   
   valorMaximoMes(a: any, monthIndex: number): number {
-    const vh = this.getValorHoraDaAlocacao(a);
+    const vh = this.valorHoraMes(a, monthIndex);
     if (!vh) return 0;
     const pct = this.percentualDisponivelParaLinha(a.id, monthIndex);
     const horas = this.horasEfetivas(monthIndex, this.getCategoriaDaPessoa(a), undefined, !!a.draft);
@@ -964,7 +975,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const isDraftAloc = !!(this.alocacoes.find((a: any) => a.id === allocationId)?.draft);
     // Passa o nome da pessoa para que o desconto de ausências (quando ligado) também afete os totais.
     const horas = this.horasEfetivas(mi, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), isDraftAloc);
-    return (valorHora || 0) * horas * (percentual / 100);
+    // O reajuste multiplica a tarifa, não as horas.
+    return (valorHora || 0) * this.fatorReajusteMes(allocationId, mi) * horas * (percentual / 100);
   }
 
   totalComprometidoMesLo(month: number): number {
@@ -1166,14 +1178,9 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const key = this.canceladoKey(allocationId, month);
     const prev = !!this.canceladoMensal[key];
     this.canceladoMensal[key] = checked;
-    if (this.token) {
-      this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { canceled: checked }).subscribe({
-        error: () => {
-          this.canceladoMensal[key] = prev;
-          this.percentualAviso = 'Falha ao salvar cancelamento no servidor.';
-        }
-      });
-    }
+    this.salvarEstadoMensal(allocationId, month, { canceled: checked }, () => {
+      this.canceladoMensal[key] = prev;
+    });
     if (checked) {
       
       const pagoKey = this.pagoKey(allocationId, month);
@@ -1289,6 +1296,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
         const nextCancelado: Record<string, boolean> = {};
         const nextValorManual: Record<string, number> = {};
         const nextPctManual: Record<string, number> = {};
+        const nextReajuste: Record<string, number> = {};
         for (const r of rows || []) {
           const allocId = String(r?.allocationId || '').trim();
           const month = Number(r?.month);
@@ -1305,10 +1313,15 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
             const p = Number(r.manualPercent);
             if (!Number.isNaN(p)) nextPctManual[pKey] = Math.max(0, Math.min(100, p));
           }
+          if (r?.rateAdjust != null && r?.rateAdjust !== '') {
+            const adj = Number(r.rateAdjust);
+            if (!Number.isNaN(adj) && adj !== 0) nextReajuste[this.reajusteKey(allocId, month)] = adj;
+          }
         }
         this.canceladoMensal = nextCancelado;
         this.valorMensalManual = nextValorManual;
         this.percentualMensalManual = nextPctManual;
+        this.reajusteMensal = nextReajuste;
         this.cdr.markForCheck();
       }
     });
@@ -1459,7 +1472,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return tipoPessoa === 'TERCEIRO' ? 'TERCEIRO' : 'FOLHA';
   }
 
-  private nomePessoaDaAlocacao(allocationId: string): string {
+  nomePessoaDaAlocacao(allocationId: string): string {
     const found = this.alocacoes.find((a: any) => a.id === allocationId);
     return found?.nomePessoa || 'Pessoa';
   }
@@ -2020,6 +2033,26 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   // ── Desconto de ausências (tela + extração) ────────────────────────────────
+  private carregarRecolhido(chave: string): boolean {
+    try { return localStorage.getItem(chave) === 'true'; } catch { return false; }
+  }
+
+  private salvarRecolhido(chave: string, valor: boolean) {
+    try { localStorage.setItem(chave, String(valor)); } catch {}
+  }
+
+  toggleOverview() {
+    this.overviewRecolhido = !this.overviewRecolhido;
+    this.salvarRecolhido('planner_lo_overview_recolhido', this.overviewRecolhido);
+    this.cdr.markForCheck();
+  }
+
+  toggleResumoLo() {
+    this.resumoLoRecolhido = !this.resumoLoRecolhido;
+    this.salvarRecolhido('planner_lo_resumo_recolhido', this.resumoLoRecolhido);
+    this.cdr.markForCheck();
+  }
+
   private carregarDescontarAusencias(): boolean {
     try {
       const v = localStorage.getItem('planner_lo_descontar_ausencias');
@@ -2236,7 +2269,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       const percentualRestante = Math.max(0, 100 - percentualOutras);
       const aloc = this.alocacoes.find((a: any) => a.id === allocationId);
       const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), !!aloc?.draft);
-      const valorHoraEfetivo = aloc ? this.getValorHoraDaAlocacao(aloc) : 0;
+      // A tarifa do teto é a reajustada: um reajuste sobe o valor máximo do mês.
+      const valorHoraEfetivo = (aloc ? this.getValorHoraDaAlocacao(aloc) : 0) * this.fatorReajusteMes(allocationId, month);
       const valorMaximoPermitido = this.round2((Number(valorHoraEfetivo || 0) * horas) * (percentualRestante / 100));
       if (valorMaximoPermitido > 0 && valor > valorMaximoPermitido) {
         valor = valorMaximoPermitido;
@@ -2246,24 +2280,17 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const key = this.valorMensalManualKey(allocationId, month);
     const prev = this.valorMensalManual[key];
     this.valorMensalManual[key] = valor;
-    if (this.token) {
-      this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualValue: valor }).subscribe({
-        error: () => {
-          if (prev == null) delete this.valorMensalManual[key];
-          else this.valorMensalManual[key] = prev;
-          this.percentualAviso = 'Falha ao salvar valor manual no servidor.';
-        }
-      });
-    }
+    this.salvarEstadoMensal(allocationId, month, { manualValue: valor }, () => {
+      if (prev == null) delete this.valorMensalManual[key];
+      else this.valorMensalManual[key] = prev;
+    });
   }
 
   limparValorMensalManual(allocationId: string, month: number, valorHora: number) {
     const key = this.valorMensalManualKey(allocationId, month);
     delete this.valorMensalManual[key];
     delete this.valorMensalMaskedMap[this.valorMensalMaskKey(allocationId, month)];
-    if (this.token) {
-      this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualValue: null }).subscribe();
-    }
+    this.salvarEstadoMensal(allocationId, month, { manualValue: null });
     this.setValorMensalDigitavel(allocationId, month, this.custoMensalCalculado(allocationId, valorHora, month));
   }
 
@@ -2281,7 +2308,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const percentual = this.getPercentualEfetivoMes(allocationId, month);
     const isDraftAloc = !!(this.alocacoes.find((a: any) => a.id === allocationId)?.draft);
     const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), isDraftAloc);
-    return (valorHora || 0) * horas * (percentual / 100);
+    return (valorHora || 0) * this.fatorReajusteMes(allocationId, month) * horas * (percentual / 100);
   }
 
   private valorMensalManualKey(allocationId: string, month: number): string {
@@ -2303,21 +2330,14 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const key = this.percentualMensalManualKey(allocationId, month);
     if (Math.abs(valorAjustado - base) < 0.0001) {
       delete this.percentualMensalManual[key];
-      if (this.token) {
-        this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualPercent: null }).subscribe();
-      }
+      this.salvarEstadoMensal(allocationId, month, { manualPercent: null });
     } else {
       const prev = this.percentualMensalManual[key];
       this.percentualMensalManual[key] = valorAjustado;
-      if (this.token) {
-        this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { manualPercent: valorAjustado }).subscribe({
-          error: () => {
-            if (prev == null) delete this.percentualMensalManual[key];
-            else this.percentualMensalManual[key] = prev;
-            this.percentualAviso = 'Falha ao salvar percentual mensal no servidor.';
-          }
-        });
-      }
+      this.salvarEstadoMensal(allocationId, month, { manualPercent: valorAjustado }, () => {
+        if (prev == null) delete this.percentualMensalManual[key];
+        else this.percentualMensalManual[key] = prev;
+      });
     }
     if (valor > maxPermitido) {
       this.percentualAviso = `Percentual ajustado para ${maxPermitido.toFixed(2)}% (limite disponível no mês ${this.meses[month]}).`;
@@ -2337,6 +2357,263 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   private percentualMensalManualKey(allocationId: string, month: number): string {
     return `planner_lo_alloc_monthly_${allocationId}_${month}`;
+  }
+
+  // ── Reajuste do valor/hora ────────────────────────────────────────────────
+  // O reajuste incide sobre o VALOR da hora (R$/h) e nunca sobre a quantidade
+  // de horas: custo = valorHora × (1 + reajuste%) × horas × alocação%.
+
+  private reajusteKey(allocationId: string, month: number): string {
+    return `planner_lo_reajuste_${allocationId}_${month}`;
+  }
+
+  /** Reajuste acumulado (%) do mês. 0 quando nunca houve reajuste. */
+  getReajusteMes(allocationId: string, month: number): number {
+    return Number(this.reajusteMensal[this.reajusteKey(allocationId, month)] || 0);
+  }
+
+  /** Multiplicador da tarifa no mês (1 = sem reajuste). */
+  private fatorReajusteMes(allocationId: string, month: number): number {
+    return 1 + this.getReajusteMes(allocationId, month) / 100;
+  }
+
+  /** Valor da hora já reajustado para aquele mês. */
+  valorHoraMes(a: any, month: number): number {
+    return this.round2(this.getValorHoraDaAlocacao(a) * this.fatorReajusteMes(a?.id, month));
+  }
+
+  /**
+   * Mês "em aberto": ainda não pago, não cancelado e não bloqueado por outra
+   * linha. Só estes entram no reajuste — o que já foi pago não se mexe.
+   */
+  mesEmAbertoParaReajuste(allocationId: string, month: number): boolean {
+    if (this.isPago(allocationId, month)) return false;
+    if (this.isCancelado(allocationId, month)) return false;
+    if (this.mesIndisponivelParaAlocacao(allocationId, month)) return false;
+    return true;
+  }
+
+  mesesEmAbertoDaAlocacao(allocationId: string): number[] {
+    return this.meses.map((_, mi) => mi).filter(mi => this.mesEmAbertoParaReajuste(allocationId, mi));
+  }
+
+  /**
+   * Reajuste vigente da linha: o maior reajuste guardado no ano (0 se não há).
+   *
+   * Lê só o mapa em memória de propósito — roda por linha a cada ciclo de
+   * detecção de mudanças, e cruzar com a disponibilidade de cada mês (que varre
+   * as outras linhas da pessoa) pesaria demais nesta tabela.
+   */
+  reajusteVigenteAlocacao(allocationId: string): number {
+    let maior = 0;
+    for (let mi = 0; mi < 12; mi++) {
+      const r = this.getReajusteMes(allocationId, mi);
+      if (r > maior) maior = r;
+    }
+    return this.round2(maior);
+  }
+
+  temReajusteAlocacao(allocationId: string): boolean {
+    return Math.abs(this.reajusteVigenteAlocacao(allocationId)) > 0.001;
+  }
+
+  /** Valor da hora já reajustado, como vale nos meses em aberto. */
+  valorHoraReajustadaAlocacao(a: any): number {
+    return this.round2(this.getValorHoraDaAlocacao(a) * (1 + this.reajusteVigenteAlocacao(a?.id) / 100));
+  }
+
+  /**
+   * Grava o estado do mês mandando a célula inteira. O backend substitui o
+   * registro, então enviar só o campo alterado apagaria os demais.
+   */
+  private salvarEstadoMensal(
+    allocationId: string,
+    month: number,
+    patch: { canceled?: boolean | null; manualValue?: number | null; manualPercent?: number | null; rateAdjust?: number | null },
+    onError?: () => void
+  ) {
+    if (!this.token) return;
+    const atual = {
+      canceled:      this.isCancelado(allocationId, month) || null,
+      manualValue:   this.getValorMensalManual(allocationId, month),
+      manualPercent: this.getPercentualMensalManual(allocationId, month),
+      rateAdjust:    this.getReajusteMes(allocationId, month) || null,
+    };
+    this.api.upsertAllocationMonthlyState(this.token, allocationId, month, { ...atual, ...patch })
+      .subscribe({
+        error: () => {
+          onError?.();
+          this.percentualAviso = 'Falha ao salvar o mês no servidor.';
+        }
+      });
+  }
+
+  /**
+   * Aplica um reajuste percentual sobre o valor da hora nos meses em aberto de
+   * uma linha. Reajustes se acumulam (10% depois 10% = 21%), como reajuste sobre
+   * reajuste. Um valor manual no mês é reajustado na mesma proporção, senão ele
+   * congelaria o custo e o reajuste não teria efeito naquele mês.
+   *
+   * Devolve quantos meses foram alterados.
+   */
+  private aplicarReajusteNaAlocacao(allocationId: string, percentual: number): number {
+    const abertos = this.mesesEmAbertoDaAlocacao(allocationId);
+    if (!abertos.length) return 0;
+    const fator = 1 + Number(percentual || 0) / 100;
+    for (const mi of abertos) {
+      const anterior  = this.getReajusteMes(allocationId, mi);
+      const acumulado = this.round2(((1 + anterior / 100) * fator - 1) * 100);
+      this.reajusteMensal[this.reajusteKey(allocationId, mi)] = acumulado;
+
+      const manual = this.getValorMensalManual(allocationId, mi);
+      const novoManual = manual != null ? this.round2(manual * fator) : null;
+      if (novoManual != null) this.valorMensalManual[this.valorMensalManualKey(allocationId, mi)] = novoManual;
+      delete this.valorMensalMaskedMap[this.valorMensalMaskKey(allocationId, mi)];
+
+      this.salvarEstadoMensal(allocationId, mi, { rateAdjust: acumulado, manualValue: novoManual });
+    }
+    return abertos.length;
+  }
+
+  // ── Reajuste: modal ───────────────────────────────────────────────────────
+  /**
+   * O reajuste é da PESSOA, não da LO: quem foi reajustado foi a tarifa dela,
+   * então o aumento vale em todas as linhas onde ela está alocada no ano.
+   */
+  reajustePessoa: string | null = null;
+  reajusteMasked = '0,00';
+
+  /**
+   * Só prestador tem reajuste de valor/hora. Folha (CLT) tem o custo definido
+   * pela folha de pagamento, não por uma tarifa horária negociada.
+   */
+  podeReajustar(a: any): boolean {
+    return this.getCategoriaDaPessoa(a) === 'TERCEIRO' && !this.pessoaSemCustoLo(a);
+  }
+
+  abrirReajuste(nomePessoa: string, event?: MouseEvent) {
+    event?.stopPropagation();
+    this.reajustePessoa = nomePessoa;
+    this.reajusteMasked = '0,00';
+    this.percentualAviso = '';
+    this.cdr.markForCheck();
+  }
+
+  fecharReajuste() {
+    this.reajustePessoa = null;
+    this.cdr.markForCheck();
+  }
+
+  onReajusteMaskedChange(value: string) {
+    this.reajusteMasked = this.formatPct(this.parsePctDigits(value));
+  }
+
+  private get reajustePercentual(): number {
+    return this.parsePctDigits(this.reajusteMasked);
+  }
+
+  /**
+   * Alocações atingidas: todas as da pessoa no ano selecionado, em qualquer LO
+   * — a tarifa é dela, não da linha orçamentária.
+   */
+  private alvosDoReajuste(): any[] {
+    if (!this.reajustePessoa) return [];
+    const alvo = this.normalized(this.reajustePessoa);
+    const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
+    return this.alocacoes
+      .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
+      .filter((a: any) => this.normalized(a?.nomePessoa || '') === alvo)
+      .filter((a: any) => this.podeReajustar(a));
+  }
+
+  /** Prévia: quantos meses em aberto o reajuste vai atingir. */
+  mesesAfetadosPeloReajuste(): number {
+    return this.alvosDoReajuste()
+      .reduce((acc: number, a: any) => acc + this.mesesEmAbertoDaAlocacao(a.id).length, 0);
+  }
+
+  linhasAfetadasPeloReajuste(): number {
+    return this.alvosDoReajuste().filter((a: any) => this.mesesEmAbertoDaAlocacao(a.id).length > 0).length;
+  }
+
+  /** Quantas LOs distintas o reajuste toca (pode passar da LO aberta na tela). */
+  losAfetadasPeloReajuste(): number {
+    return new Set(
+      this.alvosDoReajuste()
+        .filter((a: any) => this.mesesEmAbertoDaAlocacao(a.id).length > 0)
+        .map((a: any) => a.linhaOrcamentariaId)
+    ).size;
+  }
+
+  /** Códigos das LOs atingidas, para o aviso quando passa da LO aberta. */
+  codigosLosAfetadas(): string {
+    const ids = new Set(
+      this.alvosDoReajuste()
+        .filter((a: any) => this.mesesEmAbertoDaAlocacao(a.id).length > 0)
+        .map((a: any) => a.linhaOrcamentariaId)
+    );
+    return [...ids]
+      .map(id => this.linhasOrcamentarias.find((lo: any) => lo.id === id)?.codigo || '?')
+      .join(', ');
+  }
+
+  /** Prévia do impacto em R$ no ano (só meses em aberto). */
+  impactoReajuste(): number {
+    const fator = 1 + this.reajustePercentual / 100;
+    let delta = 0;
+    for (const a of this.alvosDoReajuste()) {
+      const vh = this.getValorHoraDaAlocacao(a);
+      for (const mi of this.mesesEmAbertoDaAlocacao(a.id)) {
+        const atual = this.round2(this.custoMensal(a.id, vh, mi));
+        delta += this.round2(atual * fator) - atual;
+      }
+    }
+    return this.round2(delta);
+  }
+
+  confirmarReajuste() {
+    const pct = this.reajustePercentual;
+    if (!pct) { this.percentualAviso = 'Informe um percentual de reajuste maior que zero.'; return; }
+    const pessoa = this.reajustePessoa || 'a pessoa';
+    let meses = 0;
+    let linhas = 0;
+    for (const a of this.alvosDoReajuste()) {
+      const n = this.aplicarReajusteNaAlocacao(a.id, pct);
+      if (n) { meses += n; linhas++; }
+    }
+    this.percentualAviso = meses
+      ? `Reajuste de ${pct.toFixed(2)}% no valor/hora de ${pessoa}: ${meses} mês(es) em aberto em ${linhas} linha(s).`
+      : 'Nenhum mês em aberto para reajustar (todos pagos, cancelados ou bloqueados).';
+    this.fecharReajuste();
+  }
+
+  confirmarRemocaoReajuste() {
+    const pessoa = this.reajustePessoa || 'a pessoa';
+    let meses = 0;
+    for (const a of this.alvosDoReajuste()) meses += this.removerReajusteDaAlocacao(a.id);
+    this.percentualAviso = meses
+      ? `Reajuste de ${pessoa} removido de ${meses} mês(es) em aberto — voltaram ao valor/hora de cadastro.`
+      : 'Nenhum mês em aberto tinha reajuste.';
+    this.fecharReajuste();
+  }
+
+  /** Zera o reajuste dos meses em aberto (volta à tarifa de cadastro). */
+  private removerReajusteDaAlocacao(allocationId: string): number {
+    const alvos = this.mesesEmAbertoDaAlocacao(allocationId)
+      .filter(mi => Math.abs(this.getReajusteMes(allocationId, mi)) > 0.001);
+    for (const mi of alvos) {
+      const anterior = this.getReajusteMes(allocationId, mi);
+      delete this.reajusteMensal[this.reajusteKey(allocationId, mi)];
+
+      // Desfaz o reajuste que tinha sido embutido no valor manual.
+      const manual = this.getValorMensalManual(allocationId, mi);
+      const novoManual = manual != null ? this.round2(manual / (1 + anterior / 100)) : null;
+      if (novoManual != null) this.valorMensalManual[this.valorMensalManualKey(allocationId, mi)] = novoManual;
+      delete this.valorMensalMaskedMap[this.valorMensalMaskKey(allocationId, mi)];
+
+      this.salvarEstadoMensal(allocationId, mi, { rateAdjust: null, manualValue: novoManual });
+    }
+    return alvos.length;
   }
 
   private getPercentualEfetivoMes(allocationId: string, month: number): number {

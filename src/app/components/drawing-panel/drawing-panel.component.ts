@@ -57,9 +57,18 @@ interface DrawingRecord { id: string; nome: string; data: string; pasta?: string
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; w: number; h: number; }
 interface DragOrigin extends Rect { pts?: number[]; }
-interface DrawingFolderGroup { path: string; label: string; drawings: DrawingRecord[]; }
+/** Nó da árvore de pastas montada a partir dos caminhos (`pasta`) dos desenhos. */
+interface DrawingFolderGroup {
+  path: string;          // caminho completo, ex: 'Arquitetura/API'
+  label: string;         // só o último segmento, ex: 'API'
+  depth: number;         // nível de indentação
+  drawings: DrawingRecord[];  // desenhos diretamente nesta pasta
+  total: number;         // desenhos nesta pasta e em todas as subpastas
+  hasChildren: boolean;
+}
 interface CanvasContextMenu { x: number; y: number; }
 interface DrawingContextMenu { drawing: DrawingRecord; x: number; y: number; }
+interface FolderContextMenu { path: string; x: number; y: number; }
 interface AlignmentGuide { axis: 'x' | 'y'; value: number; from: number; to: number; }
 
 const HANDLE_SIZE = 8;
@@ -113,6 +122,18 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   expandedFolders = new Set<string>();
   drawingContextMenu: DrawingContextMenu | null = null;
   contextMoveFolder = '';
+  /**
+   * Pastas criadas pelo usuário. O backend só guarda o caminho (`pasta`) de cada
+   * desenho, então uma pasta vazia — recém-criada — só existe aqui; fica no
+   * localStorage para sobreviver ao reload.
+   */
+  customFolders: Set<string> = this.loadCustomFolders();
+  folderContextMenu: FolderContextMenu | null = null;
+  /** Caminho da pasta cujo campo "nova subpasta" está aberto no menu. */
+  subfolderParent: string | null = null;
+  subfolderName   = '';
+  renamingFolder  = '';
+  folderRenameVal = '';
   saving          = false;
   renaming        = false;
   renameVal       = '';
@@ -195,6 +216,10 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   showShortcuts = false;
   /** Galeria de formas extras — evita lotar a barra de ferramentas. */
   showShapeMenu = false;
+  /** Posição da galeria: ancorada ao botão que a abriu (coordenadas de viewport). */
+  shapeMenuPos: { x: number; y: number } = { x: 12, y: 96 };
+  /** Filtro por nome dentro da galeria. */
+  shapeSearch = '';
   /** Menu lateral de opções (substitui os controles que lotavam a barra). */
   showProps     = true;
   /** Seções abertas do menu lateral. */
@@ -205,15 +230,36 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.showShapeMenu = false;
   }
 
-  toggleShapeMenu() {
+  toggleShapeMenu(event?: MouseEvent) {
     this.showShapeMenu = !this.showShapeMenu;
-    if (this.showShapeMenu) this.showShortcuts = false;
+    if (this.showShapeMenu) {
+      this.showShortcuts = false;
+      this.shapeSearch   = '';
+      // Abre logo abaixo do botão — a barra quebra em duas linhas, então uma
+      // posição fixa acabaria cobrindo a própria barra.
+      const btn = (event?.currentTarget as HTMLElement | undefined)?.getBoundingClientRect();
+      if (btn) {
+        this.shapeMenuPos = {
+          x: Math.max(8, Math.min(btn.left, window.innerWidth - 350)),
+          y: btn.bottom + 6
+        };
+      }
+    }
     this.cdr.markForCheck();
   }
 
   /** A ferramenta ativa é uma das formas do menu (mantém o botão destacado). */
   isExtraShapeActive(): boolean {
     return this.shapeGroups.some(g => g.items.includes(this.tool));
+  }
+
+  /** Grupos da galeria filtrados pela busca (grupos vazios somem). */
+  filteredShapeGroups(): { label: string; hint: string; items: Tool[] }[] {
+    const q = this.shapeSearch.trim().toLowerCase();
+    if (!q) return this.shapeGroups;
+    return this.shapeGroups
+      .map(g => ({ ...g, items: g.items.filter(t => this.toolLabel(t).toLowerCase().includes(q)) }))
+      .filter(g => g.items.length);
   }
 
   pickShape(t: Tool) {
@@ -404,8 +450,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     'select','pen','rect','ellipse','arrow','text','sticky','line',
     ...PATH_SHAPES
   ];
-  /** Formas do menu "mais formas" (as três da barra ficam de fora). */
-  readonly extraShapes: Tool[] = GEO_SHAPES.filter(t => !['triangle','diamond','star'].includes(t));
+  /** Formas do menu "mais formas" — a galeria lista todas, inclusive as da barra. */
+  readonly extraShapes: Tool[] = GEO_SHAPES;
   /** Seções da galeria de formas. */
   readonly shapeGroups: { label: string; hint: string; items: Tool[] }[] = [
     { label: 'Formas',      hint: 'Geometria e fluxogramas', items: this.extraShapes },
@@ -746,19 +792,82 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     );
   }
 
+  /**
+   * Todos os caminhos de pasta conhecidos: os que aparecem em algum desenho, os
+   * criados à mão (`customFolders`) e — para que a árvore não tenha buracos — os
+   * ancestrais de ambos. 'Arquitetura/API' implica 'Arquitetura'.
+   */
+  allFolderPaths(): string[] {
+    const all = new Set<string>();
+    const add = (path: string) => {
+      const parts = this.normalizeFolder(path).split('/').filter(Boolean);
+      for (let i = 1; i <= parts.length; i++) all.add(parts.slice(0, i).join('/'));
+    };
+    for (const d of this.drawings) add(d.pasta || '');
+    for (const f of this.customFolders) add(f);
+    return [...all].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }
+
+  /**
+   * Árvore achatada em ordem de exibição (DFS alfabético). Subpastas de uma
+   * pasta recolhida ficam de fora, então o template só itera e indenta.
+   */
   drawingFolderGroups(): DrawingFolderGroup[] {
-    const map = new Map<string, DrawingRecord[]>();
-    for (const drawing of this.filteredDrawings()) {
+    const visible = this.filteredDrawings();
+    const direct = new Map<string, DrawingRecord[]>();
+    for (const drawing of visible) {
       const path = this.normalizeFolder(drawing.pasta);
-      map.set(path, [...(map.get(path) || []), drawing]);
+      direct.set(path, [...(direct.get(path) || []), drawing]);
     }
-    return [...map.entries()]
-      .sort(([a], [b]) => this.folderLabel(a).localeCompare(this.folderLabel(b), 'pt-BR'))
-      .map(([path, drawings]) => ({ path, label: this.folderLabel(path), drawings }));
+
+    const paths = this.allFolderPaths();
+    const childrenOf = (parent: string) =>
+      paths.filter(p => this.parentFolder(p) === parent && p !== parent);
+
+    const searching = !!this.drawingSearch.trim();
+    const groups: DrawingFolderGroup[] = [];
+    const push = (path: string, depth: number) => {
+      const drawings = direct.get(path) || [];
+      const children = childrenOf(path);
+      // Durante a busca, pastas sem nenhum resultado na subárvore somem.
+      if (searching && !this.folderTotal(path, visible)) return;
+      groups.push({
+        path,
+        label: this.folderLabel(path),
+        depth,
+        drawings,
+        total: this.folderTotal(path, visible),
+        hasChildren: children.length > 0
+      });
+      if (!this.isFolderOpen(path)) return;
+      for (const child of children) push(child, depth + 1);
+    };
+
+    // Raiz ("Sem pasta") só aparece quando há desenhos soltos.
+    if ((direct.get('') || []).length) push('', 0);
+    for (const top of childrenOf('')) push(top, 0);
+    return groups;
+  }
+
+  /** Desenhos na pasta e em toda a sua subárvore. */
+  private folderTotal(path: string, pool: DrawingRecord[]): number {
+    if (!path) return pool.filter(d => !this.normalizeFolder(d.pasta)).length;
+    const prefix = path + '/';
+    return pool.filter(d => {
+      const p = this.normalizeFolder(d.pasta);
+      return p === path || p.startsWith(prefix);
+    }).length;
+  }
+
+  /** Caminho da pasta-mãe ('' para as de primeiro nível). */
+  parentFolder(path: string): string {
+    const idx = this.normalizeFolder(path).lastIndexOf('/');
+    return idx < 0 ? '' : path.slice(0, idx);
   }
 
   folderLabel(path: string): string {
-    return path || 'Sem pasta';
+    if (!path) return 'Sem pasta';
+    return path.slice(path.lastIndexOf('/') + 1);
   }
 
   folderDepth(path: string): number {
@@ -776,13 +885,174 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   }
 
   folderOptions(): string[] {
-    const folders = new Set(this.drawings.map(d => this.normalizeFolder(d.pasta)).filter(Boolean));
-    return ['', ...[...folders].sort((a, b) => a.localeCompare(b, 'pt-BR'))];
+    return ['', ...this.allFolderPaths()];
+  }
+
+  // ── Pastas: criar / renomear / excluir ────────────────────────────────────
+  private readonly FOLDERS_KEY = 'planner.drawingFolders';
+
+  private loadCustomFolders(): Set<string> {
+    try {
+      const raw = localStorage.getItem('planner.drawingFolders');
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(arr) ? arr.filter((x: any) => typeof x === 'string') : []);
+    } catch { return new Set<string>(); }
+  }
+
+  private saveCustomFolders() {
+    try { localStorage.setItem(this.FOLDERS_KEY, JSON.stringify([...this.customFolders])); } catch {}
+  }
+
+  openFolderContextMenu(event: MouseEvent, path: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.closeDrawingContextMenu();
+    this.folderContextMenu = { path, x: event.clientX, y: event.clientY };
+    this.subfolderParent = null;
+    this.subfolderName   = '';
+    this.renamingFolder  = '';
+    this.cdr.markForCheck();
+  }
+
+  closeFolderContextMenu() {
+    this.folderContextMenu = null;
+    this.subfolderParent   = null;
+    this.renamingFolder    = '';
+  }
+
+  closeSidebarMenus() {
+    this.closeDrawingContextMenu();
+    this.closeFolderContextMenu();
+  }
+
+  /** Abre o campo de nome da nova subpasta dentro do menu de contexto. */
+  startSubfolder(parent: string) {
+    this.subfolderParent = parent;
+    this.subfolderName   = '';
+    this.renamingFolder  = '';
+    this.cdr.markForCheck();
+  }
+
+  /** Cria `parent/nome`. A pasta nasce vazia — daí o registro local. */
+  createSubfolder(parent: string | null) {
+    const name = this.subfolderName.trim().replace(/[\\/]/g, ' ').trim();
+    if (parent === null || !name) return;
+    const path = this.normalizeFolder(parent ? `${parent}/${name}` : name);
+    if (this.allFolderPaths().includes(path)) {
+      this.toast.show(`A pasta "${path}" já existe.`, 'error', 4000);
+      return;
+    }
+    this.customFolders.add(path);
+    this.saveCustomFolders();
+    // Deixa o caminho todo aberto para a pasta nova ficar à vista.
+    for (const p of this.ancestorsOf(path)) this.expandedFolders.add(p);
+    this.expandedFolders.add(path);
+    this.subfolderName = '';
+    this.closeSidebarMenus();
+    this.toast.show(`Pasta "${path}" criada.`, 'success', 3000);
+    this.cdr.markForCheck();
+  }
+
+  private ancestorsOf(path: string): string[] {
+    const parts = this.normalizeFolder(path).split('/').filter(Boolean);
+    return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/'));
+  }
+
+  /** Novo desenho já dentro da pasta clicada. */
+  newDrawingInFolder(path: string) {
+    this.newFolder   = path;
+    this.newName     = '';
+    this.showNewModal = true;
+    this.closeSidebarMenus();
+    this.cdr.markForCheck();
+  }
+
+  startRenameFolder(path: string) {
+    this.renamingFolder  = path;
+    this.folderRenameVal = this.folderLabel(path);
+    this.subfolderParent = null;
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Renomeia o último segmento. Todos os desenhos da subárvore têm o `pasta`
+   * reescrito no backend; as pastas locais acompanham o novo prefixo.
+   */
+  confirmRenameFolder(path: string) {
+    const name = this.folderRenameVal.trim().replace(/[\\/]/g, ' ').trim();
+    if (!name || name === this.folderLabel(path)) { this.renamingFolder = ''; this.cdr.markForCheck(); return; }
+    const parent = this.parentFolder(path);
+    const target = this.normalizeFolder(parent ? `${parent}/${name}` : name);
+    if (this.allFolderPaths().includes(target)) {
+      this.toast.show(`A pasta "${target}" já existe.`, 'error', 4000);
+      return;
+    }
+    const rewrite = (p: string) => (p === path ? target : p.startsWith(path + '/') ? target + p.slice(path.length) : p);
+
+    this.customFolders = new Set([...this.customFolders].map(rewrite));
+    this.customFolders.add(target);
+    this.saveCustomFolders();
+    this.expandedFolders = new Set([...this.expandedFolders].map(rewrite));
+
+    const affected = this.drawings.filter(d => {
+      const p = this.normalizeFolder(d.pasta);
+      return p === path || p.startsWith(path + '/');
+    });
+    for (const d of affected) this.applyFolderMove(d, rewrite(this.normalizeFolder(d.pasta)));
+
+    this.renamingFolder = '';
+    this.closeFolderContextMenu();
+    this.toast.show(`Pasta renomeada para "${name}".`, 'success', 3000);
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Remove a pasta e as subpastas do registro. Desenhos nunca são apagados aqui:
+   * sobem para a pasta-mãe, para nada sumir da lista sem o usuário mandar.
+   */
+  deleteFolder(path: string) {
+    if (!path) return;
+    const parent = this.parentFolder(path);
+    const affected = this.drawings.filter(d => {
+      const p = this.normalizeFolder(d.pasta);
+      return p === path || p.startsWith(path + '/');
+    });
+    for (const d of affected) this.applyFolderMove(d, parent);
+
+    this.customFolders = new Set(
+      [...this.customFolders].filter(p => p !== path && !p.startsWith(path + '/'))
+    );
+    this.saveCustomFolders();
+    this.closeFolderContextMenu();
+    this.toast.show(
+      affected.length
+        ? `Pasta "${this.folderLabel(path)}" removida — ${affected.length} desenho(s) movido(s) para "${this.folderLabel(parent)}".`
+        : `Pasta "${this.folderLabel(path)}" removida.`,
+      'success', 4000
+    );
+    this.cdr.markForCheck();
+  }
+
+  /** PUT do desenho só trocando a pasta (mantém nome e conteúdo). */
+  private applyFolderMove(drawing: DrawingRecord, pasta: string) {
+    this.api.updateDrawing(this.token, drawing.id, drawing.nome, drawing.data, this.normalizeFolder(pasta)).subscribe({
+      next: (d: any) => {
+        d.pasta = this.normalizeFolder(d.pasta);
+        this.drawings = this.drawings.map(x => x.id === d.id ? d : x);
+        if (this.current?.id === d.id) {
+          this.current = d;
+          this.folderDraft = d.pasta || '';
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => this.toast.show(`Falha ao mover "${drawing.nome}".`, 'error', 5000)
+    });
   }
 
   openDrawingContextMenu(event: MouseEvent, drawing: DrawingRecord) {
     event.preventDefault();
     event.stopPropagation();
+    this.closeFolderContextMenu();
     this.drawingContextMenu = { drawing, x: event.clientX, y: event.clientY };
     this.contextMoveFolder = this.normalizeFolder(drawing.pasta);
     this.cdr.markForCheck();
@@ -794,6 +1064,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   moveDrawingTo(drawing: DrawingRecord, folder: string) {
     const pasta = this.normalizeFolder(folder);
+    // Registra a pasta para ela continuar existindo mesmo se ficar vazia depois.
+    if (pasta) { this.customFolders.add(pasta); this.saveCustomFolders(); }
     this.api.updateDrawing(this.token, drawing.id, drawing.nome, drawing.data, pasta).subscribe({
       next: (d: any) => {
         d.pasta = this.normalizeFolder(d.pasta);
@@ -2239,7 +2511,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   shapePath(s: DrawShape): string {
     const b = this.shapeBounds(s);
-    return this.shapePathFor(s.type, b.x, b.y, Math.max(1, b.w), Math.max(1, b.h));
+    return this.shapePathFor(s.type, b.x, b.y, Math.max(1, b.w), Math.max(1, b.h), this.archLabelHeight(s));
   }
 
   /** Ícone da forma dentro de um viewBox 0 0 24 24 (usado no menu de formas). */
@@ -2247,8 +2519,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     return this.shapePathFor(type, 2.5, 3, 19, 18);
   }
 
-  shapePathFor(type: Tool, x: number, y: number, w: number, h: number): string {
-    if (ARCH_SHAPES.includes(type)) return this.archPathFor(type, x, y, w, h);
+  shapePathFor(type: Tool, x: number, y: number, w: number, h: number, labelH = 0): string {
+    if (ARCH_SHAPES.includes(type)) return this.archPathFor(type, x, y, w, h, labelH);
     const cx = x + w / 2;
     const cy = y + h / 2;
     const n  = (v: number) => Math.round(v * 100) / 100;
@@ -2382,14 +2654,12 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
    * no mesmo sentido do corpo: sob a regra nonzero do SVG, sentidos opostos
    * sobrepostos virariam buraco no preenchimento.
    */
-  private archPathFor(type: Tool, x: number, y: number, w: number, h: number): string {
+  private archPathFor(type: Tool, x: number, y: number, w: number, h: number, labelH = 0): string {
     // A zona é a própria caixa (agrupa outros componentes), não um ícone.
     if (type === 'archZone') return this.shapePathFor('roundRect', x, y, w, h);
 
     const n  = (v: number) => Math.round(v * 100) / 100;
-    const g  = Math.min(w * 0.9, h * 0.66);
-    const gx = x + (w - g) / 2;
-    const gy = y + h * 0.06;
+    const { gx, gy, g } = this.archGlyphBox(x, y, w, h, labelH);
     const P  = (u: number, v: number) => `${n(gx + u * g)} ${n(gy + v * g)}`;
 
     /** Traço solto: sem área, então só o contorno aparece. */
@@ -2510,11 +2780,42 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     speech: -0.10, heart: 0.08, document: -0.04, trapezoid: 0.06
   };
 
+  /**
+   * Caixa do glifo de um componente de arquitetura.
+   *
+   * O glifo é sempre quadrado — esticá-lo distorceria o ícone — mas o bloco
+   * "glifo + rótulo" fica centralizado na caixa e cresce até preencher a altura
+   * disponível. Antes o glifo era fixo em 66% da altura e grudado no topo, o que
+   * deixava uma faixa vazia enorme embaixo em caixas altas.
+   */
+  private archGlyphBox(x: number, y: number, w: number, h: number, labelH = 0) {
+    const label = Math.max(0, Math.min(labelH, h * 0.5));
+    const g  = Math.max(1, Math.min(w * 0.92, h - label));
+    const gx = x + (w - g) / 2;
+    const gy = y + Math.max(0, (h - label - g) / 2);
+    return { gx, gy, g, label };
+  }
+
+  /** Altura reservada ao rótulo de um componente de arquitetura (0 se não há texto). */
+  private archLabelHeight(s: DrawShape): number {
+    if (!ARCH_SHAPES.includes(s.type) || s.type === 'archZone') return 0;
+    const lines = this.shapeTextLines(s).length;
+    if (!lines) return 0;
+    const fs = s.fontSize || 14;
+    return lines * fs * 1.2 + fs * 0.6;
+  }
+
   shapeTextCenterY(s: DrawShape, index: number, total: number): number {
-    // Componentes de arquitetura: rótulo abaixo do glifo (na zona, no topo).
-    const ratio = ARCH_SHAPES.includes(s.type)
-      ? (s.type === 'archZone' ? -0.38 : 0.37)
-      : DrawingPanelComponent.TEXT_OFFSET[s.type] ?? 0;
+    // Componentes de arquitetura: rótulo colado embaixo do glifo. Numa fração
+    // fixa da altura ele descolava do ícone em caixas altas.
+    if (ARCH_SHAPES.includes(s.type) && s.type !== 'archZone') {
+      const b   = this.shapeBounds(s);
+      const fs  = s.fontSize || 14;
+      const box = this.archGlyphBox(b.x, b.y, Math.max(1, b.w), Math.max(1, b.h), this.archLabelHeight(s));
+      return box.gy + box.g + fs * 1.05 + index * fs * 1.2;
+    }
+    // Na zona o rótulo fica no topo, para não cobrir o que ela envolve.
+    const ratio = s.type === 'archZone' ? -0.38 : DrawingPanelComponent.TEXT_OFFSET[s.type] ?? 0;
     return this.shapeTextY(s, index, total) + Math.abs(s.h) * ratio;
   }
 
@@ -2755,7 +3056,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     if (e.key === 'Escape') {
       this.clearSelection();
       this.closePopovers();
-      this.closeDrawingContextMenu();
+      this.closeSidebarMenus();
       this.closeCanvasContextMenu();
       this.cdr.markForCheck();
       return;

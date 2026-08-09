@@ -276,7 +276,13 @@ export class PlannerApiService {
     token: string,
     allocationId: string,
     month: number,
-    payload: { canceled?: boolean | null; manualValue?: number | null; manualPercent?: number | null }
+    payload: {
+      canceled?: boolean | null;
+      manualValue?: number | null;
+      manualPercent?: number | null;
+      /** Reajuste acumulado (%) sobre o VALOR da hora no mês (não mexe nas horas). */
+      rateAdjust?: number | null;
+    }
   ) {
     return this.http.put<any>(`${this.api}/allocation-monthly-state/${allocationId}/${month}`, payload, { headers: this.headers(token) });
   }
