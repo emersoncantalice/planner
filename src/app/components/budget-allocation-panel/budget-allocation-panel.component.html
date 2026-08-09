@@ -363,6 +363,10 @@
   <div class="toolbar-row">
     <input [(ngModel)]="searchTerm" placeholder="Pesquisar alocações por pessoa ou perfil..." />
     <button class="sec" type="button" (click)="abrirPessoaModal()">Nova pessoa</button>
+    <button type="button" class="sec reajuste-lote-btn" (click)="abrirReajusteLote('FOLHA', $event)"
+            title="Reajustar o valor/hora de várias pessoas de uma vez (dissídio da folha, reajuste de contrato)">
+      ↗ Reajuste em lote
+    </button>
     <button type="button" class="add-aloc-btn" (click)="abrirNovaLinha()" [class.active]="novaLinhaAberta">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
       Adicionar alocação
@@ -1023,11 +1027,14 @@
   </div>
 }
 
-@if (reajustePessoa) {
+@if (reajusteEscopo) {
   <div class="modal-backdrop" (click)="fecharReajuste()"></div>
   <div class="modal-card reajuste-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <div class="panel-head">
-      <h3>Reajuste do valor/hora — {{ reajustePessoa }}</h3>
+      <h3>
+        @if (reajusteEscopo === 'pessoa') { Reajuste do valor/hora — {{ reajustePessoa }} }
+        @else { Reajuste do valor/hora em lote }
+      </h3>
       <button class="sec" type="button" (click)="fecharReajuste()">Fechar</button>
     </div>
 
@@ -1037,6 +1044,15 @@
       Só os <strong>meses em aberto</strong> são recalculados — meses pagos, cancelados ou bloqueados ficam
       com a tarifa da época.
     </p>
+
+    @if (reajusteEscopo === 'lote') {
+      <label class="reajuste-label">Aplicar em</label>
+      <select class="reajuste-select" [(ngModel)]="reajusteCategoriaLote" (ngModelChange)="onReajusteCategoriaChange()">
+        <option value="FOLHA">Folha — todas as pessoas CLT desta LO</option>
+        <option value="TERCEIRO">Prestador — todos os terceiros desta LO</option>
+        <option value="TODOS">Todos — folha e prestador desta LO</option>
+      </select>
+    }
 
     <label class="reajuste-label">Percentual de reajuste (%)</label>
     <input
@@ -1049,6 +1065,7 @@
       (keydown.enter)="confirmarReajuste()" />
 
     <div class="reajuste-preview">
+      <div><span>Pessoas</span><strong>{{ pessoasAfetadasPeloReajuste() }}</strong></div>
       <div><span>Alocações</span><strong>{{ linhasAfetadasPeloReajuste() }}</strong></div>
       <div><span>Meses em aberto</span><strong>{{ mesesAfetadosPeloReajuste() }}</strong></div>
       <div><span>Impacto no ano</span><strong>{{ currency(impactoReajuste()) }}</strong></div>
@@ -1057,8 +1074,9 @@
     @if (losAfetadasPeloReajuste() > 1) {
       <p class="reajuste-aviso">
         A tarifa é da pessoa, então o reajuste atinge as
-        <strong>{{ losAfetadasPeloReajuste() }} LOs</strong> em que ela está alocada em {{ anoSelecionado }}:
-        {{ codigosLosAfetadas() }}.
+        <strong>{{ losAfetadasPeloReajuste() }} LOs</strong> em que
+        {{ reajusteEscopo === 'pessoa' ? 'ela está alocada' : 'essas pessoas estão alocadas' }}
+        em {{ anoSelecionado }}: {{ codigosLosAfetadas() }}.
       </p>
     }
 

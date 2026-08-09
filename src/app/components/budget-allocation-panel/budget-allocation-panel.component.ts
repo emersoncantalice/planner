@@ -2499,26 +2499,51 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
    */
   reajustePessoa: string | null = null;
   reajusteMasked = '0,00';
+  /** 'pessoa' = uma pessoa; 'lote' = todas as pessoas de uma categoria. */
+  reajusteEscopo: 'pessoa' | 'lote' | null = null;
+  /** Categoria alvo do reajuste em lote (dissídio de folha, reajuste de contrato). */
+  reajusteCategoriaLote: 'FOLHA' | 'TERCEIRO' | 'TODOS' = 'FOLHA';
 
-  /**
-   * Só prestador tem reajuste de valor/hora. Folha (CLT) tem o custo definido
-   * pela folha de pagamento, não por uma tarifa horária negociada.
-   */
+  /** Quem tem valor/hora tem reajuste — folha e prestador. */
   podeReajustar(a: any): boolean {
-    return this.getCategoriaDaPessoa(a) === 'TERCEIRO' && !this.pessoaSemCustoLo(a);
+    return !this.pessoaSemCustoLo(a);
   }
 
   abrirReajuste(nomePessoa: string, event?: MouseEvent) {
     event?.stopPropagation();
+    this.reajusteEscopo = 'pessoa';
     this.reajustePessoa = nomePessoa;
     this.reajusteMasked = '0,00';
     this.percentualAviso = '';
     this.cdr.markForCheck();
   }
 
+  /** Reajuste coletivo: todas as pessoas de uma categoria na LO aberta. */
+  abrirReajusteLote(categoria: 'FOLHA' | 'TERCEIRO' | 'TODOS' = 'FOLHA', event?: MouseEvent) {
+    event?.stopPropagation();
+    this.reajusteEscopo = 'lote';
+    this.reajusteCategoriaLote = categoria;
+    this.reajustePessoa = null;
+    this.reajusteMasked = '0,00';
+    this.percentualAviso = '';
+    this.cdr.markForCheck();
+  }
+
+  onReajusteCategoriaChange() {
+    this.cdr.markForCheck();
+  }
+
   fecharReajuste() {
+    this.reajusteEscopo = null;
     this.reajustePessoa = null;
     this.cdr.markForCheck();
+  }
+
+  /** Rótulo da categoria do lote, para os textos do modal. */
+  rotuloCategoriaLote(): string {
+    if (this.reajusteCategoriaLote === 'FOLHA') return 'Folha';
+    if (this.reajusteCategoriaLote === 'TERCEIRO') return 'Prestador';
+    return 'Folha e Prestador';
   }
 
   onReajusteMaskedChange(value: string) {
@@ -2530,17 +2555,45 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   }
 
   /**
-   * Alocações atingidas: todas as da pessoa no ano selecionado, em qualquer LO
-   * — a tarifa é dela, não da linha orçamentária.
+   * Pessoas alvo do reajuste. Em lote são as da categoria escolhida entre as
+   * visíveis na LO aberta — o que está na tela é o que se enxerga conferir.
+   */
+  private nomesAlvoDoReajuste(): Set<string> {
+    if (this.reajusteEscopo === 'pessoa') {
+      return new Set(this.reajustePessoa ? [this.normalized(this.reajustePessoa)] : []);
+    }
+    const cat = this.reajusteCategoriaLote;
+    return new Set(
+      this.alocacoesFiltradas()
+        .filter((a: any) => this.podeReajustar(a))
+        .filter((a: any) => cat === 'TODOS' || this.getCategoriaDaPessoa(a) === cat)
+        .map((a: any) => this.normalized(a?.nomePessoa || ''))
+        .filter((n: string) => !!n)
+    );
+  }
+
+  /**
+   * Alocações atingidas: todas as das pessoas alvo no ano selecionado, em
+   * qualquer LO — a tarifa é da pessoa, não da linha orçamentária.
    */
   private alvosDoReajuste(): any[] {
-    if (!this.reajustePessoa) return [];
-    const alvo = this.normalized(this.reajustePessoa);
+    if (!this.reajusteEscopo) return [];
+    const nomes = this.nomesAlvoDoReajuste();
+    if (!nomes.size) return [];
     const idsAno = new Set(this.linhasDoAnoSelecionado().map((lo: any) => lo.id));
     return this.alocacoes
       .filter((a: any) => idsAno.has(a.linhaOrcamentariaId))
-      .filter((a: any) => this.normalized(a?.nomePessoa || '') === alvo)
+      .filter((a: any) => nomes.has(this.normalized(a?.nomePessoa || '')))
       .filter((a: any) => this.podeReajustar(a));
+  }
+
+  /** Quantas pessoas distintas o reajuste atinge (prévia do lote). */
+  pessoasAfetadasPeloReajuste(): number {
+    return new Set(
+      this.alvosDoReajuste()
+        .filter((a: any) => this.mesesEmAbertoDaAlocacao(a.id).length > 0)
+        .map((a: any) => this.normalized(a?.nomePessoa || ''))
+    ).size;
   }
 
   /** Prévia: quantos meses em aberto o reajuste vai atingir. */
@@ -2588,10 +2641,17 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return this.round2(delta);
   }
 
+  /** Descrição do alvo, para as mensagens de resultado. */
+  private descricaoAlvoReajuste(): string {
+    if (this.reajusteEscopo === 'pessoa') return this.reajustePessoa || 'a pessoa';
+    const n = this.pessoasAfetadasPeloReajuste();
+    return `${n} pessoa(s) de ${this.rotuloCategoriaLote()}`;
+  }
+
   confirmarReajuste() {
     const pct = this.reajustePercentual;
     if (!pct) { this.percentualAviso = 'Informe um percentual de reajuste maior que zero.'; return; }
-    const pessoa = this.reajustePessoa || 'a pessoa';
+    const alvo = this.descricaoAlvoReajuste();
     let meses = 0;
     let linhas = 0;
     for (const a of this.alvosDoReajuste()) {
@@ -2599,17 +2659,17 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       if (n) { meses += n; linhas++; }
     }
     this.percentualAviso = meses
-      ? `Reajuste de ${pct.toFixed(2)}% no valor/hora de ${pessoa}: ${meses} mês(es) em aberto em ${linhas} linha(s).`
+      ? `Reajuste de ${pct.toFixed(2)}% no valor/hora de ${alvo}: ${meses} mês(es) em aberto em ${linhas} alocação(ões).`
       : 'Nenhum mês em aberto para reajustar (todos pagos, cancelados ou bloqueados).';
     this.fecharReajuste();
   }
 
   confirmarRemocaoReajuste() {
-    const pessoa = this.reajustePessoa || 'a pessoa';
+    const alvo = this.descricaoAlvoReajuste();
     let meses = 0;
     for (const a of this.alvosDoReajuste()) meses += this.removerReajusteDaAlocacao(a.id);
     this.percentualAviso = meses
-      ? `Reajuste de ${pessoa} removido de ${meses} mês(es) em aberto — voltaram ao valor/hora de cadastro.`
+      ? `Reajuste de ${alvo} removido de ${meses} mês(es) em aberto — voltaram ao valor/hora de cadastro.`
       : 'Nenhum mês em aberto tinha reajuste.';
     this.fecharReajuste();
   }

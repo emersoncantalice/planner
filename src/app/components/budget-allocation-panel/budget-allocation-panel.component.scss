@@ -1130,3 +1130,19 @@ th.col-header-sel {
   text-transform: uppercase;
   cursor: help;
 }
+
+// Reajuste em lote: dissídio da folha / reajuste de contrato em várias pessoas.
+.reajuste-lote-btn {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.reajuste-select {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+// Com o lote, a prévia ganhou a coluna "Pessoas".
+.reajuste-preview {
+  grid-template-columns: repeat(4, 1fr);
+}
