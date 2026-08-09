@@ -2248,35 +2248,52 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return this.valorMensalManual[key] ?? null;
   }
 
+  /**
+   * O valor lançado à mão vale exatamente como foi digitado. Antes o valor era
+   * limitado ao calculado quando havia desconto de ausência, o que também
+   * escondia o número: os totalizadores já somavam o manual cheio, só a célula
+   * mostrava o valor cortado.
+   */
   getValorMensalDigitavel(allocationId: string, month: number, valorHora: number): number {
-    const calculado = this.round2(this.custoMensalCalculado(allocationId, valorHora, month));
     const manual = this.getValorMensalManual(allocationId, month);
-    if (manual != null) {
-      // Quando houver abatimento por ausência/férias (TERCEIRO), nunca permitir exibir valor acima do calculado.
-      if (this.temReducaoPorAusencia(allocationId, month)) return Math.min(manual, calculado);
-      return manual;
-    }
-    return calculado;
+    if (manual != null) return manual;
+    return this.round2(this.custoMensalCalculado(allocationId, valorHora, month));
   }
 
+  /**
+   * Teto calculado do mês: valor/hora (já reajustado) × horas × percentual ainda
+   * livre da pessoa. É referência, não trava — hora extra, bônus e acordos
+   * pontuais passam disso de propósito.
+   */
+  tetoCalculadoMes(allocationId: string, month: number): number {
+    const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
+    const percentualOutras = this.percentualAtivoOutrasAlocacoesNoMes(nomePessoa, month, allocationId);
+    const percentualRestante = Math.max(0, 100 - percentualOutras);
+    const aloc = this.alocacoes.find((a: any) => a.id === allocationId);
+    const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), nomePessoa, !!aloc?.draft);
+    const valorHoraEfetivo = (aloc ? this.getValorHoraDaAlocacao(aloc) : 0) * this.fatorReajusteMes(allocationId, month);
+    return this.round2(Number(valorHoraEfetivo || 0) * horas * (percentualRestante / 100));
+  }
+
+  /** O valor lançado no mês passa do teto calculado (ex.: hora extra). */
+  valorMensalAcimaDoTeto(allocationId: string, month: number): boolean {
+    const manual = this.getValorMensalManual(allocationId, month);
+    if (manual == null) return false;
+    const teto = this.tetoCalculadoMes(allocationId, month);
+    return teto > 0 && manual > teto + 0.001;
+  }
+
+  /**
+   * Lançamento pontual: grava o valor digitado sem cortar. O teto calculado
+   * vira aviso, não limite — hora extra é justamente o caso em que o mês passa
+   * do que a alocação percentual prevê.
+   */
   setValorMensalDigitavel(allocationId: string, month: number, rawValue: number) {
-    let valor = this.round2(Math.max(0, Number(rawValue || 0)));
-    
-    
-    if (valor > 0) {
-      const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
-      const percentualOutras = this.percentualAtivoOutrasAlocacoesNoMes(nomePessoa, month, allocationId);
-      const percentualRestante = Math.max(0, 100 - percentualOutras);
-      const aloc = this.alocacoes.find((a: any) => a.id === allocationId);
-      const horas = this.horasEfetivas(month, this.categoriaDaAlocacaoId(allocationId), this.nomePessoaDaAlocacao(allocationId), !!aloc?.draft);
-      // A tarifa do teto é a reajustada: um reajuste sobe o valor máximo do mês.
-      const valorHoraEfetivo = (aloc ? this.getValorHoraDaAlocacao(aloc) : 0) * this.fatorReajusteMes(allocationId, month);
-      const valorMaximoPermitido = this.round2((Number(valorHoraEfetivo || 0) * horas) * (percentualRestante / 100));
-      if (valorMaximoPermitido > 0 && valor > valorMaximoPermitido) {
-        valor = valorMaximoPermitido;
-        this.percentualAviso = `Valor ajustado ao limite disponível de ${percentualRestante.toFixed(2)}% em ${this.meses[month]}.`;
-      }
-    }
+    const valor = this.round2(Math.max(0, Number(rawValue || 0)));
+    const teto = this.tetoCalculadoMes(allocationId, month);
+    this.percentualAviso = (valor > 0 && teto > 0 && valor > teto + 0.001)
+      ? `${this.meses[month]}: ${this.currency(valor)} acima do calculado (${this.currency(teto)}). Mantido como lançamento manual.`
+      : '';
     const key = this.valorMensalManualKey(allocationId, month);
     const prev = this.valorMensalManual[key];
     this.valorMensalManual[key] = valor;

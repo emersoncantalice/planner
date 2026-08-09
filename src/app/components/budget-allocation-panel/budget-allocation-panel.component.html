@@ -865,8 +865,15 @@
                         [ngModel]="getValorMensalMasked(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))"
                         (ngModelChange)="onValorMensalMaskedChange($event, a.id, monthIndex)"
                         (blur)="syncValorMensalMasked(a.id, monthIndex, editingId === a.id ? valorHoraPessoaSelecionadaEdicao() : getValorHoraDaAlocacao(a))" />
+                      <!-- Referência, não trava: hora extra passa daqui de propósito. -->
                       @if (!isCancelado(a.id, monthIndex) && valorMaximoMes(a, monthIndex) > 0) {
-                        <small class="month-max-hint">máx {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
+                        <small class="month-max-hint">calc. {{ currency(valorMaximoMes(a, monthIndex)) }}</small>
+                      }
+                      @if (valorMensalAcimaDoTeto(a.id, monthIndex)) {
+                        <small class="month-extra-chip"
+                               [title]="'Lançamento manual acima do calculado (' + currency(tetoCalculadoMes(a.id, monthIndex)) + ') — ex.: hora extra'">
+                          Extra
+                        </small>
                       }
                     }
                     @if (!pessoaSemCustoLo(a) && !isPessoaPlaneada(a)) {

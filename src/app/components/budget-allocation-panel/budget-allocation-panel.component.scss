@@ -1115,3 +1115,18 @@ th.col-header-sel {
 
   .negativo strong { color: #dc2626; }
 }
+
+// Mês com lançamento manual acima do calculado (hora extra, bônus, acordo pontual).
+.month-extra-chip {
+  align-self: flex-start;
+  border: 1px solid #f5c98a;
+  background: #fff5e6;
+  color: #9a5b06;
+  border-radius: 5px;
+  padding: 0 5px;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  cursor: help;
+}
