@@ -127,6 +127,7 @@ export class App {
   riscosExpanded = signal(false);
   projetosExpanded = signal(false);
   orcamentosProjeto = signal<any[]>([]);
+  templatesOrcamento = signal<any[]>([]);
   flyoutTop = signal(0);
   flyoutBottom = signal<number | null>(null);
   flyoutMaxHeight = signal<number | null>(null);
@@ -322,7 +323,10 @@ export class App {
     localStorage.setItem('planner_secao', secao);
     if (secao !== 'riscos') this.riscoEmFocoId.set('');
     if (secao !== 'projetos') this.projectCreateModalOpen.set(false);
-    if (secao === 'orcamento_projeto' && !this.orcamentosProjeto().length) this.carregarOrcamentosProjeto();
+    if (secao === 'orcamento_projeto') {
+      if (!this.orcamentosProjeto().length) this.carregarOrcamentosProjeto();
+      this.carregarTemplatesOrcamento();
+    }
     this.menuAberto.set(false);
     this.cadastrosExpanded.set(false);
     this.alocacoesExpanded.set(false);
@@ -1839,6 +1843,34 @@ export class App {
     this.api.deleteProjectBudget(this.token(), id).subscribe({
       next: () => { this.mensagem.set('Orçamento excluído.'); this.carregarOrcamentosProjeto(); },
       error: () => this.mensagem.set('Erro ao excluir orçamento.')
+    });
+  }
+
+  carregarTemplatesOrcamento() {
+    this.api.listProjectBudgetTemplates(this.token()).subscribe({
+      next: (res) => this.templatesOrcamento.set(res),
+      error: () => this.templatesOrcamento.set([])
+    });
+  }
+
+  criarTemplateOrcamento(payload: any) {
+    this.api.createProjectBudgetTemplate(this.token(), payload).subscribe({
+      next: () => { this.mensagem.set('Template criado.'); this.carregarTemplatesOrcamento(); },
+      error: () => this.mensagem.set('Erro ao criar template.')
+    });
+  }
+
+  atualizarTemplateOrcamento(event: { id: string; payload: any }) {
+    this.api.updateProjectBudgetTemplate(this.token(), event.id, event.payload).subscribe({
+      next: () => { this.mensagem.set('Template salvo.'); this.carregarTemplatesOrcamento(); },
+      error: () => this.mensagem.set('Erro ao salvar template.')
+    });
+  }
+
+  excluirTemplateOrcamento(id: string) {
+    this.api.deleteProjectBudgetTemplate(this.token(), id).subscribe({
+      next: () => { this.mensagem.set('Template excluído.'); this.carregarTemplatesOrcamento(); },
+      error: () => this.mensagem.set('Erro ao excluir template.')
     });
   }
 

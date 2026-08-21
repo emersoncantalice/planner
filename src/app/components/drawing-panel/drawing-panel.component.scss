@@ -1232,6 +1232,28 @@
     r: 6;
     fill: #dbeafe;
   }
+  // Âncoras extras (cantos e quartos): só aparecem na forma sob o cursor, e em
+  // tom mais leve para não competir com as quatro principais.
+  &.secondary {
+    stroke: #60a5fa;
+    stroke-width: 1.6;
+    &:hover { r: 6; fill: #dbeafe; stroke: #1d63da; }
+  }
+}
+
+// Etiqueta de medidas durante desenho / movimento / redimensionamento
+.measure-badge {
+  pointer-events: none;
+  rect {
+    fill: rgba(15, 23, 42, .88);
+  }
+  text {
+    fill: #f8fafc;
+    font-size: 11px;
+    font-family: "Manrope", "Segoe UI", sans-serif;
+    font-weight: 600;
+    dominant-baseline: alphabetic;
+  }
 }
 
 .rotate-handle {
@@ -1319,9 +1341,11 @@
   font-size: 1rem;
   color: #475569;
   display: flex; align-items: center; justify-content: center;
-  svg { width: 14px; height: 14px; fill: currentColor; }
+  svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
   &:hover:not(:disabled) { background: #eef4ff; color: #1d63da; }
   &:disabled { opacity: .35; cursor: not-allowed; }
+  // Alternador desligado: fica visível, mas apagado.
+  &.off { color: #94a3b8; }
 }
 
 // ── Buttons ──────────────────────────────────────────────────────────────────

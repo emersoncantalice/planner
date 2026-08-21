@@ -851,11 +851,15 @@
       @if (secaoAtiva() === 'orcamento_projeto') {
         <app-project-budget-panel
           [orcamentos]="orcamentosProjeto()"
+          [templates]="templatesOrcamento()"
           [perfis]="perfis()"
           [token]="token()"
           (create)="criarOrcamentoProjeto($event)"
           (update)="atualizarOrcamentoProjeto($event)"
-          (remove)="excluirOrcamentoProjeto($event)">
+          (remove)="excluirOrcamentoProjeto($event)"
+          (createTemplate)="criarTemplateOrcamento($event)"
+          (updateTemplate)="atualizarTemplateOrcamento($event)"
+          (removeTemplate)="excluirTemplateOrcamento($event)">
         </app-project-budget-panel>
       }
       @if (secaoAtiva() === 'usuarios' && isAdmin()) {

@@ -321,6 +321,7 @@
           <span class="sc-key">1 / F</span><span>Ajustar ao conteúdo</span>
           <span class="sc-key">2 / Shift+F</span><span>Enquadrar seleção</span>
           <span class="sc-key">Shift+G</span><span>Mostrar/ocultar grade</span>
+          <span class="sc-key">Shift+A</span><span>Mostrar/ocultar pontos de ancoragem</span>
           <span class="sc-key">Espaço / botão do meio</span><span>Arrastar a tela</span>
           <span class="sc-key">Shift / Alt + roda</span><span>Deslocar horizontal / vertical</span>
           <span class="sc-key">Esc</span><span>Desselecionar / fechar</span>
@@ -404,8 +405,8 @@
                         [attr.stroke-dasharray]="dashArray(s)"
                         [attr.opacity]="s.opacity" rx="3"/>
                   @for (line of shapeTextLines(s); track $index) {
-                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
-                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
+                    <text [attr.x]="boxTextX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                          [attr.text-anchor]="svgTextAnchor(s)" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
                           [attr.font-family]="s.fontFamily || null"
                           [attr.font-weight]="s.bold ? 'bold' : null"
                           [attr.font-style]="s.italic ? 'italic' : null">{{ line }}</text>
@@ -421,8 +422,8 @@
                            [attr.stroke-dasharray]="dashArray(s)"
                            [attr.opacity]="s.opacity"/>
                   @for (line of shapeTextLines(s); track $index) {
-                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
-                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
+                    <text [attr.x]="boxTextX(s)" [attr.y]="shapeTextY(s, $index, shapeTextLines(s).length)"
+                          [attr.text-anchor]="svgTextAnchor(s)" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
                           [attr.font-family]="s.fontFamily || null"
                           [attr.font-weight]="s.bold ? 'bold' : null"
                           [attr.font-style]="s.italic ? 'italic' : null">{{ line }}</text>
@@ -470,7 +471,8 @@
                   <rect [attr.x]="s.x" [attr.y]="s.y" [attr.width]="s.w" [attr.height]="s.h"
                         fill="transparent" stroke="none"/>
                   @for (line of textLines(s); track $index) {
-                    <text [attr.x]="s.x + 4" [attr.y]="s.y + (s.fontSize || 16) * ($index + 1) + 2"
+                    <text [attr.x]="boxTextX(s, 4)" [attr.y]="boxTextY(s, $index, textLines(s).length, 2, 1.15)"
+                          [attr.text-anchor]="svgTextAnchor(s)"
                           [attr.font-size]="s.fontSize || 16" [attr.fill]="s.stroke"
                           [attr.font-family]="s.fontFamily || null"
                           [attr.font-weight]="s.bold ? 'bold' : 'normal'"
@@ -490,7 +492,8 @@
                   <polygon [attr.points]="(s.x + s.w - 16) + ',' + s.y + ' ' + (s.x + s.w) + ',' + s.y + ' ' + (s.x + s.w) + ',' + (s.y + 16)"
                            fill="rgba(0,0,0,0.12)"/>
                   @for (line of stickyLines(s); track $index) {
-                    <text [attr.x]="s.x + 8" [attr.y]="s.y + (s.fontSize || 14) * ($index + 1) + 6"
+                    <text [attr.x]="boxTextX(s, 8)" [attr.y]="boxTextY(s, $index, stickyLines(s).length, 6, 1.15)"
+                          [attr.text-anchor]="svgTextAnchor(s)"
                           [attr.font-size]="s.fontSize || 14" fill="#1e293b"
                           [attr.font-family]="s.fontFamily || null"
                           [attr.font-weight]="s.bold ? 'bold' : null"
@@ -519,8 +522,8 @@
                         [attr.stroke-dasharray]="dashArray(s)"
                         [attr.opacity]="s.opacity" stroke-linejoin="round"/>
                   @for (line of shapeTextLines(s); track $index) {
-                    <text [attr.x]="shapeCenterX(s)" [attr.y]="shapeTextCenterY(s, $index, shapeTextLines(s).length)"
-                          text-anchor="middle" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
+                    <text [attr.x]="boxTextX(s)" [attr.y]="shapeTextCenterY(s, $index, shapeTextLines(s).length)"
+                          [attr.text-anchor]="svgTextAnchor(s)" [attr.font-size]="s.fontSize || 14" [attr.fill]="s.stroke"
                           [attr.font-family]="s.fontFamily || null"
                           [attr.font-weight]="s.bold ? 'bold' : null"
                           [attr.font-style]="s.italic ? 'italic' : null">{{ line }}</text>
@@ -573,13 +576,13 @@
                   [attr.height]="dragBox.h"/>
           }
 
-          @if (tool === 'select' || tool === 'arrow') {
+          @if (tool === 'arrow' || (showAnchors && tool === 'select')) {
             @for (shape of connectableShapes(); track shape.id) {
-              @for (anchor of anchorIds(); track anchor) {
-                <circle class="anchor-point"
+              @for (anchor of anchorsFor(shape); track anchor) {
+                <circle class="anchor-point" [class.secondary]="!isPrimaryAnchor(anchor)"
                         [attr.cx]="anchorPoint(shape, anchor).x"
                         [attr.cy]="anchorPoint(shape, anchor).y"
-                        r="5"
+                        [attr.r]="isPrimaryAnchor(anchor) ? 5 : 4"
                         [style.cursor]="anchorCursor(anchor)"
                         (mousedown)="onAnchorMouseDown($event, shape, anchor)"/>
               }
@@ -666,6 +669,20 @@
               }
             </g>
           }
+
+          <!-- Medidas do que está sendo desenhado / movido / redimensionado -->
+          @if (measureBadge(); as m) {
+            <g class="measure-badge"
+               [attr.transform]="'translate(' + m.x + ' ' + m.y + ') scale(' + (1 / zoom) + ')'">
+              <rect [attr.width]="measureBadgeWidth(m.lines)"
+                    [attr.height]="m.lines.length * 14 + 8"
+                    [attr.y]="-(m.lines.length * 14 + 8)"
+                    rx="4"/>
+              @for (line of m.lines; track $index) {
+                <text x="8" [attr.y]="-(m.lines.length * 14 + 8) + 14 * ($index + 1) - 1">{{ line }}</text>
+              }
+            </g>
+          }
         </svg>
 
         <!-- Text overlay -->
@@ -686,6 +703,20 @@
           </button>
           <button class="zoom-btn" [disabled]="!selectedIds.length" (click)="zoomToSelection()" title="Enquadrar seleção (2)">
             <svg viewBox="0 0 24 24"><path d="M3 5h4V3H3a2 2 0 0 0-2 2v4h2zm14-2v2h4v4h2V5a2 2 0 0 0-2-2zM3 15H1v4a2 2 0 0 0 2 2h4v-2H3zm18 4h-4v2h4a2 2 0 0 0 2-2v-4h-2zM8 8h8v8H8z"/></svg>
+          </button>
+          <button class="zoom-btn" [class.off]="!showAnchors" (click)="toggleAnchors()"
+                  [title]="(showAnchors ? 'Ocultar' : 'Mostrar') + ' pontos de ancoragem (Shift+A)'">
+            @if (showAnchors) {
+              <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm0 16a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0zM8 8h8v8H8z"/></svg>
+            } @else {
+              <svg viewBox="0 0 24 24"><path d="M8 8h8v8H8zM2.1 3.5 3.5 2.1l18.4 18.4-1.4 1.4z"/></svg>
+            }
+          </button>
+          <button class="zoom-btn" [disabled]="!hasContent()" (click)="centerDrawing()" title="Centralizar o desenho na tela">
+            <svg viewBox="0 0 24 24"><path d="M12 2l3 4h-2v4h4V8l4 4-4 4v-2h-4v4h2l-3 4-3-4h2v-4H7v2l-4-4 4-4v2h4V6H9z"/></svg>
+          </button>
+          <button class="zoom-btn" [disabled]="!hasContent()" (click)="resizeDrawingToFit()" title="Redimensionar o desenho para caber e centralizar">
+            <svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zm6 10v6h-6v-2h4v-4zM4 14h2v4h4v2H4zm5 -3h6v2H9z"/></svg>
           </button>
         </div>
       }
@@ -843,6 +874,45 @@
                         </button>
                       </div>
                       <p class="pp-hint">Duplo clique em qualquer elemento para escrever dentro dele.</p>
+                    </div>
+
+                    <div class="pp-field">
+                      <label>Alinhamento horizontal</label>
+                      <div class="pp-row">
+                        <button class="pp-btn grow" [class.active]="textAlignOf(sel) === 'left'"
+                                [disabled]="!selectedIds.length" (click)="setTextAlign('left')" title="Alinhar à esquerda">
+                          <svg viewBox="0 0 24 24"><path d="M3 3h18v2H3zm0 4h12v2H3zm0 4h18v2H3zm0 4h12v2H3zm0 4h18v2H3z"/></svg>
+                        </button>
+                        <button class="pp-btn grow" [class.active]="textAlignOf(sel) === 'center'"
+                                [disabled]="!selectedIds.length" (click)="setTextAlign('center')" title="Centralizar texto">
+                          <svg viewBox="0 0 24 24"><path d="M3 3h18v2H3zm3 4h12v2H6zm-3 4h18v2H3zm3 4h12v2H6zm-3 4h18v2H3z"/></svg>
+                        </button>
+                        <button class="pp-btn grow" [class.active]="textAlignOf(sel) === 'right'"
+                                [disabled]="!selectedIds.length" (click)="setTextAlign('right')" title="Alinhar à direita">
+                          <svg viewBox="0 0 24 24"><path d="M3 3h18v2H3zm6 4h12v2H9zm-6 4h18v2H3zm6 4h12v2H9zm-6 4h18v2H3z"/></svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="pp-field">
+                      <label>Alinhamento vertical</label>
+                      <div class="pp-row">
+                        <button class="pp-btn grow" [class.active]="textVAlignOf(sel) === 'top'"
+                                [disabled]="!selectedIds.length" (click)="setTextVAlign('top')" title="Texto no topo">
+                          <svg viewBox="0 0 24 24"><path d="M3 3h18v2H3zm4 4h10v3H7zm0 5h10v3H7z"/></svg>
+                        </button>
+                        <button class="pp-btn grow" [class.active]="textVAlignOf(sel) === 'middle'"
+                                [disabled]="!selectedIds.length" (click)="setTextVAlign('middle')" title="Centralizar na vertical">
+                          <svg viewBox="0 0 24 24"><path d="M3 11h18v2H3zm4-5h10v3H7zm0 9h10v3H7z"/></svg>
+                        </button>
+                        <button class="pp-btn grow" [class.active]="textVAlignOf(sel) === 'bottom'"
+                                [disabled]="!selectedIds.length" (click)="setTextVAlign('bottom')" title="Texto na base">
+                          <svg viewBox="0 0 24 24"><path d="M3 19h18v2H3zM7 9h10v3H7zm0 5h10v3H7z"/></svg>
+                        </button>
+                      </div>
+                      @if (!selectedIds.length) {
+                        <p class="pp-hint">Selecione um elemento para alinhar o texto dentro dele.</p>
+                      }
                     </div>
                   </div>
                 }
@@ -1019,6 +1089,37 @@
                         <button class="pp-btn grow label" [class.active]="gridEnabled" (click)="gridEnabled = !gridEnabled; cdr.markForCheck()" title="Shift+G">Mostrar</button>
                         <button class="pp-btn grow label" [class.active]="snapEnabled" (click)="toggleSnap()" title="M">Alinhar (snap)</button>
                       </div>
+                    </div>
+
+                    <div class="pp-field">
+                      <label>Medidas</label>
+                      <div class="pp-row">
+                        <button class="pp-btn grow label" [class.active]="showMeasures" (click)="toggleMeasures()">
+                          {{ showMeasures ? 'Ocultar medidas' : 'Mostrar medidas' }}
+                        </button>
+                      </div>
+                      <p class="pp-hint">Exibe tamanho e posição enquanto você desenha, move ou redimensiona.</p>
+                    </div>
+
+                    <div class="pp-field">
+                      <label>Pontos de ancoragem</label>
+                      <div class="pp-row">
+                        <button class="pp-btn grow label" [class.active]="showAnchors" (click)="toggleAnchors()" title="Shift+A">
+                          {{ showAnchors ? 'Ocultar âncoras' : 'Mostrar âncoras' }}
+                        </button>
+                      </div>
+                      <p class="pp-hint">Bolinhas onde a seta encosta. Ocultas, a tela fica limpa — e voltam sozinhas ao escolher a ferramenta Seta.</p>
+                    </div>
+
+                    <div class="pp-field">
+                      <label>Enquadrar o desenho</label>
+                      <div class="pp-row wrap">
+                        <button class="pp-btn label" [disabled]="!hasContent()" (click)="centerDrawing()"
+                                title="Move todo o conteúdo para o centro da área visível">Centralizar desenho</button>
+                        <button class="pp-btn label" [disabled]="!hasContent()" (click)="resizeDrawingToFit()"
+                                title="Redimensiona o conteúdo para caber na tela e centraliza">Redimensionar e centralizar</button>
+                      </div>
+                      <p class="pp-hint">Centralizar só reposiciona. Redimensionar escala formas, traços e fontes juntos.</p>
                     </div>
 
                     <div class="pp-field">

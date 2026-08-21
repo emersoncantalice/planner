@@ -13,6 +13,7 @@ import { uid } from '../../core/uid';
 })
 export class ProjectBudgetPanelComponent {
   @Input() orcamentos: any[] = [];
+  @Input() templates: any[] = [];
   @Input() perfis: any[] = [];
   @Input() token = '';
 
@@ -20,10 +21,19 @@ export class ProjectBudgetPanelComponent {
   @Output() update = new EventEmitter<{ id: string; payload: any }>();
   @Output() remove = new EventEmitter<string>();
 
+  @Output() createTemplate = new EventEmitter<any>();
+  @Output() updateTemplate = new EventEmitter<{ id: string; payload: any }>();
+  @Output() removeTemplate = new EventEmitter<string>();
+
   // ── view state ────────────────────────────────────────────────────────────
   searchTerm = '';
   selectedId = '';
-  activeTab: 'atividades' | 'cronograma' | 'resumo' = 'atividades';
+  activeTab: 'atividades' | 'cronograma' | 'cloud' | 'resumo' = 'atividades';
+
+  // cloud cost form
+  cloudFormOpen = false;
+  editingCloudId = '';
+  cloudForm = this.emptyCloudForm();
 
   // budget form
   formOpen = false;
@@ -34,6 +44,18 @@ export class ProjectBudgetPanelComponent {
   atividadeFormOpen = false;
   editingAtividadeId = '';
   atividadeForm = this.emptyAtividadeForm();
+
+  // templates
+  templatesModalOpen = false;
+  editingTemplateId = '';
+  templateForm = this.emptyTemplateForm();
+  templateAtvForm = this.emptyTemplateAtvForm();
+  editingTemplateAtvId = '';
+
+  // template injection
+  injetarModalOpen = false;
+  injetarTemplateId = '';
+  injetarDataBase = new Date().toISOString().slice(0, 10);
 
   readonly Number = Number;
 
@@ -71,9 +93,40 @@ export class ProjectBudgetPanelComponent {
 
   // ── profile helpers ───────────────────────────────────────────────────────
 
+  /** nomePerfil segue o padrao "Nome | Senioridade | Area" — partes podem faltar. */
+  private perfilPartes(perfilId: string): string[] {
+    const nome = String(this.perfis.find(p => p.id === perfilId)?.nomePerfil ?? '');
+    return nome.split('|').map(s => s.trim()).filter(s => !!s);
+  }
+
+  /** Nome + senioridade, ex.: "QA · Senior". */
   perfilNome(perfilId: string): string {
-    const nome = this.perfis.find(p => p.id === perfilId)?.nomePerfil ?? '';
-    return nome.split('|')[0].trim() || perfilId;
+    const partes = this.perfilPartes(perfilId);
+    if (!partes.length) return perfilId;
+    return partes.slice(0, 2).join(' · ');
+  }
+
+  perfilSenioridade(perfilId: string): string {
+    return this.perfilPartes(perfilId)[1] ?? '';
+  }
+
+  perfilArea(perfilId: string): string {
+    return this.perfilPartes(perfilId)[2] ?? '';
+  }
+
+  /** Rotulo completo para o <select>: nome, senioridade, area e valor/hora. */
+  perfilOptionLabel(p: any): string {
+    const partes = String(p?.nomePerfil ?? '').split('|').map((s: string) => s.trim()).filter((s: string) => !!s);
+    const base = partes.slice(0, 2).join(' · ') || String(p?.nomePerfil ?? '');
+    const area = partes[2] ? ` (${partes[2]})` : '';
+    const valor = this.perfilValorHora(p?.id);
+    return `${base}${area}${valor ? ' — ' + this.currency(valor) + '/h' : ''}`;
+  }
+
+  /** Perfis ordenados por nome + senioridade, para o select de atividade. */
+  perfisOrdenados(): any[] {
+    return [...this.perfis].sort((a, b) =>
+      String(a?.nomePerfil ?? '').localeCompare(String(b?.nomePerfil ?? ''), 'pt-BR'));
   }
 
   perfilValorHora(perfilId: string): number {
@@ -105,8 +158,14 @@ export class ProjectBudgetPanelComponent {
       .sort((a, b) => b.total - a.total);
   }
 
-  totalGeral(): number {
+  /** Custo de pessoas (horas x valor/hora do perfil). */
+  totalPessoas(): number {
     return this.resumoPorPerfil().reduce((s, r) => s + r.total, 0);
+  }
+
+  /** Custo total do orcamento: pessoas + cloud anualizado. */
+  totalGeral(): number {
+    return this.totalPessoas() + this.totalCloud();
   }
 
   totalHoras(): number {
@@ -114,8 +173,79 @@ export class ProjectBudgetPanelComponent {
   }
 
   totalCustoBudget(orc: any): number {
-    return (orc.atividades ?? []).reduce((s: number, a: any) =>
+    const pessoas = (orc.atividades ?? []).reduce((s: number, a: any) =>
       s + Number(a.horas || 0) * this.perfilValorHora(a.perfilId), 0);
+    return pessoas + this.totalCloudDe(orc);
+  }
+
+  // ── cloud costs ───────────────────────────────────────────────────────────
+
+  custosCloud(orc?: any): any[] {
+    const o = orc ?? this.selectedOrcamento();
+    return (o?.custosCloud ?? []) as any[];
+  }
+
+  /** Um item: mensal x meses contratados (12 por padrao = valor anual). */
+  cloudTotalItem(c: any): number {
+    return Number(c?.valorMensal || 0) * Math.max(0, Number(c?.mesesContratados ?? 12));
+  }
+
+  totalCloudDe(orc: any): number {
+    return this.custosCloud(orc).reduce((s, c) => s + this.cloudTotalItem(c), 0);
+  }
+
+  totalCloud(): number {
+    return this.totalCloudDe(this.selectedOrcamento());
+  }
+
+  /** Soma dos valores mensais — util para leitura do "run rate" do orcamento. */
+  totalCloudMensal(): number {
+    return this.custosCloud().reduce((s, c) => s + Number(c.valorMensal || 0), 0);
+  }
+
+  openCloudCreate() {
+    this.editingCloudId = '';
+    this.cloudForm = this.emptyCloudForm();
+    this.cloudFormOpen = true;
+  }
+
+  openCloudEdit(c: any) {
+    this.editingCloudId = c.id;
+    this.cloudForm = {
+      nome: c.nome ?? '',
+      servico: c.servico ?? '',
+      valorMensal: c.valorMensal ?? 0,
+      mesesContratados: c.mesesContratados ?? 12,
+    };
+    this.cloudFormOpen = true;
+  }
+
+  cancelCloudForm() {
+    this.cloudFormOpen = false;
+    this.editingCloudId = '';
+    this.cloudForm = this.emptyCloudForm();
+  }
+
+  submitCloud() {
+    if (!this.cloudForm.nome.trim()) return;
+    const orc = this.selectedOrcamento();
+    if (!orc) return;
+    const custosCloud = [...(orc.custosCloud ?? [])];
+    if (this.editingCloudId) {
+      const idx = custosCloud.findIndex((c: any) => c.id === this.editingCloudId);
+      if (idx >= 0) custosCloud[idx] = { ...custosCloud[idx], ...this.cloudForm };
+    } else {
+      custosCloud.push({ id: uid(), ...this.cloudForm });
+    }
+    this.update.emit({ id: orc.id, payload: { ...orc, custosCloud } });
+    this.cancelCloudForm();
+  }
+
+  excluirCloud(cloudId: string) {
+    const orc = this.selectedOrcamento();
+    if (!orc) return;
+    const custosCloud = (orc.custosCloud ?? []).filter((c: any) => c.id !== cloudId);
+    this.update.emit({ id: orc.id, payload: { ...orc, custosCloud } });
   }
 
   // ── sidebar helpers ───────────────────────────────────────────────────────
@@ -231,6 +361,26 @@ export class ProjectBudgetPanelComponent {
     if (this.selectedId === id) this.selectedId = '';
   }
 
+  /** Copia um orcamento inteiro (dados + atividades) gerando um novo. */
+  duplicarOrcamento(orc: any) {
+    this.create.emit({
+      nome: this.nomeCopia(orc.nome),
+      descricao: orc.descricao ?? '',
+      atividades: (orc.atividades ?? []).map((a: any) => ({ ...a, id: uid() })),
+      custosCloud: (orc.custosCloud ?? []).map((c: any) => ({ ...c, id: uid() })),
+    });
+  }
+
+  /** "Projeto Alpha" -> "Projeto Alpha (cópia)" -> "Projeto Alpha (cópia 2)" ... */
+  private nomeCopia(nome: string): string {
+    const base = String(nome ?? '').replace(/\s*\(cópia(?:\s+\d+)?\)$/i, '').trim();
+    const existentes = new Set(this.orcamentos.map(o => String(o.nome ?? '').trim().toLowerCase()));
+    let candidato = `${base} (cópia)`;
+    let n = 2;
+    while (existentes.has(candidato.toLowerCase())) candidato = `${base} (cópia ${n++})`;
+    return candidato;
+  }
+
   // ── activity CRUD ─────────────────────────────────────────────────────────
 
   openAtividadeCreate() {
@@ -281,6 +431,213 @@ export class ProjectBudgetPanelComponent {
     if (!orc) return;
     const atividades = (orc.atividades ?? []).filter((a: any) => a.id !== atividadeId);
     this.update.emit({ id: orc.id, payload: { ...orc, atividades } });
+  }
+
+  // ── templates ─────────────────────────────────────────────────────────────
+
+  openTemplates() {
+    this.templatesModalOpen = true;
+    this.cancelTemplateForm();
+  }
+
+  closeTemplates() {
+    this.templatesModalOpen = false;
+    this.cancelTemplateForm();
+  }
+
+  openTemplateCreate() {
+    this.editingTemplateId = '';
+    this.templateForm = this.emptyTemplateForm();
+    this.cancelTemplateAtvForm();
+  }
+
+  openTemplateEdit(t: any) {
+    this.editingTemplateId = t.id;
+    this.templateForm = {
+      nome: t.nome ?? '',
+      descricao: t.descricao ?? '',
+      atividades: (t.atividades ?? []).map((a: any) => ({ ...a })),
+    };
+    this.cancelTemplateAtvForm();
+  }
+
+  cancelTemplateForm() {
+    this.editingTemplateId = '';
+    this.templateForm = this.emptyTemplateForm();
+    this.cancelTemplateAtvForm();
+  }
+
+  submitTemplate() {
+    if (!this.templateForm.nome.trim()) return;
+    const payload = {
+      nome: this.templateForm.nome.trim(),
+      descricao: this.templateForm.descricao,
+      atividades: this.templateForm.atividades,
+    };
+    if (this.editingTemplateId) this.updateTemplate.emit({ id: this.editingTemplateId, payload });
+    else this.createTemplate.emit(payload);
+    this.cancelTemplateForm();
+  }
+
+  excluirTemplate(id: string) {
+    this.removeTemplate.emit(id);
+    if (this.editingTemplateId === id) this.cancelTemplateForm();
+    if (this.injetarTemplateId === id) this.injetarTemplateId = '';
+  }
+
+  // template activities (edited in-memory, persisted with the template)
+
+  openTemplateAtvEdit(a: any) {
+    this.editingTemplateAtvId = a.id;
+    this.templateAtvForm = {
+      nome: a.nome ?? '',
+      perfilId: a.perfilId ?? '',
+      horas: a.horas ?? 0,
+      offsetDias: a.offsetDias ?? 0,
+      duracaoDias: a.duracaoDias ?? 1,
+    };
+  }
+
+  cancelTemplateAtvForm() {
+    this.editingTemplateAtvId = '';
+    this.templateAtvForm = this.emptyTemplateAtvForm();
+  }
+
+  /** Duracao muda -> horas acompanham (8h/dia), como no formulario de atividade. */
+  recalcHorasTemplate() {
+    const d = Number(this.templateAtvForm.duracaoDias || 0);
+    if (d > 0) this.templateAtvForm.horas = d * 8;
+  }
+
+  submitTemplateAtv() {
+    const f = this.templateAtvForm;
+    if (!f.nome.trim() || !f.perfilId) return;
+    const atividades = [...this.templateForm.atividades];
+    if (this.editingTemplateAtvId) {
+      const idx = atividades.findIndex((a: any) => a.id === this.editingTemplateAtvId);
+      if (idx >= 0) atividades[idx] = { ...atividades[idx], ...f };
+    } else {
+      atividades.push({
+        id: uid(),
+        ...f,
+        cor: this.ganttColors[atividades.length % this.ganttColors.length],
+      });
+    }
+    this.templateForm.atividades = atividades;
+    this.cancelTemplateAtvForm();
+  }
+
+  excluirTemplateAtv(id: string) {
+    this.templateForm.atividades = this.templateForm.atividades.filter((a: any) => a.id !== id);
+    if (this.editingTemplateAtvId === id) this.cancelTemplateAtvForm();
+  }
+
+  /** Proximo offset sugerido: logo apos a ultima atividade do template. */
+  proximoOffsetTemplate(): number {
+    return this.templateForm.atividades.reduce(
+      (max: number, a: any) => Math.max(max, Number(a.offsetDias || 0) + Number(a.duracaoDias || 1)), 0);
+  }
+
+  novaAtividadeTemplate() {
+    this.cancelTemplateAtvForm();
+    this.templateAtvForm.offsetDias = this.proximoOffsetTemplate();
+  }
+
+  templateHoras(t: any): number {
+    return (t?.atividades ?? []).reduce((s: number, a: any) => s + Number(a.horas || 0), 0);
+  }
+
+  templateCusto(t: any): number {
+    return (t?.atividades ?? []).reduce(
+      (s: number, a: any) => s + Number(a.horas || 0) * this.perfilValorHora(a.perfilId), 0);
+  }
+
+  templateDuracao(t: any): number {
+    return (t?.atividades ?? []).reduce(
+      (max: number, a: any) => Math.max(max, Number(a.offsetDias || 0) + Number(a.duracaoDias || 1)), 0);
+  }
+
+  /** Converte o orcamento selecionado em template (datas viram offsets relativos). */
+  salvarComoTemplate() {
+    const orc = this.selectedOrcamento();
+    if (!orc) return;
+    const ativs = (orc.atividades ?? []) as any[];
+    const comData = ativs.filter(a => a.dataInicio);
+    const base = comData.length
+      ? [...comData].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio))[0].dataInicio
+      : '';
+    this.templatesModalOpen = true;
+    this.editingTemplateId = '';
+    this.templateForm = {
+      nome: `${orc.nome} (template)`,
+      descricao: orc.descricao ?? '',
+      atividades: ativs.map((a, i) => ({
+        id: uid(),
+        nome: a.nome,
+        perfilId: a.perfilId,
+        horas: Number(a.horas || 0),
+        offsetDias: base && a.dataInicio ? this.dayDiff(base, a.dataInicio) : 0,
+        duracaoDias: a.dataInicio && a.dataFim ? this.dayDiff(a.dataInicio, a.dataFim) + 1 : 1,
+        cor: a.cor || this.ganttColors[i % this.ganttColors.length],
+      })),
+    };
+    this.cancelTemplateAtvForm();
+  }
+
+  // ── template injection ────────────────────────────────────────────────────
+
+  openInjetar() {
+    if (!this.selectedOrcamento()) return;
+    this.injetarTemplateId = this.templates[0]?.id ?? '';
+    this.injetarDataBase = this.sugestaoDataBase();
+    this.injetarModalOpen = true;
+  }
+
+  closeInjetar() {
+    this.injetarModalOpen = false;
+    this.injetarTemplateId = '';
+  }
+
+  /** Comeca logo depois da ultima atividade do orcamento; senao, hoje. */
+  private sugestaoDataBase(): string {
+    const range = this.ganttRange();
+    if (!range) return new Date().toISOString().slice(0, 10);
+    return this.addDays(range.maxDate, 1);
+  }
+
+  templateSelecionado(): any | null {
+    return this.templates.find(t => t.id === this.injetarTemplateId) ?? null;
+  }
+
+  injetarTemplate() {
+    const orc = this.selectedOrcamento();
+    const tpl = this.templateSelecionado();
+    if (!orc || !tpl) return;
+    const atividades = [...(orc.atividades ?? [])];
+    const base = this.injetarDataBase;
+    for (const a of (tpl.atividades ?? []) as any[]) {
+      const offset = Number(a.offsetDias || 0);
+      const duracao = Math.max(1, Number(a.duracaoDias || 1));
+      const dataInicio = base ? this.addDays(base, offset) : '';
+      const dataFim = dataInicio ? this.addDays(dataInicio, duracao - 1) : '';
+      atividades.push({
+        id: uid(),
+        nome: a.nome,
+        perfilId: a.perfilId,
+        horas: Number(a.horas || 0) || duracao * 8,
+        dataInicio,
+        dataFim,
+        cor: a.cor || this.ganttColors[atividades.length % this.ganttColors.length],
+      });
+    }
+    this.update.emit({ id: orc.id, payload: { ...orc, atividades } });
+    this.closeInjetar();
+  }
+
+  private addDays(date: string, days: number): string {
+    const d = new Date(date + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
   }
 
   // ── PDF export ────────────────────────────────────────────────────────────
@@ -356,11 +713,16 @@ export class ProjectBudgetPanelComponent {
       doc.setFontSize(9); doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 52, 96);
       doc.text('Resumo por Perfil', 14, y1);
+      const foot: string[][] = [['Subtotal pessoas', `${this.totalHoras()}h`, '', this.currency(this.totalPessoas())]];
+      if (this.totalCloud()) {
+        foot.push(['Cloud (anualizado)', '—', `${this.currency(this.totalCloudMensal())}/mês`, this.currency(this.totalCloud())]);
+      }
+      foot.push(['Total Geral', `${this.totalHoras()}h`, '', this.currency(this.totalGeral())]);
       autoTable(doc, {
         startY: y1 + 4,
         head: [['Perfil', 'Horas', 'Valor/hora', 'Total']],
         body: resumo.map(r => [r.nome, `${r.horas}h`, this.currency(r.valorHora), this.currency(r.total)]),
-        foot: [['Total Geral', `${this.totalHoras()}h`, '', this.currency(this.totalGeral())]],
+        foot,
         theme: 'grid',
         headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         bodyStyles: { fontSize: 7.5 },
@@ -368,6 +730,28 @@ export class ProjectBudgetPanelComponent {
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
         margin: { left: 14, right: 14 },
       });
+
+      // cloud costs
+      if (this.custosCloud().length) {
+        const yCloud = (doc as any).lastAutoTable.finalY + 8;
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 52, 96);
+        doc.text('Custos de Cloud', 14, yCloud);
+        autoTable(doc, {
+          startY: yCloud + 4,
+          head: [['Descrição', 'Serviço', 'Valor mensal', 'Meses', 'Total']],
+          body: this.custosCloud().map(c => [
+            c.nome, c.servico || '—', this.currency(Number(c.valorMensal || 0)),
+            String(c.mesesContratados ?? 12), this.currency(this.cloudTotalItem(c)),
+          ]),
+          foot: [['Total', '', `${this.currency(this.totalCloudMensal())}/mês`, '', this.currency(this.totalCloud())]],
+          theme: 'grid',
+          headStyles: { fillColor: [21, 94, 117], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 7.5 },
+          footStyles: { fillColor: [236, 254, 255], textColor: [21, 94, 117], fontStyle: 'bold', fontSize: 8 },
+          columnStyles: { 2: { halign: 'right' }, 3: { halign: 'center' }, 4: { halign: 'right', fontStyle: 'bold' } },
+          margin: { left: 14, right: 14 },
+        });
+      }
 
       // gantt in PDF
       const range = this.ganttRange();
@@ -429,4 +813,13 @@ export class ProjectBudgetPanelComponent {
 
   private emptyBudgetForm() { return { nome: '', descricao: '' }; }
   private emptyAtividadeForm() { return { nome: '', perfilId: '', horas: 0, dataInicio: '', dataFim: '' }; }
+  private emptyTemplateForm(): { nome: string; descricao: string; atividades: any[] } {
+    return { nome: '', descricao: '', atividades: [] };
+  }
+  private emptyTemplateAtvForm() {
+    return { nome: '', perfilId: '', horas: 8, offsetDias: 0, duracaoDias: 1 };
+  }
+  private emptyCloudForm() {
+    return { nome: '', servico: '', valorMensal: 0, mesesContratados: 12 };
+  }
 }

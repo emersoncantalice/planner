@@ -19,7 +19,42 @@ export type Tool =
   | 'archZone' | 'archUser' | 'archBrowser' | 'archMobile' | 'archServer'
   | 'archComponent' | 'archDatabase' | 'archStorage' | 'archQueue' | 'archCache'
   | 'archApi' | 'archBalancer' | 'archFirewall' | 'archNetwork' | 'archFunction';
-type AnchorId = 'top' | 'right' | 'bottom' | 'left';
+/**
+ * Pontos de conexão de uma forma. Os quatro primeiros são os originais (e os
+ * únicos gravados em desenhos antigos); os demais dão mais destinos para a seta.
+ */
+type AnchorId =
+  | 'top' | 'right' | 'bottom' | 'left'
+  | 'topLeft' | 'topRight' | 'bottomRight' | 'bottomLeft'
+  | 'topQ1' | 'topQ3' | 'rightQ1' | 'rightQ3'
+  | 'bottomQ1' | 'bottomQ3' | 'leftQ1' | 'leftQ3';
+
+/** Posição de cada âncora como fração da caixa da forma. */
+const ANCHOR_FRACTIONS: Record<AnchorId, { fx: number; fy: number }> = {
+  top:         { fx: 0.5,  fy: 0    },
+  right:       { fx: 1,    fy: 0.5  },
+  bottom:      { fx: 0.5,  fy: 1    },
+  left:        { fx: 0,    fy: 0.5  },
+  topLeft:     { fx: 0,    fy: 0    },
+  topRight:    { fx: 1,    fy: 0    },
+  bottomRight: { fx: 1,    fy: 1    },
+  bottomLeft:  { fx: 0,    fy: 1    },
+  topQ1:       { fx: 0.25, fy: 0    },
+  topQ3:       { fx: 0.75, fy: 0    },
+  rightQ1:     { fx: 1,    fy: 0.25 },
+  rightQ3:     { fx: 1,    fy: 0.75 },
+  bottomQ1:    { fx: 0.25, fy: 1    },
+  bottomQ3:    { fx: 0.75, fy: 1    },
+  leftQ1:      { fx: 0,    fy: 0.25 },
+  leftQ3:      { fx: 0,    fy: 0.75 },
+};
+
+/** Sempre visíveis; as demais aparecem na forma sob o cursor. */
+const PRIMARY_ANCHORS: AnchorId[] = ['top', 'right', 'bottom', 'left'];
+const ALL_ANCHORS = Object.keys(ANCHOR_FRACTIONS) as AnchorId[];
+
+export type TextAlign  = 'left' | 'center' | 'right';
+export type TextVAlign = 'top' | 'middle' | 'bottom';
 export type DashStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface DrawShape {
@@ -40,6 +75,8 @@ export interface DrawShape {
   bold?: boolean;
   italic?: boolean;
   fontFamily?: string;
+  align?: TextAlign;    // alinhamento horizontal do texto na caixa
+  valign?: TextVAlign;  // alinhamento vertical do texto na caixa
   dash?: DashStyle;
   rot?: number;        // graus, rotação em torno do centro
   locked?: boolean;    // posição/tamanho travados
@@ -173,6 +210,12 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   /** Última posição do ponteiro em coordenadas do canvas (usada para colar no cursor). */
   private lastPt      = { x: 0, y: 0 };
   private pointerInside = false;
+  /** Forma sob o cursor: revela o conjunto completo de âncoras só onde importa. */
+  hoverShapeId: string | null = null;
+  /** Mostrar medidas (largura/altura/posição) enquanto se desenha ou move. */
+  showMeasures = true;
+  /** Mostrar os pontos de ancoragem das formas (destinos da seta). */
+  showAnchors = true;
 
   // ── Clipboard ─────────────────────────────────────────────────────────────
   private clipboard: DrawShape[] = [];
@@ -1229,6 +1272,90 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.cdr.markForCheck();
   }
 
+  // ── Centralizar / redimensionar o desenho ─────────────────────────────────
+
+  /** Caixa que envolve todo o conteúdo da aba. */
+  private contentBounds(): Rect | null {
+    if (!this.shapes.length) return null;
+    const boxes = this.shapes.map(s => this.outerBounds(s));
+    const minX = Math.min(...boxes.map(b => b.x));
+    const minY = Math.min(...boxes.map(b => b.y));
+    const maxX = Math.max(...boxes.map(b => b.x + b.w));
+    const maxY = Math.max(...boxes.map(b => b.y + b.h));
+    return { x: minX, y: minY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
+  }
+
+  hasContent(): boolean {
+    return this.shapes.length > 0;
+  }
+
+  /** Move todo o conteúdo para o centro da área visível (não altera o tamanho). */
+  centerDrawing() {
+    const box = this.contentBounds();
+    if (!box) { this.toast.show('Nada para centralizar nesta aba.', 'info', 3000); return; }
+    const viewCx = this.panX + (this.vw / this.zoom) / 2;
+    const viewCy = this.panY + (this.vh / this.zoom) / 2;
+    const dx = viewCx - (box.x + box.w / 2);
+    const dy = viewCy - (box.y + box.h / 2);
+    if (!dx && !dy) return;
+    this.translateAllShapes(dx, dy);
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+    this.toast.show('Desenho centralizado.', 'success', 2500);
+  }
+
+  /**
+   * Redimensiona o conteúdo inteiro para caber na área visível e o centraliza.
+   * Escala posições, tamanhos, traços e fontes juntos, para o desenho continuar
+   * proporcional.
+   */
+  resizeDrawingToFit() {
+    const box = this.contentBounds();
+    if (!box) { this.toast.show('Nada para redimensionar nesta aba.', 'info', 3000); return; }
+    const margin = 60;
+    const availW = Math.max(50, this.vw / this.zoom - margin * 2);
+    const availH = Math.max(50, this.vh / this.zoom - margin * 2);
+    const scale = Math.min(availW / box.w, availH / box.h);
+    if (!isFinite(scale) || scale <= 0) return;
+
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    const viewCx = this.panX + (this.vw / this.zoom) / 2;
+    const viewCy = this.panY + (this.vh / this.zoom) / 2;
+
+    this.shapes = this.shapes.map(s => {
+      const next: DrawShape = {
+        ...s,
+        x: viewCx + (s.x - cx) * scale,
+        y: viewCy + (s.y - cy) * scale,
+        w: s.w * scale,
+        h: s.h * scale,
+        lw: Math.max(0.5, s.lw * scale),
+      };
+      if (s.fontSize) next.fontSize = Math.min(160, Math.max(6, Math.round(s.fontSize * scale)));
+      if (s.pts?.length) {
+        next.pts = s.pts.map((v, i) => i % 2 === 0
+          ? viewCx + (v - cx) * scale
+          : viewCy + (v - cy) * scale);
+      }
+      return next;
+    });
+    this.pushHistory();
+    this.scheduleSave();
+    this.cdr.markForCheck();
+    this.toast.show(`Desenho ajustado (${Math.round(scale * 100)}%) e centralizado.`, 'success', 3000);
+  }
+
+  private translateAllShapes(dx: number, dy: number) {
+    this.shapes = this.shapes.map(s => ({
+      ...s,
+      x: s.x + dx,
+      y: s.y + dy,
+      pts: s.pts?.length ? s.pts.map((v, i) => i % 2 === 0 ? v + dx : v + dy) : s.pts,
+    }));
+  }
+
   // ── Mouse events ──────────────────────────────────────────────────────────
   onSvgMouseDown(e: MouseEvent) {
     if (e.button !== 0 && e.button !== 1) return;
@@ -1334,6 +1461,86 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
         rot: this.sel.rot || 0
       };
     }
+  }
+
+  // ── Medidas durante o posicionamento ──────────────────────────────────────
+
+  /**
+   * Etiqueta com as medidas do que está sendo desenhado, movido ou
+   * redimensionado. Fica ancorada acima da caixa, em coordenadas do canvas —
+   * o template compensa o zoom para o texto não crescer junto.
+   */
+  measureBadge(): { x: number; y: number; lines: string[] } | null {
+    if (!this.showMeasures || this.isPanning || this.isMultiSelecting) return null;
+
+    if (this.isDrawing && this.drawId) {
+      const s = this.findShape(this.drawId);
+      if (!s) return null;
+      const box = this.selectionHandleBounds(s);
+      if (s.type === 'arrow' || s.type === 'line') {
+        const len = Math.hypot(s.w, s.h);
+        const ang = ((Math.atan2(s.h, s.w) * 180 / Math.PI) + 360) % 360;
+        return { ...this.badgeAnchor(box), lines: [`${this.r(len)} px`, `${this.r(ang)}°`] };
+      }
+      if (s.type === 'pen') return { ...this.badgeAnchor(box), lines: [this.sizeLine(box)] };
+      return { ...this.badgeAnchor(box), lines: [this.sizeLine(box), this.posLine(box)] };
+    }
+
+    if (!this.isDragging || !this.sel) return null;
+
+    if (this.activeHandle === 'rotate') {
+      const box = this.outerBounds(this.sel);
+      return { ...this.badgeAnchor(box), lines: [`${this.sel.rot || 0}°`] };
+    }
+
+    const multi = this.selectionBounds();
+    const box = multi ?? this.selectionHandleBounds(this.sel);
+    if (this.activeHandle) {
+      return { ...this.badgeAnchor(box), lines: [this.sizeLine(box), this.posLine(box)] };
+    }
+    // Movendo: posição é o que interessa; o tamanho ajuda a conferir o encaixe.
+    return { ...this.badgeAnchor(box), lines: [this.posLine(box), this.sizeLine(box)] };
+  }
+
+  private badgeAnchor(box: Rect): { x: number; y: number } {
+    return { x: box.x, y: box.y - 12 / Math.max(this.zoom, 0.15) };
+  }
+
+  private sizeLine(box: Rect): string {
+    return `${this.r(Math.abs(box.w))} × ${this.r(Math.abs(box.h))}`;
+  }
+
+  private posLine(box: Rect): string {
+    return `x ${this.r(box.x)}  y ${this.r(box.y)}`;
+  }
+
+  private r(v: number): number {
+    return Math.round(v);
+  }
+
+  /** Largura da etiqueta de medidas (aproximada pelo maior texto). */
+  measureBadgeWidth(lines: string[]): number {
+    return Math.max(...lines.map(l => l.length)) * 6.4 + 16;
+  }
+
+  toggleMeasures() {
+    this.showMeasures = !this.showMeasures;
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Liga/desliga os pontos de ancoragem. Com a ferramenta seta ativa eles
+   * voltam sozinhos: sem eles não há como escolher onde a seta encosta.
+   */
+  toggleAnchors() {
+    this.showAnchors = !this.showAnchors;
+    this.toast.show(
+      this.showAnchors
+        ? 'Pontos de ancoragem visíveis.'
+        : 'Pontos de ancoragem ocultos (voltam ao usar a ferramenta Seta).',
+      'info', 2500
+    );
+    this.cdr.markForCheck();
   }
 
   /** Posição do handle de rotação (acima do centro superior da forma). */
@@ -1457,7 +1664,17 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     }
 
     // drag / resize — only when mouse button is held (isDragging flag)
-    if (!this.isDragging || !this.sel) return;
+    if (!this.isDragging || !this.sel) {
+      // Ocioso: só marca a forma sob o cursor (revela as âncoras extras).
+      const hover = (this.tool === 'select' || this.tool === 'arrow')
+        ? this.shapeAtPoint(p)?.id ?? null
+        : null;
+      if (hover !== this.hoverShapeId) {
+        this.hoverShapeId = hover;
+        this.cdr.markForCheck();
+      }
+      return;
+    }
 
     let dx = p.x - this.dragPt.x;
     let dy = p.y - this.dragPt.y;
@@ -1663,6 +1880,12 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     setTimeout(() => this.taRef?.nativeElement?.focus(), 30);
   }
 
+  /** `align-content` do textarea equivalente ao alinhamento vertical da forma. */
+  private editAlignContent(s: DrawShape): string {
+    const v = this.textVAlignOf(s);
+    return v === 'top' ? 'start' : v === 'bottom' ? 'end' : 'center';
+  }
+
   private recalcEditStyle(s: DrawShape) {
     const svg = this.svgRef.nativeElement;
     const r   = svg.getBoundingClientRect();
@@ -1689,6 +1912,10 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
       transformOrigin: 'center center',
       background: isArrow ? 'rgba(255,255,255,0.96)' : s.stickyBg || 'rgba(255,255,255,0.95)',
       color: s.stroke,
+      // A caixa de edição usa o mesmo alinhamento do texto renderizado, para o
+      // que se vê ao digitar bater com o resultado.
+      textAlign: isArrow ? 'center' : this.textAlignOf(s),
+      alignContent: isArrow ? 'center' : this.editAlignContent(s),
       border: '2px solid #3b82f6',
       borderRadius: '4px',
       padding: '4px',
@@ -2120,7 +2347,8 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     this.styleClipboard = {
       stroke: s.stroke, fill: s.fill, lw: s.lw, opacity: s.opacity,
       dash: s.dash, fontSize: s.fontSize, bold: s.bold, italic: s.italic,
-      fontFamily: s.fontFamily, stickyBg: s.stickyBg
+      fontFamily: s.fontFamily, stickyBg: s.stickyBg,
+      align: s.align, valign: s.valign
     };
     this.toast.show('Estilo copiado (Ctrl+Alt+V para aplicar).', 'success', 2500);
     this.cdr.markForCheck();
@@ -2374,23 +2602,36 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     return this.shapes.filter(s => s.type !== 'arrow' && s.type !== 'line');
   }
 
+  /** Todas as âncoras — usada no hit-test da seta e na forma sob o cursor. */
   anchorIds(): AnchorId[] {
-    return ['top', 'right', 'bottom', 'left'];
+    return ALL_ANCHORS;
+  }
+
+  /**
+   * Âncoras desenhadas para uma forma: as quatro principais em todas, e o
+   * conjunto completo na forma sob o cursor — assim a tela não vira um tapete
+   * de bolinhas, mas há muito mais destino onde a seta realmente vai encostar.
+   */
+  anchorsFor(s: DrawShape): AnchorId[] {
+    return this.hoverShapeId === s.id || this.isSelected(s.id) ? ALL_ANCHORS : PRIMARY_ANCHORS;
+  }
+
+  isPrimaryAnchor(anchor: AnchorId): boolean {
+    return PRIMARY_ANCHORS.includes(anchor);
   }
 
   anchorPoint(s: DrawShape, anchor: AnchorId): Point {
     const bounds = this.shapeBounds(s);
-    const local =
-      anchor === 'top'    ? { x: bounds.x + bounds.w / 2, y: bounds.y } :
-      anchor === 'right'  ? { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 } :
-      anchor === 'bottom' ? { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h } :
-                            { x: bounds.x, y: bounds.y + bounds.h / 2 };
+    const frac = ANCHOR_FRACTIONS[anchor] ?? ANCHOR_FRACTIONS.top;
+    const local = { x: bounds.x + bounds.w * frac.fx, y: bounds.y + bounds.h * frac.fy };
     if (!s.rot || !this.canRotate(s)) return local;
     return this.rotatePoint(local, { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }, s.rot);
   }
 
   anchorCursor(anchor: AnchorId): string {
-    return anchor === 'top' || anchor === 'bottom' ? 'ns-resize' : 'ew-resize';
+    const frac = ANCHOR_FRACTIONS[anchor] ?? ANCHOR_FRACTIONS.top;
+    if (frac.fx === 0 || frac.fx === 1) return frac.fy === 0 || frac.fy === 1 ? 'crosshair' : 'ew-resize';
+    return 'ns-resize';
   }
 
   private shapeAtPoint(p: Point, excludeId?: string): DrawShape | null {
@@ -2492,11 +2733,56 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     return lines;
   }
 
-  shapeTextY(s: DrawShape, index: number, total: number): number {
+  // ── Alinhamento do texto dentro da forma ──────────────────────────────────
+
+  /** Formas de caixa (nota, texto solto) começam à esquerda; as demais, centradas. */
+  textAlignOf(s: DrawShape | null | undefined): TextAlign {
+    if (!s) return 'center';
+    return s.align ?? (s.type === 'text' || s.type === 'sticky' ? 'left' : 'center');
+  }
+
+  textVAlignOf(s: DrawShape | null | undefined): TextVAlign {
+    if (!s) return 'middle';
+    return s.valign ?? (s.type === 'text' || s.type === 'sticky' ? 'top' : 'middle');
+  }
+
+  svgTextAnchor(s: DrawShape): 'start' | 'middle' | 'end' {
+    const a = this.textAlignOf(s);
+    return a === 'left' ? 'start' : a === 'right' ? 'end' : 'middle';
+  }
+
+  /** X da linha de texto conforme o alinhamento horizontal. */
+  boxTextX(s: DrawShape, pad = 6): number {
+    const x = Math.min(s.x, s.x + s.w);
+    const w = Math.abs(s.w);
+    const a = this.textAlignOf(s);
+    return a === 'left' ? x + pad : a === 'right' ? x + w - pad : x + w / 2;
+  }
+
+  /** Baseline da linha `index` conforme o alinhamento vertical. */
+  boxTextY(s: DrawShape, index: number, total: number, pad = 6, lineFactor = 1.2): number {
     const fs = s.fontSize || 14;
-    const cy = Math.min(s.y, s.y + s.h) + Math.abs(s.h) / 2;
-    const offset = (index - (total - 1) / 2) * (fs * 1.2);
-    return cy + offset + fs * 0.34;
+    const y = Math.min(s.y, s.y + s.h);
+    const h = Math.abs(s.h);
+    const lineH = fs * lineFactor;
+    const blockH = Math.max(1, total) * lineH;
+    const v = this.textVAlignOf(s);
+    const top = v === 'top'    ? y + pad
+              : v === 'bottom' ? y + h - blockH - pad
+                               : y + (h - blockH) / 2;
+    return top + index * lineH + fs * 0.95;
+  }
+
+  setTextAlign(align: TextAlign) {
+    this.applyToSelection({ align });
+  }
+
+  setTextVAlign(valign: TextVAlign) {
+    this.applyToSelection({ valign });
+  }
+
+  shapeTextY(s: DrawShape, index: number, total: number): number {
+    return this.boxTextY(s, index, total);
   }
 
   shapeCenterX(s: DrawShape): number {
@@ -3098,6 +3384,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     if (!mod && e.key === '2')  { e.preventDefault(); this.zoomToSelection(); return; }
     if (!mod && key === 'f')    { e.preventDefault(); e.shiftKey ? this.zoomToSelection() : this.fitContent(); return; }
     if (!mod && key === 'g' && e.shiftKey) { e.preventDefault(); this.gridEnabled = !this.gridEnabled; this.cdr.markForCheck(); return; }
+    if (!mod && key === 'a' && e.shiftKey) { e.preventDefault(); this.toggleAnchors(); return; }
     if (!mod && key === 'm')    { e.preventDefault(); this.toggleSnap(); return; }
     if (!mod && key === 'q')    { e.preventDefault(); this.toggleToolLock(); return; }
     if (!mod && (e.key === '?' || (e.key === '/' && e.shiftKey))) { e.preventDefault(); this.toggleShortcuts(); return; }
@@ -3124,6 +3411,10 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
     if (key === 'i') { e.preventDefault(); this.toggleItalic(); return true; }
     if (e.key === '>' || e.key === '.') { e.preventDefault(); this.bumpFontSize(2); return true; }
     if (e.key === '<' || e.key === ',') { e.preventDefault(); this.bumpFontSize(-2); return true; }
+    // Alinhamento do texto: Ctrl+Shift+L / E / R (esquerda, centro, direita)
+    if (e.shiftKey && key === 'l') { e.preventDefault(); this.setTextAlign('left');   return true; }
+    if (e.shiftKey && key === 'e') { e.preventDefault(); this.setTextAlign('center'); return true; }
+    if (e.shiftKey && key === 'r') { e.preventDefault(); this.setTextAlign('right');  return true; }
     return false;
   }
 
@@ -3287,6 +3578,7 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
 
   onCanvasLeave(e: MouseEvent) {
     this.pointerInside = false;
+    this.hoverShapeId = null;
     this.onMouseUp(e);
   }
 

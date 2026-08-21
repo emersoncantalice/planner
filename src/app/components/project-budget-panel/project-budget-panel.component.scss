@@ -1,3 +1,7 @@
+// Icones sao SVG inline dentro de containers flex. Sem flex-shrink: 0 eles sao
+// espremidos ate 0px quando o texto do botao nao cabe — e o icone "some".
+:host svg { flex-shrink: 0; }
+
 :host {
   display: block;
   width: 100%;
@@ -194,6 +198,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 26px;
   height: 26px;
   border-radius: 6px;
@@ -274,11 +279,26 @@
 .pb-kpi-green  { background: #ecfdf5; color: #065f46; }
 .pb-kpi-purple { background: #f5f3ff; color: #5b21b6; }
 .pb-kpi-amber  { background: #fffbeb; color: #92400e; }
+.pb-kpi-cyan   { background: #ecfeff; color: #155e75; }
+
+.pb-cloud-kpis {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.pb-cloud-hint {
+  font-size: .74rem;
+  color: #6b7fa8;
+}
+
+.pb-resumo-bar-cloud { background: linear-gradient(90deg, #0891b2, #67e8f9); }
 
 // ── tabs ──────────────────────────────────────────────────────────────────
 
 .pb-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: .25rem;
   border-bottom: 2px solid #e2ebff;
   padding-bottom: 0;
@@ -318,6 +338,7 @@
 .pb-tab-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: .5rem;
 }
 
@@ -456,6 +477,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     width: 26px;
     height: 26px;
     border-radius: 6px;
@@ -866,4 +888,146 @@
   gap: .5rem;
   padding: 12px 20px 16px;
   border-top: 1px solid #e8f0ff;
+}
+
+// ── templates ─────────────────────────────────────────────────────────────
+
+.pb-header-actions,
+.pb-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.pb-tpl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .4rem .85rem;
+  border-radius: .5rem;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #c7b8f5;
+  background: #f5f3ff;
+  color: #5b21b6;
+  transition: background .14s, opacity .14s;
+  white-space: nowrap;
+  svg { width: .9rem; height: .9rem; fill: currentColor; flex-shrink: 0; }
+  &:hover:not(:disabled) { background: #ede9fe; border-color: #a78bfa; }
+  &:disabled { opacity: .5; cursor: default; }
+}
+
+.pb-tpl-count {
+  background: #6d28d9;
+  color: #fff;
+  border-radius: 999px;
+  font-size: .65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  line-height: 1.5;
+}
+
+.pb-modal-lg {
+  width: 940px;
+  max-height: calc(100vh - 48px);
+}
+
+.pb-tpl-layout {
+  display: flex;
+  gap: 1rem;
+  padding: 14px 20px;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
+}
+
+.pb-tpl-list {
+  width: 230px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  overflow-y: auto;
+}
+
+.pb-tpl-new { width: 100%; justify-content: center; }
+
+.pb-tpl-empty {
+  font-size: .78rem;
+  color: #8fa5c8;
+  line-height: 1.5;
+  margin: .5rem 0;
+}
+
+.pb-tpl-card {
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  padding: 9px 11px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color .14s, background .14s;
+
+  &:hover { border-color: #a78bfa; background: #faf8ff; }
+  &.active { border-color: #7c3aed; background: #f5f3ff; }
+}
+
+.pb-tpl-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pb-tpl-card-name { font-size: .85rem; font-weight: 700; color: #3b0f7a; flex: 1; min-width: 0; }
+
+.pb-tpl-card-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 5px;
+  font-size: .7rem;
+  color: #7c6ba8;
+}
+
+.pb-tpl-card-cost { margin-top: 3px; font-size: .78rem; font-weight: 700; color: #5b21b6; }
+
+.pb-tpl-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  overflow-y: auto;
+}
+
+.pb-tpl-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  .full { grid-column: 1 / -1; }
+}
+
+.pb-tpl-atv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  strong { font-size: .85rem; color: #1a3a7a; }
+}
+
+.pb-modal-body select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #c5d8fb;
+  border-radius: 7px;
+  font-size: .85rem;
+  background: #fff;
+  outline: none;
+  &:focus { border-color: #4a7de8; }
+}
+
+@media (max-width: 900px) {
+  .pb-tpl-layout { flex-direction: column; overflow-y: auto; }
+  .pb-tpl-list { width: 100%; }
 }

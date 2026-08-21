@@ -9,10 +9,17 @@
         <p class="pb-subtitle">{{ filtered().length }} orçamento{{ filtered().length !== 1 ? 's' : '' }}</p>
       </div>
     </div>
-    <button class="pb-add-btn" (click)="openCreate()">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
-      Novo Orçamento
-    </button>
+    <div class="pb-header-actions">
+      <button class="pb-tpl-btn" (click)="openTemplates()" title="Gerenciar templates de orçamento">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 4H5V5h14v2zm-8 12H5v-8h6v8zm8 0h-6v-4h6v4zm0-6h-6v-2h6v2z"/></svg>
+        Templates
+        @if (templates.length) { <span class="pb-tpl-count">{{ templates.length }}</span> }
+      </button>
+      <button class="pb-add-btn" (click)="openCreate()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+        Novo Orçamento
+      </button>
+    </div>
   </div>
 
   <!-- ── Body ────────────────────────────────────────────────────────────── -->
@@ -50,6 +57,9 @@
             <div class="pb-card-actions" (click)="$event.stopPropagation()">
               <button type="button" class="pb-card-btn" (click)="openEdit(orc)" title="Editar">
                 <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              </button>
+              <button type="button" class="pb-card-btn" (click)="duplicarOrcamento(orc)" title="Duplicar orçamento">
+                <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
               </button>
               <button type="button" class="pb-card-btn danger" (click)="excluirOrcamento(orc.id)" title="Excluir">
                 <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
@@ -96,6 +106,17 @@
                 <p class="pb-detail-desc">{{ selectedOrcamento()!.descricao }}</p>
               }
             </div>
+            <div class="pb-detail-actions">
+            <button class="pb-tpl-btn" (click)="openInjetar()" [disabled]="!templates.length"
+                    [title]="templates.length ? 'Inserir atividades de um template' : 'Nenhum template cadastrado'">
+              <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+              Inserir Template
+            </button>
+            <button class="pb-tpl-btn" (click)="salvarComoTemplate()" [disabled]="!atividades().length"
+                    title="Criar um template a partir deste orçamento">
+              <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+              Salvar como Template
+            </button>
             <button class="pb-export-btn" (click)="exportarPDF()" [disabled]="exportandoPDF">
               @if (exportandoPDF) {
                 <svg class="pb-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
@@ -105,6 +126,7 @@
                 Exportar PDF
               }
             </button>
+            </div>
           </div>
 
           <!-- KPI strip -->
@@ -137,6 +159,10 @@
               <svg viewBox="0 0 24 24"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
               Cronograma
             </button>
+            <button class="pb-tab" [class.active]="activeTab === 'cloud'" (click)="activeTab = 'cloud'">
+              <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+              Custos Cloud
+            </button>
             <button class="pb-tab" [class.active]="activeTab === 'resumo'" (click)="activeTab = 'resumo'">
               <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
               Resumo de Custos
@@ -151,6 +177,12 @@
                   <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
                   Adicionar Atividade
                 </button>
+                @if (templates.length) {
+                  <button class="pb-add-atv-btn" (click)="openInjetar()" title="Inserir atividades de um template">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 4H5V5h14v2zm-8 12H5v-8h6v8zm8 0h-6v-4h6v4zm0-6h-6v-2h6v2z"/></svg>
+                    Inserir Template
+                  </button>
+                }
               </div>
 
               <!-- activity form (inline) -->
@@ -163,11 +195,11 @@
                       <input type="text" [(ngModel)]="atividadeForm.nome" placeholder="Ex.: Análise de requisitos" />
                     </div>
                     <div class="pb-field">
-                      <label>Perfil *</label>
+                      <label>Perfil / senioridade *</label>
                       <select [(ngModel)]="atividadeForm.perfilId">
                         <option value="">Selecione o perfil</option>
-                        @for (p of perfis; track p.id) {
-                          <option [value]="p.id">{{ p.nomePerfil.split('|')[0].trim() }}</option>
+                        @for (p of perfisOrdenados(); track p.id) {
+                          <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
                         }
                       </select>
                     </div>
@@ -325,13 +357,126 @@
             </div>
           }
 
+          <!-- ── CUSTOS CLOUD TAB ───────────────────────────────────────── -->
+          @if (activeTab === 'cloud') {
+            <div class="pb-tab-content">
+              <div class="pb-tab-toolbar">
+                <button class="pb-add-atv-btn" (click)="openCloudCreate()" [class.active]="cloudFormOpen && !editingCloudId">
+                  <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                  Adicionar Custo Cloud
+                </button>
+                <span class="pb-cloud-hint">Custo lançado por mês e anualizado (mensal × meses) no total do projeto.</span>
+              </div>
+
+              @if (cloudFormOpen) {
+                <div class="pb-atv-form">
+                  <div class="pb-atv-form-title">{{ editingCloudId ? 'Editar Custo Cloud' : 'Novo Custo Cloud' }}</div>
+                  <div class="pb-atv-form-grid">
+                    <div class="pb-field full">
+                      <label>Descrição *</label>
+                      <input type="text" [(ngModel)]="cloudForm.nome" placeholder="Ex.: Cluster EKS produção" />
+                    </div>
+                    <div class="pb-field">
+                      <label>Serviço / provedor</label>
+                      <input type="text" [(ngModel)]="cloudForm.servico" placeholder="Ex.: AWS, Azure, GCP" />
+                    </div>
+                    <div class="pb-field">
+                      <label>Valor mensal (R$) *</label>
+                      <input type="number" min="0" step="0.01" [(ngModel)]="cloudForm.valorMensal" placeholder="0,00" />
+                    </div>
+                    <div class="pb-field">
+                      <label>Meses contratados <span class="pb-horas-hint">(12 = ano cheio)</span></label>
+                      <input type="number" min="1" max="120" [(ngModel)]="cloudForm.mesesContratados" />
+                    </div>
+                  </div>
+                  <div class="pb-atv-cost-preview">
+                    Total no orçamento:
+                    <strong>{{ currency(cloudTotalItem(cloudForm)) }}</strong>
+                    <span>({{ currency(Number(cloudForm.valorMensal)) }}/mês × {{ cloudForm.mesesContratados }} meses)</span>
+                  </div>
+                  <div class="pb-atv-form-actions">
+                    <button type="button" (click)="submitCloud()" [disabled]="!cloudForm.nome.trim()">
+                      {{ editingCloudId ? 'Salvar' : 'Adicionar' }}
+                    </button>
+                    <button type="button" class="sec" (click)="cancelCloudForm()">Cancelar</button>
+                  </div>
+                </div>
+              }
+
+              @if (!custosCloud().length) {
+                <div class="pb-empty-atv">
+                  <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+                  <p>Nenhum custo de cloud cadastrado</p>
+                </div>
+              } @else {
+                <div class="pb-cloud-kpis">
+                  <div class="pb-kpi pb-kpi-cyan">
+                    <span class="pb-kpi-val">{{ currency(totalCloudMensal()) }}</span>
+                    <span class="pb-kpi-lbl">Custo mensal</span>
+                  </div>
+                  <div class="pb-kpi pb-kpi-cyan">
+                    <span class="pb-kpi-val">{{ currency(totalCloud()) }}</span>
+                    <span class="pb-kpi-lbl">Total anualizado</span>
+                  </div>
+                  <div class="pb-kpi pb-kpi-blue">
+                    <span class="pb-kpi-val">{{ totalGeral() ? ((totalCloud() / totalGeral()) * 100).toFixed(1) : 0 }}%</span>
+                    <span class="pb-kpi-lbl">do custo do projeto</span>
+                  </div>
+                </div>
+
+                <div class="pb-table-wrap">
+                  <table class="pb-table">
+                    <thead>
+                      <tr>
+                        <th>Descrição</th>
+                        <th>Serviço</th>
+                        <th class="num">Valor mensal</th>
+                        <th class="num">Meses</th>
+                        <th class="num">Total</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (c of custosCloud(); track c.id) {
+                        <tr>
+                          <td>{{ c.nome }}</td>
+                          <td>{{ c.servico || '—' }}</td>
+                          <td class="num">{{ currency(Number(c.valorMensal || 0)) }}</td>
+                          <td class="num">{{ c.mesesContratados ?? 12 }}</td>
+                          <td class="num"><strong>{{ currency(cloudTotalItem(c)) }}</strong></td>
+                          <td class="pb-atv-actions">
+                            <button type="button" (click)="openCloudEdit(c)" title="Editar">
+                              <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                            <button type="button" class="danger" (click)="excluirCloud(c.id)" title="Excluir">
+                              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr class="pb-table-total">
+                        <td colspan="2"><strong>Total</strong></td>
+                        <td class="num"><strong>{{ currency(totalCloudMensal()) }}</strong></td>
+                        <td></td>
+                        <td class="num"><strong>{{ currency(totalCloud()) }}</strong></td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              }
+            </div>
+          }
+
           <!-- ── RESUMO TAB ─────────────────────────────────────────────── -->
           @if (activeTab === 'resumo') {
             <div class="pb-tab-content">
-              @if (!resumoPorPerfil().length) {
+              @if (!resumoPorPerfil().length && !custosCloud().length) {
                 <div class="pb-empty-atv">
                   <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
-                  <p>Adicione atividades para ver o resumo de custos por perfil</p>
+                  <p>Adicione atividades ou custos de cloud para ver o resumo</p>
                 </div>
               } @else {
                 <div class="pb-resumo-wrap">
@@ -363,6 +508,22 @@
                     </tbody>
                     <tfoot>
                       <tr class="pb-table-total">
+                        <td><strong>Subtotal pessoas</strong></td>
+                        <td class="num"><strong>{{ totalHoras() }}h</strong></td>
+                        <td></td>
+                        <td class="num"><strong>{{ currency(totalPessoas()) }}</strong></td>
+                        <td></td>
+                      </tr>
+                      @if (totalCloud()) {
+                        <tr class="pb-table-total">
+                          <td><strong>Cloud (anualizado)</strong></td>
+                          <td class="num">—</td>
+                          <td class="num">{{ currency(totalCloudMensal()) }}/mês</td>
+                          <td class="num"><strong>{{ currency(totalCloud()) }}</strong></td>
+                          <td></td>
+                        </tr>
+                      }
+                      <tr class="pb-table-total">
                         <td><strong>Total Geral</strong></td>
                         <td class="num"><strong>{{ totalHoras() }}h</strong></td>
                         <td></td>
@@ -381,6 +542,15 @@
                           <div class="pb-resumo-bar-fill" [style.width.%]="totalGeral() ? (r.total / totalGeral()) * 100 : 0"></div>
                         </div>
                         <span class="pb-resumo-bar-val">{{ currency(r.total) }}</span>
+                      </div>
+                    }
+                    @if (totalCloud()) {
+                      <div class="pb-resumo-bar-row">
+                        <span class="pb-resumo-bar-name">Cloud</span>
+                        <div class="pb-resumo-bar-track">
+                          <div class="pb-resumo-bar-fill pb-resumo-bar-cloud" [style.width.%]="totalGeral() ? (totalCloud() / totalGeral()) * 100 : 0"></div>
+                        </div>
+                        <span class="pb-resumo-bar-val">{{ currency(totalCloud()) }}</span>
                       </div>
                     }
                   </div>
@@ -414,6 +584,191 @@
         {{ editingBudgetId ? 'Salvar' : 'Criar Orçamento' }}
       </button>
       <button type="button" class="sec" (click)="cancelForm()">Cancelar</button>
+    </div>
+  </div>
+}
+
+<!-- ── Templates modal ──────────────────────────────────────────────────── -->
+@if (templatesModalOpen) {
+  <div class="modal-backdrop" (click)="closeTemplates()"></div>
+  <div class="pb-modal pb-modal-lg" (click)="$event.stopPropagation()">
+    <div class="pb-modal-head">
+      <h3>Templates de Orçamento</h3>
+      <button type="button" class="pb-modal-close" (click)="closeTemplates()">×</button>
+    </div>
+
+    <div class="pb-tpl-layout">
+      <!-- template list -->
+      <aside class="pb-tpl-list">
+        <button class="pb-add-atv-btn pb-tpl-new" (click)="openTemplateCreate()" [class.active]="!editingTemplateId">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+          Novo Template
+        </button>
+        @if (!templates.length) {
+          <p class="pb-tpl-empty">Nenhum template ainda. Crie um conjunto de atividades reutilizável.</p>
+        }
+        @for (t of templates; track t.id) {
+          <div class="pb-tpl-card" [class.active]="editingTemplateId === t.id" (click)="openTemplateEdit(t)">
+            <div class="pb-tpl-card-head">
+              <span class="pb-tpl-card-name">{{ t.nome }}</span>
+              <button type="button" class="pb-card-btn danger" (click)="$event.stopPropagation(); excluirTemplate(t.id)" title="Excluir template">
+                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+            <div class="pb-tpl-card-meta">
+              <span>{{ (t.atividades ?? []).length }} atividade{{ (t.atividades ?? []).length !== 1 ? 's' : '' }}</span>
+              <span>{{ templateHoras(t) }}h</span>
+              <span>{{ templateDuracao(t) }}d</span>
+            </div>
+            <div class="pb-tpl-card-cost">{{ currency(templateCusto(t)) }}</div>
+          </div>
+        }
+      </aside>
+
+      <!-- template editor -->
+      <section class="pb-tpl-editor">
+        <div class="pb-tpl-form-grid">
+          <div class="pb-field full">
+            <label>Nome do template *</label>
+            <input type="text" [(ngModel)]="templateForm.nome" placeholder="Ex.: Squad padrão — 3 sprints" />
+          </div>
+          <div class="pb-field full">
+            <label>Descrição</label>
+            <input type="text" [(ngModel)]="templateForm.descricao" placeholder="Descrição opcional…" />
+          </div>
+        </div>
+
+        <div class="pb-tpl-atv-head">
+          <strong>Atividades do template</strong>
+          <button type="button" class="pb-add-atv-btn" (click)="novaAtividadeTemplate()">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+            Adicionar
+          </button>
+        </div>
+
+        <div class="pb-atv-form">
+          <div class="pb-atv-form-title">{{ editingTemplateAtvId ? 'Editar atividade' : 'Nova atividade' }}</div>
+          <div class="pb-atv-form-grid">
+            <div class="pb-field full">
+              <label>Nome *</label>
+              <input type="text" [(ngModel)]="templateAtvForm.nome" placeholder="Ex.: Análise de requisitos" />
+            </div>
+            <div class="pb-field">
+              <label>Perfil / senioridade *</label>
+              <select [(ngModel)]="templateAtvForm.perfilId">
+                <option value="">Selecione o perfil</option>
+                @for (p of perfisOrdenados(); track p.id) {
+                  <option [value]="p.id">{{ perfilOptionLabel(p) }}</option>
+                }
+              </select>
+            </div>
+            <div class="pb-field">
+              <label>Inicia no dia <span class="pb-horas-hint">(offset)</span></label>
+              <input type="number" min="0" [(ngModel)]="templateAtvForm.offsetDias" />
+            </div>
+            <div class="pb-field">
+              <label>Duração (dias)</label>
+              <input type="number" min="1" [(ngModel)]="templateAtvForm.duracaoDias" (change)="recalcHorasTemplate()" />
+            </div>
+            <div class="pb-field">
+              <label>Horas</label>
+              <input type="number" min="0" [(ngModel)]="templateAtvForm.horas" />
+            </div>
+          </div>
+          <div class="pb-atv-form-actions">
+            <button type="button" (click)="submitTemplateAtv()"
+                    [disabled]="!templateAtvForm.nome.trim() || !templateAtvForm.perfilId">
+              {{ editingTemplateAtvId ? 'Salvar atividade' : 'Adicionar atividade' }}
+            </button>
+            @if (editingTemplateAtvId) {
+              <button type="button" class="sec" (click)="cancelTemplateAtvForm()">Cancelar edição</button>
+            }
+          </div>
+        </div>
+
+        @if (templateForm.atividades.length) {
+          <div class="pb-table-wrap">
+            <table class="pb-table">
+              <thead>
+                <tr>
+                  <th>Atividade</th>
+                  <th>Perfil</th>
+                  <th class="num">Dia</th>
+                  <th class="num">Dur.</th>
+                  <th class="num">Horas</th>
+                  <th class="num">Custo</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (a of templateForm.atividades; track a.id) {
+                  <tr>
+                    <td><span class="pb-atv-dot" [style.background]="a.cor || '#4f87f0'"></span>{{ a.nome }}</td>
+                    <td>{{ perfilNome(a.perfilId) }}</td>
+                    <td class="num">D+{{ a.offsetDias || 0 }}</td>
+                    <td class="num"><span class="pb-dur-badge">{{ a.duracaoDias || 1 }}d</span></td>
+                    <td class="num"><strong>{{ a.horas }}h</strong></td>
+                    <td class="num"><strong>{{ currency(Number(a.horas) * perfilValorHora(a.perfilId)) }}</strong></td>
+                    <td class="pb-atv-actions">
+                      <button type="button" (click)="openTemplateAtvEdit(a)" title="Editar">
+                        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                      </button>
+                      <button type="button" class="danger" (click)="excluirTemplateAtv(a.id)" title="Excluir">
+                        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="pb-tpl-empty">Nenhuma atividade neste template ainda.</p>
+        }
+      </section>
+    </div>
+
+    <div class="pb-modal-footer">
+      <button type="button" (click)="submitTemplate()" [disabled]="!templateForm.nome.trim()">
+        {{ editingTemplateId ? 'Salvar Template' : 'Criar Template' }}
+      </button>
+      <button type="button" class="sec" (click)="closeTemplates()">Fechar</button>
+    </div>
+  </div>
+}
+
+<!-- ── Inject template modal ────────────────────────────────────────────── -->
+@if (injetarModalOpen) {
+  <div class="modal-backdrop" (click)="closeInjetar()"></div>
+  <div class="pb-modal" (click)="$event.stopPropagation()">
+    <div class="pb-modal-head">
+      <h3>Inserir Template no Orçamento</h3>
+      <button type="button" class="pb-modal-close" (click)="closeInjetar()">×</button>
+    </div>
+    <div class="pb-modal-body">
+      <label>Template *</label>
+      <select [(ngModel)]="injetarTemplateId">
+        <option value="">Selecione o template</option>
+        @for (t of templates; track t.id) {
+          <option [value]="t.id">{{ t.nome }} — {{ (t.atividades ?? []).length }} atividade(s)</option>
+        }
+      </select>
+
+      <label>Data de início (dia 0 do template)</label>
+      <input type="date" [(ngModel)]="injetarDataBase" />
+
+      @if (templateSelecionado()) {
+        <div class="pb-atv-cost-preview">
+          Serão adicionadas <strong>{{ (templateSelecionado()!.atividades ?? []).length }}</strong> atividades —
+          <strong>{{ templateHoras(templateSelecionado()) }}h</strong> ·
+          <strong>{{ currency(templateCusto(templateSelecionado())) }}</strong>
+          <span>ao longo de {{ templateDuracao(templateSelecionado()) }} dia(s)</span>
+        </div>
+      }
+    </div>
+    <div class="pb-modal-footer">
+      <button type="button" (click)="injetarTemplate()" [disabled]="!injetarTemplateId">Inserir</button>
+      <button type="button" class="sec" (click)="closeInjetar()">Cancelar</button>
     </div>
   </div>
 }
