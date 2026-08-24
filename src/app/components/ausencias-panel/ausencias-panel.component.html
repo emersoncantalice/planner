@@ -1,22 +1,52 @@
 <planner-card><article class="card" [scrollIntoViewWhen]="editingId">
 
-  
+
   <div class="panel-head">
     <h2>
       <span class="abs-title-icon">🗓</span>
       Férias &amp; Ausências
     </h2>
     <div class="panel-actions">
-      <div class="year-nav">
-        <button type="button" class="sec year-btn" (click)="ano = ano - 1">‹</button>
-        <span class="year-label">{{ ano }}</span>
-        <button type="button" class="sec year-btn" (click)="ano = ano + 1">›</button>
+      <div class="abs-periodo-toggle">
+        <button type="button" class="abs-periodo-btn" [class.active]="modoPeriodo === 'recente'"
+          (click)="modoPeriodo = 'recente'"
+          title="12 meses a partir do mês anterior — esconde férias já encerradas">
+          Próximos meses
+        </button>
+        <button type="button" class="abs-periodo-btn" [class.active]="modoPeriodo === 'ano'"
+          (click)="modoPeriodo = 'ano'"
+          title="Calendário completo do ano">
+          Ano
+        </button>
+      </div>
+      @if (modoPeriodo === 'ano') {
+        <div class="year-nav">
+          <button type="button" class="sec year-btn" (click)="ano = ano - 1">‹</button>
+          <span class="year-label">{{ ano }}</span>
+          <button type="button" class="sec year-btn" (click)="ano = ano + 1">›</button>
+        </div>
+      } @else {
+        <span class="abs-periodo-label" title="Período exibido">{{ labelPeriodo() }}</span>
+      }
+      <div class="abs-export">
+        <button type="button" class="sec" (click)="exportOpen = !exportOpen" title="Exportar a visão atual">
+          ⤓ Exportar ▾
+        </button>
+        @if (exportOpen) {
+          <div class="abs-export-backdrop" (click)="exportOpen = false"></div>
+          <div class="abs-export-menu">
+            <button type="button" (click)="exportOpen = false; exportarCsv()">Planilha (CSV)</button>
+            <button type="button" [disabled]="exportandoImagem" (click)="exportOpen = false; exportarPng()">
+              {{ exportandoImagem ? 'Gerando imagem…' : 'Imagem (PNG)' }}
+            </button>
+          </div>
+        }
       </div>
       <button type="button" class="sec" (click)="openCreate()">+ Registrar ausência</button>
     </div>
   </div>
 
-  
+
   <div class="abs-chips">
     @for (tipo of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track tipo) {
       <button type="button" class="abs-chip"
@@ -35,9 +65,19 @@
     }
   </div>
 
-  
+
   <div class="abs-filters">
     <input [(ngModel)]="searchPessoa" placeholder="Pesquisar pessoa..." class="abs-search" />
+    <select [(ngModel)]="filterGrupo" class="abs-grupo-select" title="Filtrar por grupo — conflitos passam a considerar apenas o grupo escolhido">
+      <option value="">Todos os grupos</option>
+      @for (g of gruposDisponiveis(); track g) {
+        <option [value]="g">{{ g }}</option>
+      }
+      <option [value]="SEM_GRUPO">Sem grupo</option>
+    </select>
+    @if (filterGrupo) {
+      <button type="button" class="abs-chip abs-chip-clear" (click)="filterGrupo = ''">✕ Limpar grupo</button>
+    }
     @if (losDisponiveis().length) {
       <select [(ngModel)]="filterLoId" class="abs-lo-select" title="Mostrar apenas pessoas alocadas em uma LO">
         <option value="">Todas as LOs</option>
@@ -51,7 +91,7 @@
     }
   </div>
 
-  
+
   @if (formOpen) {
     <div class="abs-form-card">
       <h3>{{ editingId ? 'Editar ausência' : 'Registrar ausência' }}</h3>
@@ -99,7 +139,7 @@
     </div>
   }
 
-  
+
   @if (pessoas.length === 0) {
     <div class="abs-empty">
       <p>Nenhuma pessoa cadastrada. Cadastre pessoas primeiro.</p>
@@ -112,6 +152,9 @@
         <div class="abs-conflicts-header" (click)="conflitosOpen = !conflitosOpen">
           <span class="abs-conflicts-icon">⚠</span>
           <strong>{{ conflitosPendentes().length }} conflito{{ conflitosPendentes().length > 1 ? 's' : '' }} de período detectado{{ conflitosPendentes().length > 1 ? 's' : '' }}</strong>
+          @if (filterGrupo) {
+            <span class="abs-conflicts-scope">no grupo “{{ labelGrupoFiltrado() }}”</span>
+          }
           <span class="abs-conflicts-toggle">{{ conflitosOpen ? '▾' : '▸' }}</span>
         </div>
         @if (conflitosOpen) {
@@ -124,16 +167,16 @@
                 </button>
               </li>
             }
-            @for (c of conflitosVisiveis(); track c.a1.id + c.a2.id) {
+            @for (c of conflitosVisiveis(); track c.id) {
               <li class="abs-conflict-item" [class.abs-conflict-item-ok]="conflitoOk(c)">
                 <span class="abs-conflict-period">
                   <span class="abs-tipo-dot" [style.background]="CORES[c.a1.tipo]"></span>
-                  <strong>{{ c.pessoa1Nome }}</strong>&nbsp;{{ TIPOS[c.a1.tipo] }} {{ fmtDate(c.a1.inicio) }}–{{ fmtDate(c.a1.fim) }}
+                  <strong>{{ c.pessoa1Nome }}</strong>&nbsp;{{ TIPOS[c.a1.tipo] }} {{ fmtDate(c.o1.inicioIso) }}–{{ fmtDate(c.o1.fimIso) }}
                 </span>
                 <span class="abs-conflict-vs">×</span>
                 <span class="abs-conflict-period">
                   <span class="abs-tipo-dot" [style.background]="CORES[c.a2.tipo]"></span>
-                  <strong>{{ c.pessoa2Nome }}</strong>&nbsp;{{ TIPOS[c.a2.tipo] }} {{ fmtDate(c.a2.inicio) }}–{{ fmtDate(c.a2.fim) }}
+                  <strong>{{ c.pessoa2Nome }}</strong>&nbsp;{{ TIPOS[c.a2.tipo] }} {{ fmtDate(c.o2.inicioIso) }}–{{ fmtDate(c.o2.fimIso) }}
                 </span>
                 <span class="abs-conflict-overlap">sobreposição {{ fmtDate(c.overlapInicio) }}–{{ fmtDate(c.overlapFim) }} · {{ c.overlapDias }}d</span>
                 <span class="abs-conflict-actions">
@@ -142,8 +185,8 @@
                   } @else {
                     <button type="button" class="sec abs-conflict-ok" (click)="marcarConflitoOk(c)">OK</button>
                   }
-                  <button type="button" class="sec" (click)="startEdit(c.a1)">Editar {{ c.pessoa1Nome }}</button>
-                  <button type="button" class="sec" (click)="startEdit(c.a2)">Editar {{ c.pessoa2Nome }}</button>
+                  <button type="button" class="sec" (click)="startEditOcorrencia(c.o1)">Editar {{ c.pessoa1Nome }}</button>
+                  <button type="button" class="sec" (click)="startEditOcorrencia(c.o2)">Editar {{ c.pessoa2Nome }}</button>
                 </span>
               </li>
             }
@@ -152,13 +195,24 @@
       </div>
     }
 
+    <datalist id="abs-grupos-existentes">
+      @for (g of gruposSugeridosEdicao(); track g) {
+        <option [value]="g"></option>
+      }
+    </datalist>
+
     <div class="abs-calendar-wrap">
-      <table class="abs-cal-table">
+      <table class="abs-cal-table" #absCalendario>
         <thead>
           <tr>
             <th class="abs-col-pessoa">Pessoa</th>
-            @for (mes of MESES; track $index) {
-              <th class="abs-col-mes">{{ mes }}</th>
+            @for (col of colunas(); track col.ano + '-' + col.mes) {
+              <th class="abs-col-mes">
+                {{ col.label }}
+                @if (col.mostraAno) {
+                  <span class="abs-col-ano">{{ col.ano }}</span>
+                }
+              </th>
             }
             <th class="abs-col-dias">Dias</th>
             <th class="abs-col-actions"></th>
@@ -166,7 +220,7 @@
         </thead>
         <tbody>
           @for (p of pessoasFiltradas(); track p.id) {
-            
+
             <tr class="abs-row" [class.abs-row-expanded]="isExpanded(p.id)">
               <td class="abs-cell-pessoa">
                 <button type="button" class="abs-expand-btn" (click)="toggleRow(p.id)" [title]="isExpanded(p.id) ? 'Recolher' : 'Ver detalhes'">
@@ -176,19 +230,44 @@
                 @if (temConflito(p.id)) {
                   <span class="abs-conflict-badge" title="Possui conflitos de período">⚠</span>
                 }
+                @if (grupoEditandoId === p.id) {
+                  <span class="abs-grupo-editor">
+                    @for (g of grupoEditLista; track g) {
+                      <span class="abs-grupo-chip abs-grupo-chip-edit">
+                        {{ g }}
+                        <button type="button" class="abs-grupo-chip-del" (click)="removerGrupoEdicao(g)" [title]="'Remover ' + g">✕</button>
+                      </span>
+                    }
+                    <input class="abs-grupo-input"
+                      [(ngModel)]="grupoEditValor"
+                      list="abs-grupos-existentes"
+                      placeholder="Novo grupo"
+                      (keydown.enter)="adicionarGrupoEdicao()"
+                      (keydown.escape)="cancelarEdicaoGrupos()" />
+                    <button type="button" class="abs-grupo-save" (click)="salvarGrupos()" title="Salvar grupos">✓</button>
+                    <button type="button" class="abs-grupo-cancel" (click)="cancelarEdicaoGrupos()" title="Cancelar">✕</button>
+                  </span>
+                } @else {
+                  <button type="button" class="abs-grupo-chip"
+                    [class.abs-grupo-chip-vazio]="!gruposDaPessoa(p.id).length"
+                    (click)="abrirEdicaoGrupos(p.id)"
+                    [title]="gruposDaPessoa(p.id).length ? 'Grupos: ' + gruposDaPessoa(p.id).join(', ') + ' — clique para alterar' : 'Definir grupos'">
+                    {{ gruposDaPessoa(p.id).join(', ') || '+ grupo' }}
+                  </button>
+                }
               </td>
-              @for (mes of MESES; track $index) {
+              @for (col of colunas(); track col.ano + '-' + col.mes) {
                 <td class="abs-cell-mes">
-                  @if (marcadorHoje($index) !== null) {
-                    <div class="abs-today-line" [style.left.%]="marcadorHoje($index)" title="Hoje"></div>
+                  @if (marcadorHoje(col) !== null) {
+                    <div class="abs-today-line" [style.left.%]="marcadorHoje(col)" title="Hoje"></div>
                   }
                   <div class="abs-month-bar-wrap">
-                    @for (bar of barsForPersonMonth(p.id, $index); track bar.ab.id) {
+                    @for (bar of barsForPersonMonth(p.id, col); track bar.oc.ab.id + bar.oc.inicioIso) {
                       <div class="abs-bar"
                         [style.left.%]="bar.left"
                         [style.width.%]="bar.width"
                         [style.background]="bar.color"
-                        [title]="bar.label + ': ' + fmtDate(bar.ab.inicio) + ' → ' + fmtDate(bar.ab.fim) + (bar.ab.observacao ? ' | ' + bar.ab.observacao : '') + (bar.ab.recorrente ? ' ↺' : '')">
+                        [title]="bar.label + ': ' + fmtDate(bar.oc.inicioIso) + ' → ' + fmtDate(bar.oc.fimIso) + (bar.oc.ab.observacao ? ' | ' + bar.oc.ab.observacao : '') + (bar.oc.ab.recorrente ? ' ↺' : '')">
                       </div>
                     }
                   </div>
@@ -206,24 +285,32 @@
               </td>
             </tr>
 
-            
+
             @if (isExpanded(p.id)) {
-              @for (a of ausenciasDaPessoa(p.id); track a.id) {
-                <tr class="abs-detail-row" [class.abs-detail-conflict]="isConflitante(a.id)">
+              @for (o of ausenciasDaPessoa(p.id); track o.ab.id + o.inicioIso) {
+                <tr class="abs-detail-row" [class.abs-detail-conflict]="isConflitante(o.ab.id)">
                   <td class="abs-detail-cell" colspan="1">
                     <span class="abs-detail-indent"></span>
-                    <span class="abs-tipo-dot" [style.background]="CORES[a.tipo]"></span>
-                    <span class="abs-detail-tipo">{{ TIPOS[a.tipo] }}</span>
+                    <span class="abs-tipo-dot" [style.background]="CORES[o.ab.tipo]"></span>
+                    <span class="abs-detail-tipo">{{ TIPOS[o.ab.tipo] }}</span>
                   </td>
                   <td class="abs-detail-dates" colspan="12">
-                    <span class="abs-detail-period">{{ fmtDate(a.inicio) }} → {{ fmtDate(a.fim) }}</span>
-                    @if (a.recorrente) { <span class="abs-recorrente-tag">↺ recorrente</span> }
-                    @if (a.observacao) { <span class="abs-obs">{{ a.observacao }}</span> }
+                    <span class="abs-detail-period">{{ fmtDate(o.inicioIso) }} → {{ fmtDate(o.fimIso) }}</span>
+                    <span class="abs-detail-dias">{{ diasDaOcorrencia(o) }}d</span>
+                    @if (o.ab.recorrente) { <span class="abs-recorrente-tag">↺ recorrente</span> }
+                    @if (o.ab.observacao) { <span class="abs-obs">{{ o.ab.observacao }}</span> }
                   </td>
                   <td></td>
                   <td class="abs-detail-actions">
-                    <button type="button" class="sec" (click)="startEdit(a)">Editar</button>
-                    <button type="button" (click)="remove.emit(a.id)">Excluir</button>
+                    <button type="button" class="sec" (click)="startEditOcorrencia(o)">Editar</button>
+                    <button type="button" (click)="remove.emit(o.ab.id)">Excluir</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr class="abs-detail-row">
+                  <td class="abs-detail-cell" colspan="15">
+                    <span class="abs-detail-indent"></span>
+                    <span class="abs-obs">Nenhuma ausência no período exibido.</span>
                   </td>
                 </tr>
               }
@@ -233,7 +320,7 @@
       </table>
     </div>
 
-    
+
     <div class="abs-legend">
       @for (tipo of ['FERIAS','AUSENCIA','LICENCA','OUTRO']; track tipo) {
         <span class="abs-legend-item">

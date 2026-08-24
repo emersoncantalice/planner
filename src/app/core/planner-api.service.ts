@@ -163,10 +163,10 @@ export class PlannerApiService {
   listPeople(token: string) {
     return this.http.get<any[]>(`${this.api}/people`, { headers: this.headers(token) });
   }
-  createPerson(token: string, payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: { alias: string; url: string; inicio: string; fim: string }[] }) {
+  createPerson(token: string, payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: { alias: string; url: string; inicio: string; fim: string }[]; grupos?: string[] }) {
     return this.http.post<any>(`${this.api}/people`, payload, { headers: this.headers(token) });
   }
-  updatePerson(token: string, personId: string, payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: { alias: string; url: string; inicio: string; fim: string }[] }) {
+  updatePerson(token: string, personId: string, payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: { alias: string; url: string; inicio: string; fim: string }[]; grupos?: string[] }) {
     return this.http.put<any>(`${this.api}/people/${personId}`, payload, { headers: this.headers(token) });
   }
   deletePerson(token: string, personId: string) {

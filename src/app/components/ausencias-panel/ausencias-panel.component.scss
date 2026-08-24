@@ -75,6 +75,64 @@
   margin: 8px 0 12px;
 }
 .abs-lo-select { flex: 0 0 auto; min-width: 180px; max-width: 280px; width: auto; }
+.abs-grupo-select { flex: 0 0 auto; min-width: 160px; max-width: 240px; width: auto; }
+
+/* Alterna entre a janela rolante (padrão) e o calendário anual. */
+.abs-periodo-toggle {
+  display: inline-flex;
+  border: 1px solid #cfe0ff;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f4f8ff;
+}
+.abs-periodo-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px 12px;
+  font-size: .72rem;
+  font-weight: 700;
+  color: #4a6a9c;
+  &:hover { background: #e6efff; }
+  &.active { background: #1d63da; color: #fff; }
+}
+.abs-periodo-label {
+  font-size: .74rem;
+  font-weight: 700;
+  color: #4a6a9c;
+  white-space: nowrap;
+}
+
+/* Menu de exportação: mantém a toolbar enxuta com um botão só. */
+.abs-export { position: relative; display: inline-flex; }
+.abs-export-backdrop { position: fixed; inset: 0; z-index: 20; }
+.abs-export-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 21;
+  min-width: 170px;
+  background: #fff;
+  border: 1px solid #d6dced;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(30, 45, 78, .14);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+
+  button {
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    padding: 7px 10px;
+    border-radius: 7px;
+    font-size: .78rem;
+    color: #1e2d4e;
+    &:hover:not(:disabled) { background: #f0f5ff; }
+    &:disabled { color: #97a3bd; cursor: default; }
+  }
+}
 
 .abs-form-card {
   background: #f4f8ff;
@@ -129,8 +187,11 @@
   text-align: center;
   white-space: nowrap;
 }
-.abs-col-pessoa { text-align: left !important; padding-left: 10px !important; min-width: 180px; }
+.abs-col-pessoa { text-align: left !important; padding-left: 10px !important; min-width: 240px; }
 .abs-col-mes    { width: 58px; }
+/* Ano aparece só na virada, para o cabeçalho não repetir a informação. */
+.abs-col-ano    { display: block; font-size: .6rem; font-weight: 600; color: #97a3bd; line-height: 1.1; }
+.abs-detail-dias { font-size: .68rem; font-weight: 700; color: #4a6a9c; margin-left: 8px; }
 .abs-col-dias   { width: 52px; }
 .abs-col-actions { width: 40px; }
 
@@ -166,8 +227,80 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  max-width: 140px;
+  max-width: 120px;
 }
+
+/* Editor inline: chips removíveis + campo para incluir um grupo novo. */
+.abs-grupo-editor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1 1 100%;
+}
+.abs-grupo-chip-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: default;
+  &:hover { background: #eef2ff; border-color: #c7d2fe; }
+}
+.abs-grupo-chip-del {
+  border: none;
+  background: none;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: .62rem;
+  line-height: 1;
+  padding: 0 1px;
+  &:hover { color: #312e81; }
+}
+
+/* Chip de grupo na linha da pessoa: exibe e abre a edição inline. */
+.abs-grupo-chip {
+  flex: 0 0 auto;
+  max-width: 96px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: .66rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.4;
+  &:hover { background: #e0e7ff; border-color: #a5b4fc; }
+}
+.abs-grupo-chip-vazio {
+  border-style: dashed;
+  border-color: #d6dced;
+  background: transparent;
+  color: #97a3bd;
+  font-weight: 600;
+}
+.abs-grupo-input {
+  flex: 1 1 90px;
+  min-width: 80px;
+  margin: 0;
+  padding: 2px 6px;
+  font-size: .7rem;
+  height: 24px;
+}
+.abs-grupo-save,
+.abs-grupo-cancel {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: .78rem;
+  line-height: 1;
+  padding: 2px 3px;
+}
+.abs-grupo-save   { color: #16a34a; }
+.abs-grupo-cancel { color: #94a3b8; }
 
 .abs-cell-mes {
   padding: 4px 2px;
@@ -307,6 +440,14 @@
   strong { flex: 1; }
 }
 .abs-conflicts-icon { font-size: 1rem; }
+.abs-conflicts-scope {
+  font-size: .72rem;
+  font-weight: 600;
+  color: #a16207;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
 .abs-conflicts-toggle { font-size: .8rem; color: #a16207; }
 .abs-conflicts-tools {
   display: flex;

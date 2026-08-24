@@ -679,7 +679,8 @@
           [alocacoes]="alocacoesLo()"
           (create)="criarAusencia($event)"
           (update)="atualizarAusencia($event)"
-          (remove)="excluirAusencia($event)">
+          (remove)="excluirAusencia($event)"
+          (updateGrupos)="definirGruposPessoa($event)">
         </app-ausencias-panel>
       }
       @if (secaoAtiva() === 'alocacoes_lo') {

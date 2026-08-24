@@ -764,7 +764,7 @@ export class App {
     });
   }
 
-  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; foto?: string; onDone?: (ok: boolean) => void }) {
+  criarPessoa(payload: { nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; grupos?: string[]; foto?: string; onDone?: (ok: boolean) => void }) {
     const foto = payload.foto || '';
     const onDone = payload.onDone;
     this.api.createPerson(this.token(), payload).subscribe({
@@ -784,7 +784,7 @@ export class App {
     });
   }
 
-  atualizarPessoa(payload: { id: string; nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; onDone?: (ok: boolean) => void }) {
+  atualizarPessoa(payload: { id: string; nome: string; perfilId: string; tipoVinculo: string; consultoria: string; valorHora: number | null; valorMensal: number | null; vagaUrl?: string | null; vagaAlias?: string | null; dataNascimento?: string | null; contato?: string | null; ativo?: boolean; vagasAnteriores?: any[]; grupos?: string[]; onDone?: (ok: boolean) => void }) {
     const onDone = payload.onDone;
     this.api.updatePerson(this.token(), payload.id, payload).subscribe({
       next: () => {
@@ -793,6 +793,38 @@ export class App {
         onDone?.(true);
       },
       error: (err) => { this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar pessoa.'); onDone?.(false); }
+    });
+  }
+
+  /**
+   * Atualiza apenas os grupos da pessoa, preservando os demais campos.
+   * Usado pela edição inline da tela de Férias & Ausências.
+   */
+  definirGruposPessoa(payload: { pessoaId: string; grupos: string[] }) {
+    const pessoa = this.pessoas().find((p: any) => p.id === payload.pessoaId);
+    if (!pessoa) return;
+    this.api.updatePerson(this.token(), pessoa.id, {
+      nome: pessoa.nome,
+      perfilId: pessoa.perfilId,
+      tipoVinculo: pessoa.tipoVinculo,
+      consultoria: pessoa.consultoria ?? '',
+      valorHora: pessoa.valorHora ?? null,
+      valorMensal: pessoa.valorMensal ?? null,
+      vagaUrl: pessoa.vagaUrl ?? null,
+      vagaAlias: pessoa.vagaAlias ?? null,
+      dataNascimento: pessoa.dataNascimento ?? null,
+      contato: pessoa.contato ?? null,
+      ativo: pessoa.ativo !== false,
+      vagasAnteriores: pessoa.vagasAnteriores ?? [],
+      grupos: payload.grupos
+    }).subscribe({
+      next: () => {
+        this.mensagem.set(payload.grupos.length
+          ? `Grupos de ${pessoa.nome}: ${payload.grupos.join(', ')}.`
+          : `${pessoa.nome} ficou sem grupo.`);
+        this.carregarPessoas();
+      },
+      error: (err) => this.mensagem.set(err?.error?.error ?? 'Falha ao atualizar os grupos da pessoa.')
     });
   }
 

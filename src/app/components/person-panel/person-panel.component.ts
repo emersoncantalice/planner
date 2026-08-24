@@ -86,7 +86,10 @@ export class PersonPanelComponent {
   filtroAtivo: 'todos' | 'ativos' | 'inativos' = 'ativos';
   filtroPerfilId = '';
   filtroVinculo: '' | 'FOLHA' | 'TERCEIRO' = '';
-  pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
+  /** '' = todos os grupos; SEM_GRUPO = apenas pessoas sem grupo definido. */
+  filtroGrupo = '';
+  readonly SEM_GRUPO = '__sem_grupo__';
+  pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null as number | null, valorMensal: null as number | null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true, grupos: [] as string[] };
   vagasAnteriores: { alias: string; url: string; inicio: string; fim: string }[] = [];
   historicoExpanded = false;
   novaVaga = { alias: '', url: '', inicio: '', fim: '' };
@@ -95,13 +98,14 @@ export class PersonPanelComponent {
   searchTerm = '';
   currentPage = 1;
   pageSize = 10;
-  sortKey: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal' = 'nome';
+  sortKey: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal' | 'grupos' = 'nome';
   sortDirection: 'asc' | 'desc' = 'asc';
 
   abrirNovo() {
     this.editingId = '';
-    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
+    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true, grupos: [] as string[] };
     this.vagasAnteriores = [];
+    this.novoGrupo = '';
     this.historicoExpanded = false;
     this.valorHoraMasked = '';
     this.valorMensalMasked = '';
@@ -134,7 +138,8 @@ export class PersonPanelComponent {
       dataNascimento: p.dataNascimento || '',
       contato: this.formatContato(p.contato || ''),
       ativo: p.ativo !== false,
-      contaFte: p.contaFte !== false
+      contaFte: p.contaFte !== false,
+      grupos: [...this.gruposDaPessoa(p)]
     };
     this.valorHoraMasked = this.formatValorHora(this.pessoa.valorHora ?? 0);
     this.valorMensalMasked = this.formatCurrency(this.pessoa.valorMensal ?? 0);
@@ -206,8 +211,9 @@ export class PersonPanelComponent {
 
   private resetForm() {
     this.editingId = '';
-    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true };
+    this.pessoa = { nome: '', perfilId: '', tipoVinculo: 'BV', consultoria: '', valorHora: null, valorMensal: null, vagaUrl: '', vagaAlias: '', dataNascimento: '', contato: '', ativo: true, contaFte: true, grupos: [] as string[] };
     this.vagasAnteriores = [];
+    this.novoGrupo = '';
     this.historicoExpanded = false;
     this.valorHoraMasked = '';
     this.valorMensalMasked = '';
@@ -279,7 +285,60 @@ export class PersonPanelComponent {
     return String(p?.perfilNome || '').trim().toLowerCase() === nomePerfil;
   }
 
-  toggleSort(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal') {
+  /** Grupos cadastrados nas pessoas, sem repetição e em ordem alfabética. */
+  gruposDisponiveis(): string[] {
+    const set = new Set<string>();
+    for (const p of this.pessoas) {
+      for (const g of this.gruposDaPessoa(p)) set.add(g);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }
+
+  /** Grupos da pessoa, já limpos. Uma pessoa pode pertencer a vários. */
+  gruposDaPessoa(p: any): string[] {
+    if (!Array.isArray(p?.grupos)) return [];
+    return p.grupos.map((g: any) => String(g || '').trim()).filter(Boolean);
+  }
+
+  private mesmoGrupo(a: string, b: string): boolean {
+    return a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }) === 0;
+  }
+
+  private pessoaNoGrupoFiltrado(p: any): boolean {
+    if (!this.filtroGrupo) return true;
+    const grupos = this.gruposDaPessoa(p);
+    if (this.filtroGrupo === this.SEM_GRUPO) return grupos.length === 0;
+    return grupos.some(g => this.mesmoGrupo(g, this.filtroGrupo));
+  }
+
+  // ── grupos no formulário ──────────────────────────────────────────────────
+
+  novoGrupo = '';
+
+  adicionarGrupo() {
+    const grupo = this.novoGrupo.trim();
+    if (!grupo) return;
+    if (!this.pessoa.grupos.some(g => this.mesmoGrupo(g, grupo))) this.pessoa.grupos = [...this.pessoa.grupos, grupo];
+    this.novoGrupo = '';
+  }
+
+  removerGrupo(grupo: string) {
+    this.pessoa.grupos = this.pessoa.grupos.filter(g => g !== grupo);
+  }
+
+  /** Grupos já existentes que a pessoa ainda não tem — alimenta o autocomplete. */
+  gruposSugeridos(): string[] {
+    return this.gruposDisponiveis().filter(g => !this.pessoa.grupos.some(x => this.mesmoGrupo(x, g)));
+  }
+
+  /** Valor usado na ordenação da coluna ativa; grupos ordenam pelo texto concatenado. */
+  private valorDeOrdenacao(p: any) {
+    if (this.sortKey === 'valorMensal') return this.calcularValorMensalMedio(p?.valorHora);
+    if (this.sortKey === 'grupos') return this.gruposDaPessoa(p).join(', ');
+    return p?.[this.sortKey];
+  }
+
+  toggleSort(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal' | 'grupos') {
     if (this.sortKey === key) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
       this.currentPage = 1;
@@ -299,12 +358,13 @@ export class PersonPanelComponent {
         if (this.filtroAtivo === 'inativos' && p.ativo !== false) return false;
         if (!this.pessoaTemPerfilSelecionado(p)) return false;
         if (this.filtroVinculo && this.tipoVinculoFiltro(p) !== this.filtroVinculo) return false;
+        if (!this.pessoaNoGrupoFiltrado(p)) return false;
         if (!query) return true;
-        return `${p?.nome ?? ''} ${p?.perfilNome ?? ''} ${this.labelTipoVinculo(p?.tipoVinculo)} ${p?.consultoria ?? ''} ${p?.valorHora ?? ''} ${this.calcularValorMensalMedio(p?.valorHora) ?? ''}`.toLowerCase().includes(query);
+        return `${p?.nome ?? ''} ${p?.perfilNome ?? ''} ${this.labelTipoVinculo(p?.tipoVinculo)} ${p?.consultoria ?? ''} ${this.gruposDaPessoa(p).join(' ')} ${p?.valorHora ?? ''} ${this.calcularValorMensalMedio(p?.valorHora) ?? ''}`.toLowerCase().includes(query);
       })
       .sort((a: any, b: any) => {
-      const av = this.sortKey === 'valorMensal' ? this.calcularValorMensalMedio(a?.valorHora) : a?.[this.sortKey];
-      const bv = this.sortKey === 'valorMensal' ? this.calcularValorMensalMedio(b?.valorHora) : b?.[this.sortKey];
+      const av = this.valorDeOrdenacao(a);
+      const bv = this.valorDeOrdenacao(b);
       if (typeof av === 'number' || typeof bv === 'number') return ((Number(av) || 0) - (Number(bv) || 0)) * direction;
       return String(av ?? '').localeCompare(String(bv ?? ''), 'pt-BR', { sensitivity: 'base' }) * direction;
     });
@@ -367,7 +427,7 @@ export class PersonPanelComponent {
     return Math.min(Math.max(1, this.currentPage), totalPages);
   }
 
-  sortIndicator(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal') {
+  sortIndicator(key: 'nome' | 'perfilNome' | 'tipoVinculo' | 'consultoria' | 'valorHora' | 'valorMensal' | 'grupos') {
     if (this.sortKey !== key) return '';
     return this.sortDirection === 'asc' ? ' \u25B2' : ' \u25BC';
   }
@@ -382,8 +442,9 @@ export class PersonPanelComponent {
 
   openCsvPicker(input: HTMLInputElement) {
     this.toast.showCsv({
-      format: 'nome,perfilNome,tipoVinculo,consultoria,valorHora,valorMensal',
-      example: 'Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500',
+      format: 'nome,perfilNome,tipoVinculo,consultoria,valorHora,valorMensal,vagaUrl,vagaAlias,grupos',
+      example: 'Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500,,,Squad Pagamentos;Tribo Core',
+      // colunas 7-9 (vagaUrl, vagaAlias, grupos) sao opcionais; varios grupos vao separados por ;
       onSelectFile: () => input.click()
     });
   }

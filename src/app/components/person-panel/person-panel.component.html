@@ -9,7 +9,7 @@
       <button class="warn" type="button" (click)="abrirNovo()">Nova pessoa</button>
     </div>
   </div>
-  <small class="csv-hint">Exemplo: Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500</small>
+  <small class="csv-hint">Exemplo: Maria Silva,Desenvolvedor Frontend Senior,BV,,,18500,,,Squad Pagamentos;Tribo Core</small>
 
   <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center;">
     <input [(ngModel)]="searchTerm" (ngModelChange)="onPageFiltersChanged()" placeholder="Pesquisar na tabela..." style="flex:1;min-width:160px" />
@@ -29,6 +29,13 @@
       <option value="FOLHA">Folha</option>
       <option value="TERCEIRO">Prestador de servico</option>
     </select>
+    <select [(ngModel)]="filtroGrupo" (ngModelChange)="onPageFiltersChanged()" style="width:auto;min-width:140px">
+      <option value="">Todos os grupos</option>
+      @for (g of gruposDisponiveis(); track g) {
+        <option [value]="g">{{ g }}</option>
+      }
+      <option [value]="SEM_GRUPO">Sem grupo</option>
+    </select>
     <select [ngModel]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:auto">
       <option [ngValue]="10">10 por página</option>
       <option [ngValue]="25">25 por página</option>
@@ -47,6 +54,10 @@
           </th>
           <th>Status</th>
           <th>Vaga</th>
+          <th class="sortable" (click)="toggleSort('grupos')">
+            <span>Grupos</span>
+            <span class="sort-icon" [class.active]="sortKey === 'grupos'" [class.desc]="sortKey === 'grupos' && sortDirection === 'desc'">▲</span>
+          </th>
           <th class="sortable" (click)="toggleSort('perfilNome')">
             <span>Perfil</span>
             <span class="sort-icon" [class.active]="sortKey === 'perfilNome'" [class.desc]="sortKey === 'perfilNome' && sortDirection === 'desc'">▲</span>
@@ -99,6 +110,13 @@
                 <span class="readonly-cell">-</span>
               }
             </td>
+            <td class="grupos-cell">
+              @for (g of gruposDaPessoa(p); track g) {
+                <span class="badge badge-grupo" [title]="g">{{ g }}</span>
+              } @empty {
+                <span class="readonly-cell">-</span>
+              }
+            </td>
             <td>{{ p.perfilNome }}</td>
             <td>{{ labelTipoVinculo(p.tipoVinculo) }}</td>
             <td>{{ p.consultoria || '-' }}</td>
@@ -119,7 +137,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="12" class="empty-cell">Nenhuma pessoa encontrada.</td>
+            <td colspan="13" class="empty-cell">Nenhuma pessoa encontrada.</td>
           </tr>
         }
       </tbody>
@@ -181,6 +199,28 @@
         <option [value]="p.id">{{ p.nomePerfil }}</option>
       }
     </select>
+    <label>Grupos (opcional) — a pessoa pode estar em vários</label>
+    @if (pessoa.grupos.length) {
+      <div class="grupo-chips">
+        @for (g of pessoa.grupos; track g) {
+          <span class="grupo-chip">
+            {{ g }}
+            <button type="button" class="grupo-chip-del" (click)="removerGrupo(g)" [title]="'Remover ' + g">✕</button>
+          </span>
+        }
+      </div>
+    }
+    <div class="grupo-add">
+      <input [(ngModel)]="novoGrupo" list="pessoa-grupos-existentes"
+             placeholder="Ex: Squad Pagamentos — digite para criar um novo"
+             (keydown.enter)="$event.preventDefault(); adicionarGrupo()" />
+      <button type="button" class="sec" (click)="adicionarGrupo()" [disabled]="!novoGrupo.trim()">+ Adicionar</button>
+    </div>
+    <datalist id="pessoa-grupos-existentes">
+      @for (g of gruposSugeridos(); track g) {
+        <option [value]="g"></option>
+      }
+    </datalist>
     <label>Tipo de vinculo</label>
     <select [(ngModel)]="pessoa.tipoVinculo" (ngModelChange)="onTipoVinculoChange($event)">
       <option value="BV">Folha</option>

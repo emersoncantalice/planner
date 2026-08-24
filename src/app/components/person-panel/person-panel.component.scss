@@ -246,6 +246,39 @@
 .badge { display: inline-block; border-radius: 999px; padding: 2px 7px; font-size: .68rem; font-weight: 700; }
 .badge-ativo   { background: #d1fae5; color: #065f46; }
 .badge-inativo { background: #f3f4f6; color: #6b7280; }
+.badge-grupo   { background: #e0e7ff; color: #3730a3; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.grupos-cell   { display: flex; flex-wrap: wrap; gap: 3px; max-width: 180px; }
+
+/* Editor de grupos no formulário: chips do que já foi escolhido + campo para incluir. */
+.grupo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.grupo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.grupo-chip-del {
+  border: none;
+  background: none;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: .7rem;
+  line-height: 1;
+  padding: 0 2px;
+  &:hover { color: #312e81; }
+}
+.grupo-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  input { flex: 1; margin: 0; }
+  button { flex: 0 0 auto; white-space: nowrap; }
+}
 .row-inativo td { opacity: .65; }
 
 .hist-toggle {
