@@ -91,6 +91,29 @@ export class ProjectBudgetPanelComponent {
     });
   }
 
+  // ── allocation percent ────────────────────────────────────────────────────
+
+  /** Percentual de dedicacao do profissional na atividade; 100 = periodo integral. */
+  alocacaoPct(a: any): number {
+    const raw = Number(a?.alocacaoPct);
+    if (!isFinite(raw) || raw <= 0) return 100;
+    return raw;
+  }
+
+  /** Horas que de fato entram no custo: horas do periodo x alocacao. */
+  horasEfetivas(a: any): number {
+    return Number(a?.horas || 0) * this.alocacaoPct(a) / 100;
+  }
+
+  /** Formata horas efetivas sem casas decimais desnecessarias. */
+  formatHoras(h: number): string {
+    return `${Number(h.toFixed(2))}h`;
+  }
+
+  atividadeCusto(a: any): number {
+    return this.horasEfetivas(a) * this.perfilValorHora(a?.perfilId);
+  }
+
   // ── profile helpers ───────────────────────────────────────────────────────
 
   /** nomePerfil segue o padrao "Nome | Senioridade | Area" — partes podem faltar. */
@@ -151,7 +174,7 @@ export class ProjectBudgetPanelComponent {
       if (!map.has(a.perfilId)) {
         map.set(a.perfilId, { nome: this.perfilNome(a.perfilId), horas: 0, valorHora: this.perfilValorHora(a.perfilId) });
       }
-      map.get(a.perfilId)!.horas += Number(a.horas || 0);
+      map.get(a.perfilId)!.horas += this.horasEfetivas(a);
     }
     return Array.from(map.entries())
       .map(([perfilId, v]) => ({ perfilId, ...v, total: v.horas * v.valorHora }))
@@ -168,13 +191,19 @@ export class ProjectBudgetPanelComponent {
     return this.totalPessoas() + this.totalCloud();
   }
 
+  /** Horas efetivas (ja ponderadas pela alocacao de cada atividade). */
   totalHoras(): number {
+    return this.atividades().reduce((s, a) => s + this.horasEfetivas(a), 0);
+  }
+
+  /** Horas do periodo, sem ponderar pela alocacao. */
+  totalHorasBrutas(): number {
     return this.atividades().reduce((s, a) => s + Number(a.horas || 0), 0);
   }
 
   totalCustoBudget(orc: any): number {
     const pessoas = (orc.atividades ?? []).reduce((s: number, a: any) =>
-      s + Number(a.horas || 0) * this.perfilValorHora(a.perfilId), 0);
+      s + this.atividadeCusto(a), 0);
     return pessoas + this.totalCloudDe(orc);
   }
 
@@ -335,7 +364,7 @@ export class ProjectBudgetPanelComponent {
 
   openEdit(orc: any) {
     this.editingBudgetId = orc.id;
-    this.budgetForm = { nome: orc.nome ?? '', descricao: orc.descricao ?? '' };
+    this.budgetForm = { nome: orc.nome ?? '', descricao: orc.descricao ?? '', dataBase: orc.dataBase ?? '' };
     this.formOpen = true;
   }
 
@@ -351,7 +380,7 @@ export class ProjectBudgetPanelComponent {
       const orc = this.orcamentos.find(o => o.id === this.editingBudgetId);
       this.update.emit({ id: this.editingBudgetId, payload: { ...orc, ...this.budgetForm } });
     } else {
-      this.create.emit({ ...this.budgetForm, atividades: [] });
+      this.create.emit({ ...this.budgetForm, atividades: [], custosCloud: [] });
     }
     this.cancelForm();
   }
@@ -366,6 +395,7 @@ export class ProjectBudgetPanelComponent {
     this.create.emit({
       nome: this.nomeCopia(orc.nome),
       descricao: orc.descricao ?? '',
+      dataBase: orc.dataBase ?? '',
       atividades: (orc.atividades ?? []).map((a: any) => ({ ...a, id: uid() })),
       custosCloud: (orc.custosCloud ?? []).map((c: any) => ({ ...c, id: uid() })),
     });
@@ -386,12 +416,18 @@ export class ProjectBudgetPanelComponent {
   openAtividadeCreate() {
     this.editingAtividadeId = '';
     this.atividadeForm = this.emptyAtividadeForm();
+    // Comeca na data base do orcamento (ou logo apos a ultima atividade ja lancada).
+    this.atividadeForm.dataInicio = this.sugestaoDataBase();
     this.atividadeFormOpen = true;
   }
 
   openAtividadeEdit(a: any) {
     this.editingAtividadeId = a.id;
-    this.atividadeForm = { nome: a.nome ?? '', perfilId: a.perfilId ?? '', horas: a.horas ?? 0, dataInicio: a.dataInicio ?? '', dataFim: a.dataFim ?? '' };
+    this.atividadeForm = {
+      nome: a.nome ?? '', perfilId: a.perfilId ?? '', horas: a.horas ?? 0,
+      dataInicio: a.dataInicio ?? '', dataFim: a.dataFim ?? '',
+      alocacaoPct: this.alocacaoPct(a),
+    };
     this.atividadeFormOpen = true;
   }
 
@@ -399,6 +435,11 @@ export class ProjectBudgetPanelComponent {
     const { dataInicio, dataFim } = this.atividadeForm;
     if (!dataInicio || !dataFim || dataFim < dataInicio) return;
     this.atividadeForm.horas = (this.dayDiff(dataInicio, dataFim) + 1) * 8;
+  }
+
+  /** Horas efetivas do formulario de atividade (horas x alocacao). */
+  formHorasEfetivas(): number {
+    return this.horasEfetivas(this.atividadeForm);
   }
 
   cancelAtividadeForm() {
@@ -495,6 +536,7 @@ export class ProjectBudgetPanelComponent {
       horas: a.horas ?? 0,
       offsetDias: a.offsetDias ?? 0,
       duracaoDias: a.duracaoDias ?? 1,
+      alocacaoPct: this.alocacaoPct(a),
     };
   }
 
@@ -544,12 +586,11 @@ export class ProjectBudgetPanelComponent {
   }
 
   templateHoras(t: any): number {
-    return (t?.atividades ?? []).reduce((s: number, a: any) => s + Number(a.horas || 0), 0);
+    return (t?.atividades ?? []).reduce((s: number, a: any) => s + this.horasEfetivas(a), 0);
   }
 
   templateCusto(t: any): number {
-    return (t?.atividades ?? []).reduce(
-      (s: number, a: any) => s + Number(a.horas || 0) * this.perfilValorHora(a.perfilId), 0);
+    return (t?.atividades ?? []).reduce((s: number, a: any) => s + this.atividadeCusto(a), 0);
   }
 
   templateDuracao(t: any): number {
@@ -579,6 +620,7 @@ export class ProjectBudgetPanelComponent {
         offsetDias: base && a.dataInicio ? this.dayDiff(base, a.dataInicio) : 0,
         duracaoDias: a.dataInicio && a.dataFim ? this.dayDiff(a.dataInicio, a.dataFim) + 1 : 1,
         cor: a.cor || this.ganttColors[i % this.ganttColors.length],
+        alocacaoPct: this.alocacaoPct(a),
       })),
     };
     this.cancelTemplateAtvForm();
@@ -598,11 +640,15 @@ export class ProjectBudgetPanelComponent {
     this.injetarTemplateId = '';
   }
 
-  /** Comeca logo depois da ultima atividade do orcamento; senao, hoje. */
+  /** Comeca logo depois da ultima atividade do orcamento; senao, a data base do orcamento. */
   private sugestaoDataBase(): string {
     const range = this.ganttRange();
-    if (!range) return new Date().toISOString().slice(0, 10);
-    return this.addDays(range.maxDate, 1);
+    if (range) return this.addDays(range.maxDate, 1);
+    return this.selectedOrcamento()?.dataBase || this.hoje();
+  }
+
+  private hoje(): string {
+    return new Date().toISOString().slice(0, 10);
   }
 
   templateSelecionado(): any | null {
@@ -628,6 +674,7 @@ export class ProjectBudgetPanelComponent {
         dataInicio,
         dataFim,
         cor: a.cor || this.ganttColors[atividades.length % this.ganttColors.length],
+        alocacaoPct: this.alocacaoPct(a),
       });
     }
     this.update.emit({ id: orc.id, payload: { ...orc, atividades } });
@@ -643,8 +690,27 @@ export class ProjectBudgetPanelComponent {
   // ── PDF export ────────────────────────────────────────────────────────────
 
   exportandoPDF = false;
+  pdfModalOpen = false;
 
-  async exportarPDF() {
+  /** Ha cronograma exportavel? (atividades com inicio e fim) */
+  temCronograma(): boolean {
+    return !!this.ganttRange() && this.atividadesOrdenadas().some(a => a.dataInicio && a.dataFim);
+  }
+
+  /** Antes de gerar, pergunta se o cronograma vai numa segunda pagina. */
+  exportarPDF() {
+    const orc = this.selectedOrcamento();
+    if (!orc || this.exportandoPDF) return;
+    if (!this.temCronograma()) { this.gerarPDF(false); return; }
+    this.pdfModalOpen = true;
+  }
+
+  confirmarExportPDF(incluirCronograma: boolean) {
+    this.pdfModalOpen = false;
+    this.gerarPDF(incluirCronograma);
+  }
+
+  private async gerarPDF(incluirCronograma: boolean) {
     const orc = this.selectedOrcamento();
     if (!orc || this.exportandoPDF) return;
     this.exportandoPDF = true;
@@ -676,7 +742,7 @@ export class ProjectBudgetPanelComponent {
       const resumo = this.resumoPorPerfil();
       const kpis: { label: string; value: string; color: [number, number, number] }[] = [
         { label: 'Atividades',      value: String(this.atividades().length),  color: [30, 64, 175] },
-        { label: 'Total de Horas',  value: `${this.totalHoras()}h`,           color: [5, 122, 85] },
+        { label: 'Total de Horas',  value: this.formatHoras(this.totalHoras()), color: [5, 122, 85] },
         { label: 'Perfis',          value: String(resumo.length),             color: [109, 40, 217] },
         { label: 'Custo Total',     value: this.currency(this.totalGeral()),  color: [161, 65, 0] },
       ];
@@ -695,16 +761,18 @@ export class ProjectBudgetPanelComponent {
       // activities table
       autoTable(doc, {
         startY: kpiY + 19,
-        head: [['Atividade', 'Perfil', 'Horas', 'Início', 'Fim', 'Duração (d)', 'Custo']],
+        head: [['Atividade', 'Perfil', 'Horas', 'Aloc.', 'Horas efet.', 'Início', 'Fim', 'Duração (d)', 'Custo']],
         body: this.atividadesOrdenadas().map(a => {
           const dur = a.dataInicio && a.dataFim ? String(this.dayDiff(a.dataInicio, a.dataFim) + 1) : '—';
-          return [a.nome, this.perfilNome(a.perfilId), `${a.horas}h`, this.formatDate(a.dataInicio), this.formatDate(a.dataFim), dur, this.currency(Number(a.horas) * this.perfilValorHora(a.perfilId))];
+          return [a.nome, this.perfilNome(a.perfilId), `${a.horas}h`, `${this.alocacaoPct(a)}%`,
+                  this.formatHoras(this.horasEfetivas(a)), this.formatDate(a.dataInicio),
+                  this.formatDate(a.dataFim), dur, this.currency(this.atividadeCusto(a))];
         }),
         theme: 'striped',
         headStyles: { fillColor: [15, 52, 96], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
         bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
         alternateRowStyles: { fillColor: [241, 245, 249] },
-        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 38 }, 2: { cellWidth: 14, halign: 'center' }, 3: { cellWidth: 20, halign: 'center' }, 4: { cellWidth: 20, halign: 'center' }, 5: { cellWidth: 18, halign: 'center' }, 6: { cellWidth: 26, halign: 'right', fontStyle: 'bold' } },
+        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 34 }, 2: { cellWidth: 14, halign: 'center' }, 3: { cellWidth: 13, halign: 'center' }, 4: { cellWidth: 18, halign: 'center' }, 5: { cellWidth: 20, halign: 'center' }, 6: { cellWidth: 20, halign: 'center' }, 7: { cellWidth: 17, halign: 'center' }, 8: { cellWidth: 26, halign: 'right', fontStyle: 'bold' } },
         margin: { left: 14, right: 14 },
       });
 
@@ -713,15 +781,16 @@ export class ProjectBudgetPanelComponent {
       doc.setFontSize(9); doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 52, 96);
       doc.text('Resumo por Perfil', 14, y1);
-      const foot: string[][] = [['Subtotal pessoas', `${this.totalHoras()}h`, '', this.currency(this.totalPessoas())]];
+      const horasTotal = this.formatHoras(this.totalHoras());
+      const foot: string[][] = [['Subtotal pessoas', horasTotal, '', this.currency(this.totalPessoas())]];
       if (this.totalCloud()) {
         foot.push(['Cloud (anualizado)', '—', `${this.currency(this.totalCloudMensal())}/mês`, this.currency(this.totalCloud())]);
       }
-      foot.push(['Total Geral', `${this.totalHoras()}h`, '', this.currency(this.totalGeral())]);
+      foot.push(['Total Geral', horasTotal, '', this.currency(this.totalGeral())]);
       autoTable(doc, {
         startY: y1 + 4,
-        head: [['Perfil', 'Horas', 'Valor/hora', 'Total']],
-        body: resumo.map(r => [r.nome, `${r.horas}h`, this.currency(r.valorHora), this.currency(r.total)]),
+        head: [['Perfil', 'Horas efetivas', 'Valor/hora', 'Total']],
+        body: resumo.map(r => [r.nome, this.formatHoras(r.horas), this.currency(r.valorHora), this.currency(r.total)]),
         foot,
         theme: 'grid',
         headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
@@ -753,44 +822,85 @@ export class ProjectBudgetPanelComponent {
         });
       }
 
-      // gantt in PDF
+      // cronograma numa segunda pagina (opcional, escolhido antes de gerar)
       const range = this.ganttRange();
       const ativOrdenadas = this.atividadesOrdenadas().filter(a => a.dataInicio && a.dataFim);
-      if (range && ativOrdenadas.length) {
-        const ganttY0 = (doc as any).lastAutoTable.finalY + 10;
-        if (ganttY0 < H - 50) {
-          doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 52, 96);
-          doc.text('Linha do Tempo', 14, ganttY0);
-          const chartX = 14; const chartW = W - 28;
-          const labelW = 48; const barAreaX = chartX + labelW; const barAreaW = chartW - labelW;
-          const rowH = 7; const headerH = 7;
-          let y = ganttY0 + 5;
+      if (incluirCronograma && range && ativOrdenadas.length) {
+        doc.addPage();
 
-          doc.setFillColor(15, 52, 96); doc.rect(chartX, y, chartW, headerH, 'F');
-          for (const m of this.ganttMonths()) {
-            const mx = barAreaX + (m.leftPct / 100) * barAreaW;
-            const mw = (m.widthPct / 100) * barAreaW;
-            if (m.leftPct > 0) { doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.3); doc.line(mx, y, mx, y + headerH); }
-            if (mw > 5) { doc.setTextColor(255, 255, 255); doc.setFontSize(6); doc.text(m.label, mx + mw / 2, y + 4.5, { align: 'center' }); }
-          }
-          y += headerH;
+        doc.setFillColor(15, 52, 96);
+        doc.rect(0, 0, W, 22, 'F');
+        doc.setFillColor(29, 99, 218);
+        doc.rect(0, 18, W, 4, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+        doc.text('Cronograma', 14, 10);
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text(orc.nome, 14, 16);
+        doc.text(`${this.formatDate(range.minDate)} → ${this.formatDate(range.maxDate)} · ${range.totalDays} dia(s)`,
+                 W - 14, 12, { align: 'right' });
 
-          ativOrdenadas.forEach((a, idx) => {
-            doc.setFillColor(idx % 2 === 0 ? 248 : 241, idx % 2 === 0 ? 250 : 245, 255);
-            doc.rect(chartX, y, chartW, rowH, 'F');
-            doc.setTextColor(30, 41, 59); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-            doc.text(a.nome.length > 16 ? a.nome.slice(0, 15) + '…' : a.nome, chartX + 2, y + rowH / 2 + 1);
-            const bs = this.ganttBarStyle(a) as any;
-            const bx = barAreaX + (parseFloat(bs.left) / 100) * barAreaW;
-            const bw = Math.max((parseFloat(bs.width) / 100) * barAreaW, 1.5);
-            const hex = (a.cor || '#4f87f0').replace('#', '');
-            doc.setFillColor(parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16));
-            doc.roundedRect(bx, y + 1.5, bw, rowH - 3, 1, 1, 'F');
-            if (bw > 10) { doc.setTextColor(255, 255, 255); doc.setFontSize(5); doc.text(`${a.horas}h`, bx + bw / 2, y + rowH / 2 + 1, { align: 'center' }); }
-            y += rowH;
-          });
-          doc.setDrawColor(203, 213, 225); doc.line(chartX, y, chartX + chartW, y);
+        const chartX = 14; const chartW = W - 28;
+        const labelW = 55; const barAreaX = chartX + labelW; const barAreaW = chartW - labelW;
+        const headerH = 8;
+        // Altura de linha ajustada para caber todas as atividades na pagina.
+        const disponivel = H - 34 - headerH - 12;
+        const rowH = Math.max(4, Math.min(9, disponivel / ativOrdenadas.length));
+        let y = 34;
+
+        doc.setFillColor(15, 52, 96); doc.rect(chartX, y, chartW, headerH, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text('Atividade', chartX + 2, y + headerH / 2 + 1.5);
+        for (const m of this.ganttMonths()) {
+          const mx = barAreaX + (m.leftPct / 100) * barAreaW;
+          const mw = (m.widthPct / 100) * barAreaW;
+          if (m.leftPct > 0) { doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.3); doc.line(mx, y, mx, y + headerH); }
+          if (mw > 5) { doc.setTextColor(255, 255, 255); doc.setFontSize(6.5); doc.text(m.label, mx + mw / 2, y + headerH / 2 + 1.5, { align: 'center' }); }
         }
+        y += headerH;
+
+        const gridTop = y;
+        ativOrdenadas.forEach((a, idx) => {
+          doc.setFillColor(idx % 2 === 0 ? 248 : 241, idx % 2 === 0 ? 250 : 245, 255);
+          doc.rect(chartX, y, chartW, rowH, 'F');
+          const hex = (a.cor || '#4f87f0').replace('#', '');
+          const rgb: [number, number, number] = [
+            parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+          doc.setFillColor(...rgb);
+          doc.circle(chartX + 3, y + rowH / 2, Math.min(1.2, rowH / 5), 'F');
+          doc.setTextColor(30, 41, 59); doc.setFontSize(Math.min(6.5, rowH - 1.5)); doc.setFont('helvetica', 'normal');
+          const nome = a.nome.length > 30 ? a.nome.slice(0, 29) + '…' : a.nome;
+          doc.text(nome, chartX + 6, y + rowH / 2 + 1);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`${this.alocacaoPct(a)}%`, barAreaX - 3, y + rowH / 2 + 1, { align: 'right' });
+
+          const bs = this.ganttBarStyle(a) as any;
+          const bx = barAreaX + (parseFloat(bs.left) / 100) * barAreaW;
+          const bw = Math.max((parseFloat(bs.width) / 100) * barAreaW, 1.5);
+          doc.setFillColor(...rgb);
+          doc.roundedRect(bx, y + rowH * 0.2, bw, rowH * 0.6, 0.8, 0.8, 'F');
+          if (bw > 12 && rowH >= 5) {
+            doc.setTextColor(255, 255, 255); doc.setFontSize(Math.min(5.5, rowH - 2));
+            doc.text(this.formatHoras(this.horasEfetivas(a)), bx + bw / 2, y + rowH / 2 + 1, { align: 'center' });
+          }
+          y += rowH;
+        });
+
+        // linhas de mes por cima das barras, para leitura vertical
+        doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.2);
+        for (const m of this.ganttMonths()) {
+          if (m.leftPct <= 0) continue;
+          const mx = barAreaX + (m.leftPct / 100) * barAreaW;
+          doc.line(mx, gridTop, mx, y);
+        }
+        const hojePct = this.todayPct();
+        if (hojePct !== null) {
+          const tx = barAreaX + (hojePct / 100) * barAreaW;
+          doc.setDrawColor(220, 38, 38); doc.setLineWidth(0.4);
+          doc.line(tx, gridTop, tx, y);
+        }
+        doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.2);
+        doc.line(chartX, y, chartX + chartW, y);
       }
 
       // footer
@@ -811,13 +921,13 @@ export class ProjectBudgetPanelComponent {
 
   // ── private ───────────────────────────────────────────────────────────────
 
-  private emptyBudgetForm() { return { nome: '', descricao: '' }; }
-  private emptyAtividadeForm() { return { nome: '', perfilId: '', horas: 0, dataInicio: '', dataFim: '' }; }
+  private emptyBudgetForm() { return { nome: '', descricao: '', dataBase: this.hoje() }; }
+  private emptyAtividadeForm() { return { nome: '', perfilId: '', horas: 0, dataInicio: '', dataFim: '', alocacaoPct: 100 }; }
   private emptyTemplateForm(): { nome: string; descricao: string; atividades: any[] } {
     return { nome: '', descricao: '', atividades: [] };
   }
   private emptyTemplateAtvForm() {
-    return { nome: '', perfilId: '', horas: 8, offsetDias: 0, duracaoDias: 1 };
+    return { nome: '', perfilId: '', horas: 8, offsetDias: 0, duracaoDias: 1, alocacaoPct: 100 };
   }
   private emptyCloudForm() {
     return { nome: '', servico: '', valorMensal: 0, mesesContratados: 12 };

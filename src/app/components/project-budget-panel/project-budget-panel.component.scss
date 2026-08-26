@@ -469,6 +469,43 @@
 
 .pb-no-date { color: #b0c0d8; }
 
+/* percentual de alocacao do profissional na atividade */
+.pb-aloc-badge {
+  display: inline-block;
+  background: #e6f6ec;
+  color: #1c7a45;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  &.parcial { background: #fff1dc; color: #9a5806; }
+}
+
+/* horas ja ponderadas pela alocacao, abaixo das horas do periodo */
+.pb-horas-efet {
+  display: block;
+  font-size: .67rem;
+  font-weight: 600;
+  color: #9a5806;
+  margin-top: 1px;
+}
+
+/* data de inicio (base das atividades) no cabecalho do orcamento */
+.pb-base-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  background: #eef4ff;
+  color: #2d5bbf;
+  font-size: .72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+
+  svg { width: 12px; height: 12px; fill: currentColor; }
+}
+
 .pb-atv-actions {
   display: flex;
   gap: 4px;
@@ -861,6 +898,13 @@
   padding: 2px 6px;
   border-radius: 4px;
   &:hover { background: #f0f4ff; }
+}
+
+.pb-modal-question {
+  margin: 0;
+  font-size: .88rem;
+  color: #2c4a78;
+  line-height: 1.5;
 }
 
 .pb-modal-body {
