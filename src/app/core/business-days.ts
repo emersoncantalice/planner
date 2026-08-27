@@ -159,3 +159,33 @@ export function diasUteisAusenciaNoMes(
 
   return dias.size;
 }
+
+// ── Contagem de dias úteis num intervalo ────────────────────────────────────
+
+/**
+ * Conta os dias úteis (segunda a sexta) entre duas datas `YYYY-MM-DD`,
+ * incluindo as duas pontas. Sábados e domingos ficam de fora. Feriados NÃO são
+ * excluídos, seguindo a mesma regra de diasUteisAusenciaNoMes.
+ */
+export function diasUteisEntre(inicioYmd: string, fimYmd: string): number {
+  if (!inicioYmd || !fimYmd) return 0;
+  const cursor = new Date(inicioYmd + 'T00:00:00');
+  const fim = new Date(fimYmd + 'T00:00:00');
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(fim.getTime()) || cursor > fim) return 0;
+  let dias = 0;
+  while (cursor <= fim) {
+    const dow = cursor.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dias;
+}
+
+/**
+ * Estimativa de dias úteis dentro de uma duração em dias corridos, quando não
+ * há data-âncora (ex.: atividades de template). Assume início numa segunda.
+ */
+export function diasUteisNaDuracao(diasCorridos: number): number {
+  const d = Math.max(0, Math.floor(Number(diasCorridos) || 0));
+  return Math.floor(d / 7) * 5 + Math.min(d % 7, 5);
+}

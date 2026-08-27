@@ -218,7 +218,7 @@
                       <input type="date" [(ngModel)]="atividadeForm.dataFim" [min]="atividadeForm.dataInicio" (change)="recalcHoras()" />
                     </div>
                     <div class="pb-field">
-                      <label>Horas <span class="pb-horas-hint">(8h/dia × {{ atividadeForm.dataInicio && atividadeForm.dataFim ? (dayDiff(atividadeForm.dataInicio, atividadeForm.dataFim) + 1) + 'd' : '?' }})</span></label>
+                      <label>Horas <span class="pb-horas-hint">(8h/dia × {{ atividadeForm.dataInicio && atividadeForm.dataFim ? diasUteis(atividadeForm.dataInicio, atividadeForm.dataFim) + ' dia(s) útil(eis)' : '?' }})</span></label>
                       <input type="number" min="1" [(ngModel)]="atividadeForm.horas" placeholder="0" />
                     </div>
                     <div class="pb-field">
@@ -285,7 +285,7 @@
                           <td>{{ formatDate(a.dataFim) }}</td>
                           <td class="num">
                             @if (atividadeDuration(a)) {
-                              <span class="pb-dur-badge">{{ atividadeDuration(a) }}</span>
+                              <span class="pb-dur-badge" [title]="diasUteis(a.dataInicio, a.dataFim) + ' dia(s) útil(eis) — sábados e domingos fora'">{{ atividadeDuration(a) }}</span>
                             } @else {
                               <span class="pb-no-date">—</span>
                             }

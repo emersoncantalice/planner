@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SearchableSelectDirective } from '../../core/searchable-select.directive';
 import { uid } from '../../core/uid';
+import { diasUteisEntre, diasUteisNaDuracao } from '../../core/business-days';
 
 @Component({
   selector: 'app-project-budget-panel',
@@ -315,6 +316,11 @@ export class ProjectBudgetPanelComponent {
     return Math.round((new Date(b + 'T00:00:00').getTime() - new Date(a + 'T00:00:00').getTime()) / 86400000);
   }
 
+  /** Dias uteis (segunda a sexta) do periodo, inclusive as pontas. */
+  diasUteis(a: string, b: string): number {
+    return diasUteisEntre(a, b);
+  }
+
   ganttRange(): { minDate: string; maxDate: string; totalDays: number } | null {
     const ativs = this.atividades().filter(a => a.dataInicio && a.dataFim);
     if (!ativs.length) return null;
@@ -434,7 +440,8 @@ export class ProjectBudgetPanelComponent {
   recalcHoras() {
     const { dataInicio, dataFim } = this.atividadeForm;
     if (!dataInicio || !dataFim || dataFim < dataInicio) return;
-    this.atividadeForm.horas = (this.dayDiff(dataInicio, dataFim) + 1) * 8;
+    // Só dias úteis entram na conta: sábado e domingo ficam de fora.
+    this.atividadeForm.horas = this.diasUteis(dataInicio, dataFim) * 8;
   }
 
   /** Horas efetivas do formulario de atividade (horas x alocacao). */
@@ -545,10 +552,14 @@ export class ProjectBudgetPanelComponent {
     this.templateAtvForm = this.emptyTemplateAtvForm();
   }
 
-  /** Duracao muda -> horas acompanham (8h/dia), como no formulario de atividade. */
+  /**
+   * Duracao muda -> horas acompanham (8h/dia sobre dias uteis), como no
+   * formulario de atividade. Sem data-ancora, os dias uteis sao estimados;
+   * na injecao as horas sao recalculadas sobre as datas reais.
+   */
   recalcHorasTemplate() {
     const d = Number(this.templateAtvForm.duracaoDias || 0);
-    if (d > 0) this.templateAtvForm.horas = d * 8;
+    if (d > 0) this.templateAtvForm.horas = diasUteisNaDuracao(d) * 8;
   }
 
   submitTemplateAtv() {
@@ -670,7 +681,7 @@ export class ProjectBudgetPanelComponent {
         id: uid(),
         nome: a.nome,
         perfilId: a.perfilId,
-        horas: Number(a.horas || 0) || duracao * 8,
+        horas: Number(a.horas || 0) || this.diasUteis(dataInicio, dataFim) * 8,
         dataInicio,
         dataFim,
         cor: a.cor || this.ganttColors[atividades.length % this.ganttColors.length],
