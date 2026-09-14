@@ -101,9 +101,18 @@ export class ProjectBudgetPanelComponent {
     return raw;
   }
 
-  /** Horas que de fato entram no custo: horas do periodo x alocacao. */
+  /** Horas base para custo: quando ha datas, apenas dias uteis entram na soma. */
+  horasBaseCusto(a: any): number {
+    if (a?.dataInicio && a?.dataFim) {
+      const dias = this.diasUteis(a.dataInicio, a.dataFim);
+      return dias > 0 ? dias * 8 : 0;
+    }
+    return Number(a?.horas || 0);
+  }
+
+  /** Horas que de fato entram no custo: dias uteis do periodo x alocacao. */
   horasEfetivas(a: any): number {
-    return Number(a?.horas || 0) * this.alocacaoPct(a) / 100;
+    return this.horasBaseCusto(a) * this.alocacaoPct(a) / 100;
   }
 
   /** Formata horas efetivas sem casas decimais desnecessarias. */
