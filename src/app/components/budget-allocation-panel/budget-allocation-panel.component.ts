@@ -586,6 +586,16 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return this.linhasOrcamentarias.filter((lo: any) => Number(lo?.ano) === Number(this.anoSelecionado));
   }
 
+  private anoDaLo(loId: string): number | null {
+    const lo = this.linhasOrcamentarias.find((item: any) => item?.id === loId);
+    const ano = Number(lo?.ano);
+    return Number.isFinite(ano) ? ano : null;
+  }
+
+  private alocacaoNoAnoSelecionado(a: any): boolean {
+    return this.anoDaLo(a?.linhaOrcamentariaId || '') === Number(this.anoSelecionado);
+  }
+
   linhasDoAnoFiltradas() {
     const q = this.searchLoTerm.trim().toLowerCase();
     const base = q
@@ -890,6 +900,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
     const percentualOutras = this.alocacoes
       .filter((a: any) => a.id !== allocationId && !a.draft && this.normalized(a.nomePessoa) === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a))
       .reduce((acc: number, a: any) => acc + Number(this.getConfig(a.id).percentual || 0), 0);
     const maxPermitido = Math.max(0, 100 - percentualOutras);
     cfg.percentual = Math.min(desejado, maxPermitido);
@@ -1452,6 +1463,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     return this.alocacoes
       .filter((a: any) => a.id !== excludeAllocationId)
       .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a))
       .some((a: any) => this.mesComControleExplicito(a.id, month));
   }
 
@@ -2708,6 +2720,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
     const percentualTotal = this.alocacoes
       .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a))
       .filter((a: any) => this.mesAtivoParaAlocacao(a.id, month))
       .reduce((acc: number, a: any) => acc + Number(this.getPercentualEfetivoMes(a.id, month) || 0), 0);
     return this.round2(Math.max(0, 100 - percentualTotal));
@@ -2728,7 +2741,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     if (!this.mesIndisponivelParaAlocacao(allocationId, month)) return null;
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
     const linhasDaPessoa = this.alocacoes.filter(
-      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
+      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa) && this.alocacaoNoAnoSelecionado(a)
     );
     
     const comControle = linhasDaPessoa.find(
@@ -2750,7 +2763,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const nomePessoa = this.form.nomePessoa || '';
     if (!this.normalized(nomePessoa)) return null;
     const candidatas = this.alocacoes.filter(
-      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
+      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa) && this.alocacaoNoAnoSelecionado(a)
     );
     const explicita = candidatas.find((a: any) => this.mesComControleExplicito(a.id, month));
     if (explicita) return explicita.linhaOrcamentariaId || null;
@@ -2773,7 +2786,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
     const linhasDaPessoa = this.alocacoes.filter(
-      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
+      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa) && this.alocacaoNoAnoSelecionado(a)
     );
 
     
@@ -2802,7 +2815,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
     const nomePessoa = this.nomePessoaDaAlocacao(allocationId);
     const linhasDaPessoa = this.alocacoes.filter(
-      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa)
+      (a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa) && this.alocacaoNoAnoSelecionado(a)
     );
 
     
@@ -2836,6 +2849,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
       .filter((a: any) => a.id !== excludeAllocationId)
       .filter((a: any) => !a.draft)
       .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a))
       .filter((a: any) => this.mesAtivoParaAlocacao(a.id, month))
       .reduce((acc: number, a: any) => acc + Number(this.getPercentualEfetivoMes(a.id, month) || 0), 0);
   }
@@ -2860,7 +2874,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
     const candidatas = this.alocacoes
       .filter((a: any) => (!excludeAllocationId || a.id !== excludeAllocationId))
       .filter((a: any) => !a.draft)
-      .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa));
+      .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a));
     if (!candidatas.length) return { indisponivel: false, motivo: '' };
 
     const explicita = candidatas.find((a: any) => this.mesComControleExplicito(a.id, month));
@@ -2889,7 +2904,8 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
 
   private percentualDisponivelNoMes(nomePessoa: string, month: number): number {
     const candidatas = this.alocacoes
-      .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa));
+      .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a));
     if (!candidatas.length) return 100;
     const explicita = candidatas.find((a: any) => this.mesComControleExplicito(a.id, month));
     if (explicita) return 0;
@@ -2913,6 +2929,7 @@ export class BudgetAllocationPanelComponent implements OnChanges, OnDestroy, Aft
   private ownerAtivoNoMes(nomePessoa: string, month: number): string | null {
     const candidatas = this.alocacoes
       .filter((a: any) => this.normalized(a?.nomePessoa || '') === this.normalized(nomePessoa))
+      .filter((a: any) => this.alocacaoNoAnoSelecionado(a))
       .filter((a: any) => this.mesAtivoParaAlocacao(a.id, month));
     if (!candidatas.length) return null;
     const explicita = candidatas.find((a: any) => this.mesComControleExplicito(a.id, month));
