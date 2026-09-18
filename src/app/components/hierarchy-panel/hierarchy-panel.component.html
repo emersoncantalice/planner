@@ -164,6 +164,12 @@
             Σ LOs: <strong>{{ formatCompact(valorAgregado(node)) }}</strong>
           </div>
         }
+        @if (!ocultarValoresExport && ehSquad(node) && valorMensalSquad(node) > 0) {
+          <div class="node-team-cost" [title]="'Custo do time calculado pelas pessoas alocadas nas LOs vinculadas e seus percentuais de alocação'">
+            <span>Mensal <strong>{{ currency(valorMensalSquad(node)) }}</strong></span>
+            <span>Anual <strong>{{ currency(valorAnualSquad(node)) }}</strong></span>
+          </div>
+        }
 
         @if (!ocultarValoresExport && mostrarFteTotal(node) && ftePorPerfilNode(node).length) {
           <div class="node-fte-perfis">

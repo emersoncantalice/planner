@@ -721,6 +721,64 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     return (g === 'Team Member') ? (this.membroContaFte(m) ? base : 0) : base;
   }
 
+  private percentualDaAlocacaoLo(a: any, membro?: any): number {
+    const id = String(a?.id || '').trim();
+    if (id) {
+      try {
+        const saved = localStorage.getItem(`planner_lo_alloc_${id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const pct = Number(parsed?.percentual);
+          if (Number.isFinite(pct)) return Math.max(0, Math.min(100, pct));
+        }
+      } catch { }
+    }
+    const pctMembro = membro ? this.percentualPessoa(membro) : null;
+    if (pctMembro != null) return Math.max(0, Math.min(100, Number(pctMembro) || 0));
+    const pctPessoa = this.percentuais?.[this.norm(a?.nomePessoa || '')];
+    if (pctPessoa != null) return Math.max(0, Math.min(100, Number(pctPessoa) || 0));
+    return 100;
+  }
+
+  private valorMensalBaseAlocacao(a: any, membro?: any): number {
+    const pessoa = membro ? this.pessoaDoMembro(membro) : this.pessoas.find((p: any) => this.norm(p?.nome || '') === this.norm(a?.nomePessoa || ''));
+    const mensal = Number(pessoa?.valorMensal ?? a?.valorMensal ?? 0);
+    if (Number.isFinite(mensal) && mensal > 0) return mensal;
+    const valorHora = Number(a?.valorHora ?? pessoa?.valorHora ?? 0);
+    return Number.isFinite(valorHora) && valorHora > 0 ? valorHora * 168 : 0;
+  }
+
+  private alocacoesFinanceirasSquad(node: any): Array<{ a: any; membro: any }> {
+    if (!this.ehSquad(node)) return [];
+    const loIds = new Set(this.losDoNode(node));
+    if (!loIds.size) return [];
+    const membros = node?.membros || [];
+    return (this.alocacoes || [])
+      .filter((a: any) => !a?.draft && loIds.has(a?.linhaOrcamentariaId))
+      .map((a: any) => ({
+        a,
+        membro: membros.find((m: any) => this.norm(m?.nomePessoa || '') === this.norm(a?.nomePessoa || ''))
+      }))
+      .filter((item: any) => !!item.membro);
+  }
+
+  valorMensalSquad(node: any): number {
+    const total = this.alocacoesFinanceirasSquad(node)
+      .reduce((sum, item) => sum + this.valorMensalBaseAlocacao(item.a, item.membro) * this.percentualDaAlocacaoLo(item.a, item.membro) / 100, 0);
+    return this.round2(total);
+  }
+
+  valorAnualSquad(node: any): number {
+    return this.round2(this.valorMensalSquad(node) * 12);
+  }
+
+  renderTeamCostHtml(node: any): string {
+    if (this.ocultarValoresExport || !this.ehSquad(node)) return '';
+    const mensal = this.valorMensalSquad(node);
+    if (mensal <= 0) return '';
+    return `<div class="team-cost"><span>Mensal <strong>${this.escapeHtml(this.currency(mensal))}</strong></span><span>Anual <strong>${this.escapeHtml(this.currency(this.valorAnualSquad(node)))}</strong></span></div>`;
+  }
+
   /** FTE por grupo de perfil na estrutura (agrega a subárvore, como o FTE Total). */
   ftePorPerfilNode(node: any): Array<{ label: string; fte: number }> {
     if (!this.mostrarMarcacoesDeTime(node)) return [];
@@ -1084,6 +1142,9 @@ toast=U(it);tbdNome="TBD - To be defined";nodes: any[] = []; pessoas: any[] = []
   .nome { font-size: 14px; font-weight: 700; }
   .desc { font-size: 11px; color: #64748b; margin-top: 2px; }
   .valor { font-size: 11px; color: #475569; margin-top: 4px; } .valor strong { color: #0f766e; }
+  .team-cost { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 10px; }
+  .team-cost span { display: grid; gap: 1px; padding: 4px 6px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #475569; }
+  .team-cost strong { color: #047857; font-size: 11px; }
   .t-PRESIDENCIA .tipo { color: #7c3aed; } .t-PRESIDENCIA .card { border-top: 4px solid #7c3aed; }
   .t-VICE_PRESIDENCIA .tipo { color: #4f46e5; } .t-VICE_PRESIDENCIA .card { border-top: 4px solid #4f46e5; }
   .t-SUPERINTENDENCIA .tipo { color: #2563eb; } .t-SUPERINTENDENCIA .card { border-top: 4px solid #2563eb; }
@@ -1156,7 +1217,7 @@ toast=U(it);tbdNome="TBD - To be defined";nodes: any[] = []; pessoas: any[] = []
       <div class="card" data-node-id="${this.escapeHtml(t.id)}">
         <div class="tipo-row"><span class="tipo">${this.escapeHtml(this.rotuloNode(t))}</span>${this.renderFteChipHtml(t)}</div>
         <div class="nome">${this.escapeHtml(t.nome)}</div>
-        ${r}${h}${this.renderFtePerfisHtml(t)}${c}${this.renderProjetosHtml(t)}
+        ${r}${h}${this.renderTeamCostHtml(t)}${this.renderFtePerfisHtml(t)}${c}${this.renderProjetosHtml(t)}
       </div>
       ${o}
     </div>`}

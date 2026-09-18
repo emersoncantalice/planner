@@ -517,6 +517,27 @@
 }
 .node-valor { margin-top: 6px; font-size: .76rem; color: #475569; }
 .node-valor strong { color: #0f766e; }
+.node-team-cost {
+  margin-top: 7px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: .68rem;
+}
+.node-team-cost span {
+  display: grid;
+  gap: 1px;
+  padding: 5px 7px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #475569;
+  white-space: nowrap;
+}
+.node-team-cost strong {
+  color: #047857;
+  font-size: .74rem;
+}
 
 /* FTE Total do time — chip discreto junto ao tipo (à direita) */
 .node-fte-chip {
