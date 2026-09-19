@@ -164,9 +164,11 @@
             Σ LOs: <strong>{{ formatCompact(valorAgregado(node)) }}</strong>
           </div>
         }
-        @if (!ocultarValoresExport && ehSquad(node) && valorMensalSquad(node) > 0) {
-          <div class="node-team-cost" [title]="'Custo do time calculado pelas pessoas alocadas nas LOs vinculadas e seus percentuais de alocação'">
-            <span>Mensal <strong>{{ currency(valorMensalSquad(node)) }}</strong></span>
+        @if (!ocultarValoresExport && mostrarCustoEstrutura(node) && valorMensalSquad(node) > 0) {
+          <div class="node-team-cost" [title]="tituloCustoEstrutura(node)">
+            <button type="button" class="team-cost-link" (click)="abrirCustoDetalhe(node, $event)">
+              <span>Mensal <strong>{{ currency(valorMensalSquad(node)) }}</strong></span>
+            </button>
             <span>Anual <strong>{{ currency(valorAnualSquad(node)) }}</strong></span>
           </div>
         }
@@ -440,6 +442,29 @@
       </div>
 
       @if (tipoPermiteMarcacoesDeTime(form.tipo)) {
+        <div class="custos-edit">
+          <label>Outros custos da estrutura</label>
+          <div class="custo-add">
+            <input [(ngModel)]="custoExtraForm.nome" placeholder="Descrição do custo" />
+            <input type="number" min="0" step="0.01" [(ngModel)]="custoExtraForm.valorMensal" placeholder="Valor mensal" />
+            <input type="number" min="0" max="120" step="1" [(ngModel)]="custoExtraForm.meses" placeholder="Meses" />
+            <button type="button" class="sec" (click)="adicionarCustoExtra()">+ Custo</button>
+          </div>
+          @if (form.custosExtras.length) {
+            <ul class="custo-list">
+              @for (c of form.custosExtras; track c.id || $index) {
+                <li>
+                  <input [(ngModel)]="c.nome" placeholder="Descrição" />
+                  <input type="number" min="0" step="0.01" [(ngModel)]="c.valorMensal" />
+                  <input type="number" min="0" max="120" step="1" [(ngModel)]="c.meses" />
+                  <span>{{ currency(totalCustoExtra(c)) }}</span>
+                  <button type="button" class="m-del" (click)="removerCustoExtra($index)" title="Remover">×</button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
         <div class="projetos-edit">
           <label>Projetos vinculados (tribos e squads)</label>
           @if (!projetosDisponiveis().length) {
@@ -560,6 +585,36 @@
       <div class="form-actions">
         <button type="button" (click)="salvar()" [disabled]="!formValido">{{ editingId ? 'Salvar' : 'Criar' }}</button>
         <button type="button" class="sec" (click)="cancelar()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (custoDetalheNode) {
+  <div class="modal-backdrop hierarchy-modal-backdrop" (click)="fecharCustoDetalhe()"></div>
+  <div class="modal-card modal-card-lg hierarchy-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="form-box fte-detalhe">
+      <h3>Detalhamento de custo · {{ rotuloNode(custoDetalheNode) }} {{ custoDetalheNode.nome }}</h3>
+      <div class="fte-det-total">Mensal: <strong>{{ currency(valorMensalSquad(custoDetalheNode)) }}</strong> · Anual: <strong>{{ currency(valorAnualSquad(custoDetalheNode)) }}</strong></div>
+      <table class="modern-table">
+        <thead><tr><th>Tipo</th><th>Item</th><th>Base mensal</th><th>%</th><th>Mensal</th><th>Anual</th></tr></thead>
+        <tbody>
+          @for (r of detalheCustoEstrutura(custoDetalheNode); track r.id) {
+            <tr>
+              <td>{{ r.tipo }}</td>
+              <td>{{ r.nome }}</td>
+              <td>{{ currency(r.baseMensal) }}</td>
+              <td>{{ r.percentual != null ? formatPct(r.percentual) + '%' : '—' }}</td>
+              <td><strong>{{ currency(r.mensal) }}</strong></td>
+              <td>{{ currency(r.anual) }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="sub" style="text-align:center">Nenhum custo calculado.</td></tr>
+          }
+        </tbody>
+      </table>
+      <div class="form-actions">
+        <button type="button" class="sec" (click)="fecharCustoDetalhe()">Fechar</button>
       </div>
     </div>
   </div>

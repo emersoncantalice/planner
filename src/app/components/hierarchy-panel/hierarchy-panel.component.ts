@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { CommonModule } from '@angular/common';
 import { AfterViewInit, ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, EventEmitter, HostListener, inject, NgZone, OnChanges, OnDestroy, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -7,7 +7,8 @@ import { ToastService } from '../../core/toast.service';
 import { ScrollIntoViewWhenDirective } from '../../core/scroll-into-view-when.directive';
 
 interface HierarchyMember { personId: string | null; nomePessoa: string; papel: string; cross?: boolean; vinculo?: string | null; percentual?: number | null; subgrupo?: string | null; }
-interface HierarchyNode { id: string; tipo: string; tipoRotulo?: string | null; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number; membros?: HierarchyMember[]; loIds?: string[]; }
+interface HierarchyExtraCost { id?: string; nome: string; valorMensal: number; meses: number; }
+interface HierarchyNode { id: string; tipo: string; tipoRotulo?: string | null; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number; membros?: HierarchyMember[]; loIds?: string[]; custosExtras?: HierarchyExtraCost[]; }
 interface LinhaConector { id: string; de: string; para: string; x1: number; y1: number; x2: number; y2: number; d: string; }
 
 const U = inject;
@@ -35,7 +36,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   private resizeObs?: ResizeObserver;
   private recalcAgendado = false;
 
-  // ── Zoom & pan (arraste) da árvore ─────────────────────────────────────────
+  // -- Zoom & pan (arraste) da árvore -----------------------------------------
   zoom = 1;
   panX = 0;
   panY = 0;
@@ -179,7 +180,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
 
   onExportRootChange() { this.onHierarchyLayoutChange(); }
 
-  // ── Navegação: arrastar para mover + zoom ──────────────────────────────────
+  // -- Navegação: arrastar para mover + zoom ----------------------------------
   onTreePanStart(ev: MouseEvent): void {
     if (ev.button !== 0) return;
     const t = ev.target as HTMLElement | null;
@@ -250,7 +251,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   projSearchTerm = '';
   projDropdownOpen = false;
 
-  // ── Multi-select de LOs (mesmo padrão das estruturas superiores) ───────────
+  // -- Multi-select de LOs (mesmo padrão das estruturas superiores) -----------
   loResumo(): string {
     if (!this.form?.loIds?.length) return 'Nenhuma LO';
     return this.form.loIds.map((id: string) => this.loLabel(id)).join(', ');
@@ -263,7 +264,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   }
   limparLos(): void { this.form.loIds = []; }
 
-  // ── Multi-select de Projetos ──────────────────────────────────────────────
+  // -- Multi-select de Projetos ----------------------------------------------
   projetoResumo(): string {
     if (!this.form?.projetoIds?.length) return 'Nenhum projeto';
     return this.form.projetoIds.map((id: string) => this.projetoNome(id)).join(', ');
@@ -308,7 +309,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     this.form.parentIds = [];
   }
 
-  // ── Arrastar a ESTRUTURA para reposicioná-la na hierarquia ─────────────────
+  // -- Arrastar a ESTRUTURA para reposicioná-la na hierarquia -----------------
   // (dragOverNodeId já existe e é reaproveitado para destacar o alvo do drop)
   dragNodeId: string | null = null;
   dragOverRoot = false;
@@ -371,7 +372,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     this.update.emit(this.montarPayloadNode(node, { parentId: parentIds[0] || null, parentIds: [...parentIds] }));
   }
 
-  // ── Remover uma ligação pai→filho: clicar na linha (destaca) e apertar Del ──
+  // -- Remover uma ligação pai?filho: clicar na linha (destaca) e apertar Del --
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(ev: KeyboardEvent): void {
     if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
@@ -383,7 +384,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     this.removerVinculoSelecionado();
   }
 
-  /** Remove a ligação pai→filho atualmente destacada (a linha clicada). Se o filho ficar sem pai, vira raiz. */
+  /** Remove a ligação pai?filho atualmente destacada (a linha clicada). Se o filho ficar sem pai, vira raiz. */
   removerVinculoSelecionado(): void {
     const v = this.vinculoDestacado;
     if (!v) return;
@@ -394,7 +395,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     this.reparentEstrutura(filho, novosPais);
   }
 
-  // ── Layout livre: posicionar cada estrutura numa coordenada X/Y qualquer ────
+  // -- Layout livre: posicionar cada estrutura numa coordenada X/Y qualquer ----
   layoutLivre = false;
   freeDrag: { id: string; x: number; y: number; offX: number; offY: number; baseX: number; baseY: number } | null = null;
   private posCache: Record<string, { x: number; y: number }> = {};
@@ -463,7 +464,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     }
   }
 
-  /** Posição efetiva do card no canvas livre (drag em curso → salvo → fallback). */
+  /** Posição efetiva do card no canvas livre (drag em curso ? salvo ? fallback). */
   posDe(node: any): { x: number; y: number } {
     if (this.freeDrag && this.freeDrag.id === node.id) return { x: this.freeDrag.x, y: this.freeDrag.y };
     const px = Number(node?.posX), py = Number(node?.posY);
@@ -618,7 +619,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     }
   }
 
-  // ── Projetos vinculados (tribos/squads) ───────────────────────────────────
+  // -- Projetos vinculados (tribos/squads) -----------------------------------
   /** Projetos só podem ser associados a estruturas de time (tribos e squads). */
   mostrarProjetos(node: any): boolean { return this.tipoPermiteMarcacoesDeTime(node?.tipo); }
   projetosDisponiveis(): any[] {
@@ -685,7 +686,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     return this.alocacaoTotalPessoa(m) > 100;
   }
 
-  // ── FTE Total do time (somatória de folha + terceiros) ────────────────────
+  // -- FTE Total do time (somatória de folha + terceiros) --------------------
   /** Soma o FTE da estrutura e de todas as descendentes (tribo agrega seus squads). */
   fteTotalNode(node: any): number {
     if (!this.mostrarMarcacoesDeTime(node)) return 0;
@@ -793,7 +794,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
       .map(k => ({ label: k, fte: acc[k] }));
   }
 
-  // ── Modal de detalhamento de FTE (squad/tribo) ────────────────────────────
+  // -- Modal de detalhamento de FTE (squad/tribo) ----------------------------
   fteDetalheNode: any = null;
   abrirFteDetalhe(node: any, ev?: Event): void { ev?.stopPropagation(); this.fteDetalheNode = node; }
   fecharFteDetalhe(): void { this.fteDetalheNode = null; }
@@ -828,7 +829,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
   /**
    * Lista de pessoas do detalhamento de FTE (subárvore, só squads):
    * agrupa pessoas reais por nome + cargo; cada TBD vira uma "pessoa" com nome fictício editável;
-   * sinaliza quem tem alocação total ≠ 100%.
+   * sinaliza quem tem alocação total ? 100%.
    */
   fteDetalhePessoas(node: any): Array<any> {
     if (!this.mostrarMarcacoesDeTime(node)) return [];
@@ -877,7 +878,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
       a.grupo.localeCompare(b.grupo, 'pt-BR') || a.nome.localeCompare(b.nome, 'pt-BR'));
   }
 
-  // ── Edição de nome de TBD no detalhamento ─────────────────────────────────
+  // -- Edição de nome de TBD no detalhamento ---------------------------------
   editTbdKey: string | null = null;
   editTbdValue = '';
   iniciarEdicaoNomeTbd(row: any): void { this.editTbdKey = row.refKey; this.editTbdValue = row.nome; }
@@ -992,7 +993,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
       const pct = this.projetoPct(p);
       const cor = this.corPercentual(pct);
       const shared = this.projetoCompartilhado(p.id)
-        ? '<span class="proj-shared" title="Compartilhado com mais de um time">⇄</span>' : '';
+        ? '<span class="proj-shared" title="Compartilhado com mais de um time">?</span>' : '';
       return `<div class="proj"><div class="proj-top"><span class="proj-nome">${this.escapeHtml(p.nome)}${shared}</span>`
         + `<span class="proj-pct" style="color:${cor}">${pct}%</span></div>`
         + `<div class="proj-bar"><span style="width:${pct}%;background:${cor}"></span></div></div>`;
@@ -1000,7 +1001,7 @@ export class HierarchyPanelComponent implements AfterViewInit, OnChanges, OnDest
     return `<div class="projetos"><div class="projetos-head">Projetos</div>${itens}</div>`;
   }
 
-toast=U(it);tbdNome="TBD - To be defined";nodes: any[] = []; pessoas: any[] = []; perfis: any[] = []; fotos: Record<string, string> = {}; percentuais: Record<string, number> = {}; linhasOrcamentarias: any[] = []; ajustes: any[] = []; alocacoes: any[] = []; projetos: any[] = []; create = new G<any>(); update = new G<any>(); remove = new G<string>(); moveMember = new G<any>();tipos=["PRESIDENCIA","VICE_PRESIDENCIA","SUPERINTENDENCIA","DIRETORIA","GERENCIA","TRIBO","SQUAD","CUSTOM"];tipoLabels={PRESIDENCIA:"Presid\xEAncia",VICE_PRESIDENCIA:"Vice-presid\xEAncia",SUPERINTENDENCIA:"Superintend\xEAncia",DIRETORIA:"Diretoria",GERENCIA:"Ger\xEAncia",TRIBO:"Tribo",SQUAD:"Squad",CUSTOM:"Personalizado"};formAberto=!1;editingId="";form={tipo:"PRESIDENCIA",tipoRotulo:"",nome:"",descricao:"",parentIds:[],loIds:[],projetoIds:[],projetosOcultos:[]};membros: any[] = [];membroSel={personId:"",papel:"",cross:!1,subgrupo:""};grupoDefs=[{key:"folha",titulo:"Folha",cls:"g-folha"},{key:"terceiro",titulo:"Terceiros",cls:"g-terceiro"}];tbdVinculo="FOLHA";gerarAberto=!1;gerarLoId="";gerarParentId="";exportRootId="";ocultarValoresExport=!1;ocultarProjetos=!1;hiddenNodeIds: Set<string> | null = null;dragOrigem: any = null;dragOverNodeId="";tipoLabel(t){return this.tipoLabels[this.tipoNormalizado(t)]||this.tipoLabels[t]||t}rotuloNode(t){if(this.tipoNormalizado(t?.tipo)==="CUSTOM"&&(t?.tipoRotulo||"").trim())return t.tipoRotulo.trim();return this.tipoLabel(t?.tipo)}tipoClasse(t){return this.tipoNormalizado(t)}tipoNormalizado(t){return t}tipoPermiteMarcacoesDeTime(t){let e=this.tipoNormalizado(t);return e==="TRIBO"||e==="SQUAD"||e==="CUSTOM"}contaFtePropria(t){let e=this.tipoNormalizado(t?.tipo);return e==="SQUAD"||e==="CUSTOM"}byOrdem(t,e){let n=t.ordem??0,o=e.ordem??0;return n!==o?n-o:String(t.nome||"").localeCompare(String(e.nome||""),"pt-BR")}paisDe(t){return t?((t.parentIds&&t.parentIds.length?t.parentIds:t.parentId?[t.parentId]:[])||[]).filter(n=>!!n):[]}parentVinculado(t){return this.form.parentIds.includes(t)}toggleParent(t){let e=this.form.parentIds.indexOf(t);e>=0?this.form.parentIds.splice(e,1):this.form.parentIds.push(t)}vinculoDestacado=null;alternarVinculo(t,e,n){n?.stopPropagation(),this.vinculoAtivo(t,e)?this.vinculoDestacado=null:this.vinculoDestacado={de:t,para:e}}vinculoAtivo(t,e){return!!this.vinculoDestacado&&this.vinculoDestacado.de===t&&this.vinculoDestacado.para===e}ehOrigemDestacada(t){return this.vinculoDestacado?.de===t}ehDestinoDestacado(t){return this.vinculoDestacado?.para===t}limparVinculoDestacado(){this.vinculoDestacado=null}nomePorId(t){let e=this.nodes.find(n=>n.id===t);return e?`${this.tipoLabel(e.tipo)} \xB7 ${e.nome}`:""}raizes(){let t=new Set(this.nodes.map(e=>e.id));return this.nodes.filter(e=>this.paisDe(e).filter(n=>t.has(n)).length===0).sort((e,n)=>this.byOrdem(e,n))}raizesVisiveis(){if(this.ensureHiddenLoaded(),this.exportRootId){let t=this.nodes.find(e=>e.id===this.exportRootId);if(t&&!this.estaEmCadeiaOculta(t))return[t]}return this.raizes().filter(t=>!this.isOculto(t.id))}filhosDe(t){return this.nodes.filter(e=>this.paisDe(e).includes(t)).sort((e,n)=>this.byOrdem(e,n))}filhosVisiveisDe(t){return this.ensureHiddenLoaded(),this.filhosDe(t).filter(e=>!this.isOculto(e.id))}paiPrincipalDeRender(t){let e=new Set(this.nodes.map(o=>o.id));return this.paisDe(t).filter(o=>e.has(o)&&!this.isOculto(o))[0]||null}filhosRenderVisiveisDe(t){return this.filhosVisiveisDe(t).filter(e=>this.paiPrincipalDeRender(e)===t)}ocultosDiretosRenderDe(t){return this.filhosDe(t).filter(e=>this.isOculto(e.id)&&this.paiPrincipalDeRender(e)===t)}temMultiplosPais(t){return this.paisDe(t).filter(e=>this.nodes.some(n=>n.id===e)).length>1}paisVisiveisDoNode(t){return this.paisDe(t).map(e=>this.nodes.find(n=>n.id===e)).filter(e=>!!e).sort((e,n)=>this.byOrdem(e,n))}paisLabel(t){let e=this.paisVisiveisDoNode(t);return e.length?`Ligado a: ${e.map(n=>n.nome).join(", ")}`:""}hiddenStorageKey(){let t=(localStorage.getItem("planner_user")||"").trim().toLowerCase();return t?`planner_hierarchy_hidden_${t}`:"planner_hierarchy_hidden"}ensureHiddenLoaded(){if(!this.hiddenNodeIds)try{let t=JSON.parse(localStorage.getItem(this.hiddenStorageKey())||"[]");this.hiddenNodeIds=new Set(Array.isArray(t)?t.map(String):[])}catch{this.hiddenNodeIds=new Set}}saveHiddenState(){this.ensureHiddenLoaded();let t=[...this.hiddenNodeIds||[]].filter(e=>this.nodes.some(n=>n.id===e));this.hiddenNodeIds=new Set(t),localStorage.setItem(this.hiddenStorageKey(),JSON.stringify(t))}isOculto(t){return this.ensureHiddenLoaded(),!!this.hiddenNodeIds?.has(t)}estaEmCadeiaOculta(t){this.ensureHiddenLoaded();let e=t,n=new Set;for(;e&&!n.has(e.id);){if(this.isOculto(e.id))return!0;n.add(e.id);let o=this.paisDe(e)[0];e=o?this.nodes.find(r=>r.id===o):void 0}return!1}ocultarCadeia(t,e){e?.stopPropagation(),this.ensureHiddenLoaded(),this.hiddenNodeIds?.add(t.id),this.exportRootId===t.id&&(this.exportRootId=""),this.saveHiddenState(),this.onHierarchyLayoutChange()}mostrarCadeia(t){this.ensureHiddenLoaded(),this.hiddenNodeIds?.delete(t),this.saveHiddenState(),this.onHierarchyLayoutChange()}limparOcultos(){this.ensureHiddenLoaded(),this.hiddenNodeIds?.clear(),this.saveHiddenState(),this.onHierarchyLayoutChange()}ocultosDiretosDe(t){return this.filhosDe(t).filter(e=>this.isOculto(e.id))}raizesOcultas(){return this.raizes().filter(t=>this.isOculto(t.id))}totalOcultos(){return this.ensureHiddenLoaded(),[...this.hiddenNodeIds||[]].filter(t=>this.nodes.some(e=>e.id===t)).length}countCadeia(t){return this.subtree(t.id).size}paisDisponiveis(){if(!this.editingId)return[...this.nodes].sort((e,n)=>this.byOrdem(e,n));let t=this.subtree(this.editingId);return this.nodes.filter(e=>!t.has(e.id)).sort((e,n)=>this.byOrdem(e,n))}subtree(t){let e=new Set([t]),n=!0;for(;n;){n=!1;for(let o of this.nodes)!e.has(o.id)&&this.paisDe(o).some(r=>e.has(r))&&(e.add(o.id),n=!0)}return e}totalPessoas(){let t=new Set;for(let e of this.nodes)for(let n of e.membros||[])this.membroContaNoTotal(n)&&t.add(this.norm(n.nomePessoa));return t.size}pessoaDebitaLo(t){let e=String(t?.perfilId||"").trim();if(e){let o=this.perfis.find(r=>String(r?.id||"").trim()===e);if(o)return o.debitaLo!==!1}let n=this.norm(this.perfilNomeDaPessoa(t));if(n){let o=this.perfis.find(r=>this.norm(r?.nomePerfil||r?.nome||"")===n);if(o)return o.debitaLo!==!1}return!0}membroContaNoTotal(t){let e=this.pessoaDoMembro(t);return e?this.pessoaDebitaLo(e):!0}norm(t){return String(t||"").trim().toLowerCase()}fotoDe(t){return this.fotos?.[this.norm(t)]||""}iniciais(t){let e=String(t||"").trim().split(/\s+/).filter(Boolean);return e.length?((e[0][0]||"")+(e.length>1&&e[e.length-1][0]||"")).toUpperCase():"?"}pessoaDoMembro(t){if(t?.personId){let e=this.pessoas.find(n=>n.id===t.personId);if(e)return e}return this.pessoas.find(e=>this.norm(e?.nome||"")===this.norm(t?.nomePessoa||""))||null}mostrarMarcacoesDeTime(t){return this.tipoPermiteMarcacoesDeTime(t.tipo)}mostrarPercentual(t){return this.mostrarMarcacoesDeTime(t)&&!this.ocultarValoresExport}percentualPessoa(t){if(t?.percentual!=null)return Math.round(t.percentual*100)/100;let e=this.percentuais?.[this.norm(t.nomePessoa)];return e==null?null:Math.round(e*100)/100}corPercentual(t){let e=Math.max(0,Math.min(100,t??0))/100,n=[249,115,22],o=[37,99,235],r=n.map((c,p)=>Math.round(c+(o[p]-c)*e));return`rgb(${r[0]}, ${r[1]}, ${r[2]})`}pctEditKey=null;pctEditValue=null;pctKey(t,e){return`${t.id}|${e}`}editandoPct(t,e){return this.pctEditKey===this.pctKey(t,e)}iniciarEdicaoPct(t,e,n,o){if(!this.mostrarPercentual(t))return;o.stopPropagation(),o.preventDefault(),this.pctEditKey=this.pctKey(t,e);let r=this.percentualPessoa(n);this.pctEditValue=r??100}salvarPct(t,e){if(!this.mostrarPercentual(t)){this.cancelarEdicaoPct();return}if(this.pctEditKey!==this.pctKey(t,e))return;let n=Number(this.pctEditValue),o=Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n*100)/100)):null,r=(t.membros||[]).map((c,p)=>p===e?Y($({},c),{percentual:o}):c);this.pctEditKey=null,this.pctEditValue=null,this.emitirAtualizacaoMembros(t,r)}cancelarEdicaoPct(){this.pctEditKey=null,this.pctEditValue=null}ehTerceiro(t){let e=this.pessoaDoMembro(t);return e?String(e.tipoVinculo||"").toUpperCase()==="TERCEIRO":String(t?.vinculo||"").toUpperCase()==="TERCEIRO"}vinculoLabel(t){return this.ehTerceiro(t)?"Terceiro":"Folha"}papelDoMembro(t){if(t?.papel&&t.papel.trim())return this.primeiraPartePerfil(t.papel);let e=this.pessoaDoMembro(t);return this.primeiraPartePerfil(this.perfilNomeDaPessoa(e))}primeiraPartePerfil(t){return String(t||"").split("|")[0].trim()}perfilNomeDaPessoa(t){if(!t)return"";let e=String(t?.perfilNome||t?.perfil||"").trim();if(e)return e;let n=String(t?.perfilId||"").trim();if(!n)return"";let o=this.perfis.find(r=>String(r?.id||"").trim()===n);return String(o?.nomePerfil||o?.nome||"").trim()}areaDoMembro(t){let e=this.pessoaDoMembro(t);if(!e)return"";let n=this.perfilNomeDaPessoa(e);return this.ehTerceiro(t)?e.consultoria||this.primeiraPartePerfil(n)||"":this.primeiraPartePerfil(n)}metaDoMembro(t){let e=this.papelDoMembro(t),n=this.areaDoMembro(t);return e&&n&&this.norm(this.primeiraPartePerfil(e))===this.norm(this.primeiraPartePerfil(n))?e:[e,n].filter(Boolean).join(" \xB7 ")}ehCross(t){return!!t?.cross}membrosPorGrupo(t,e,n=null){return(t.membros||[]).map((o,r)=>({m:o,idx:r})).filter(o=>n!=null&&(o.m.subgrupo||"").trim()!==n?!1:this.ehTerceiro(o.m)===(e==="terceiro")).sort((o,r)=>this.rankPapel(t,o.m)-this.rankPapel(t,r.m)||o.idx-r.idx)}subgruposDoNode(t){let e=new Set,n=[];for(let o of t.membros||[]){let r=(o.subgrupo||"").trim();!r||e.has(r)||(e.add(r),n.push({key:r,label:r}))}return n}subgruposParaRender(t){let e=this.subgruposDoNode(t);if(!e.length)return[{key:"__flat__",label:"",filter:null}];let n=[];(t.membros||[]).some(o=>!(o.subgrupo||"").trim())&&n.push({key:"__flat__",label:"",filter:""});for(let o of e)n.push({key:o.key,label:o.label,filter:o.key});return n}subgruposSugeridos(){let t=new Set;for(let e of this.nodes)for(let n of e.membros||[]){let o=(n.subgrupo||"").trim();o&&t.add(o)}return Array.from(t).sort((e,n)=>e.localeCompare(n,"pt-BR"))}rankPapel(t,e){let n=this.norm(this.papelDoMembro(e)),o=this.tipoNormalizado(t.tipo);return o==="SUPERINTENDENCIA"?n==="superintendente"?0:n.includes("gerente")?1:2:o==="TRIBO"?n==="lpt"?0:n==="ltt"||n==="lnp"?1:2:o==="SQUAD"?n==="it lead"||n==="pm"?0:1:0}membrosPorVinculo(t,e){return this.membrosPorGrupo(t,e?"terceiro":"folha")}membroContaFte(t){let e=this.pessoaDoMembro(t);return!(e&&e.contaFte===!1)}fteMembro(t){return this.membroContaFte(t)?(this.percentualPessoa(t)??100)/100:0}fteGrupo(t,e,n=null){return this.mostrarMarcacoesDeTime(t)?this.membrosPorGrupo(t,e,n).reduce((o,r)=>o+this.fteMembro(r.m),0):0}formatFte(t){let e=Math.round(t*100)/100;return Number.isInteger(e)?String(e):e.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:2})}percentualGrupoSquad(t,e,n=null){if(!this.contaFtePropria(t)||e!=="folha"&&e!=="terceiro")return"";let o=this.fteGrupo(t,"folha",n),r=this.fteGrupo(t,"terceiro",n),c=o+r;return c?`${Math.round((e==="folha"?o:r)/c*100)}%`:""}resumoGrupoSquad(t,e,n=null){if(!this.mostrarMarcacoesDeTime(t)){let c=this.membrosPorGrupo(t,e,n).length;return c?String(c):""}if(!this.membrosPorGrupo(t,e,n).length)return"";let o=this.formatFte(this.fteGrupo(t,e,n)),r=this.percentualGrupoSquad(t,e,n);return r?`${o} \xB7 ${r}`:o}abrirNovo(t=""){this.formAberto=!0,this.editingId="",this.form={tipo:t?this.tipoSugerido(t):"PRESIDENCIA",tipoRotulo:"",nome:"",descricao:"",parentIds:t?[t]:[],loIds:[],projetoIds:[],projetosOcultos:[]},this.membros=[],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:""}}tipoSugerido(t){let e=this.nodes.find(o=>o.id===t),n=e?this.tipos.indexOf(this.tipoNormalizado(e.tipo)):-1,r=n>=0&&n<this.tipos.length-1?this.tipos[n+1]:"SQUAD";return r==="CUSTOM"?"SQUAD":r}editar(t){this.formAberto=!0,this.editingId=t.id,this.form={tipo:this.tipoNormalizado(t.tipo),tipoRotulo:t.tipoRotulo||"",nome:t.nome,descricao:t.descricao||"",parentIds:[...this.paisDe(t)],loIds:[...t.loIds||[]],projetoIds:[...t.projetoIds||[]],projetosOcultos:[...t.projetosOcultos||[]]},this.membros=(t.membros||[]).map(e=>({personId:e.personId??null,nomePessoa:e.nomePessoa,papel:e.papel||"",cross:!!e.cross,vinculo:e.vinculo??null,percentual:e.percentual??null,subgrupo:e.subgrupo??null})),this.membroSel={personId:"",papel:"",cross:!1,subgrupo:""}}cancelar(){this.formAberto=!1,this.editingId="",this.membros=[]}get nomeValido(){return(this.form.nome||"").trim().length>0}get formValido(){return this.nomeValido}adicionarMembro(){if(!this.membroSel.personId){this.toast.show("Selecione uma pessoa para adicionar \xE0 estrutura.","error");return}let t=this.pessoas.find(n=>n.id===this.membroSel.personId);if(!t){this.toast.show("Pessoa selecionada n\xE3o foi encontrada. Atualize a lista e tente novamente.","error");return}if(this.membros.some(n=>this.norm(n.nomePessoa)===this.norm(t.nome))){this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo},this.toast.show("Essa pessoa j\xE1 est\xE1 vinculada nesta estrutura.","error");return}let e=this.membroSel.subgrupo.trim();this.membros=[...this.membros,{personId:t.id,nomePessoa:t.nome,papel:this.membroSel.papel.trim(),cross:this.membroSel.cross,subgrupo:e||null}],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo}}adicionarMembroTbd(){let t=this.membroSel.papel.trim();if(!t){this.toast.show("Informe o cargo da pessoa TBD antes de adicionar.","error");return}if(this.norm(t)==="to be defined"||this.norm(t)===this.norm(this.tbdNome)){this.toast.show('O subt\xEDtulo do TBD deve ser o cargo da vaga, n\xE3o "To be defined".',"error");return}let e=this.membroSel.subgrupo.trim();this.membros=[...this.membros,{personId:null,nomePessoa:this.tbdNome,papel:t,cross:this.membroSel.cross,vinculo:this.tbdVinculo,subgrupo:e||null}],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo},this.tbdVinculo="FOLHA"}removerMembro(t){this.membros=this.membros.filter((e,n)=>n!==t)}podeSalvar(){return!!this.form.nome.trim()&&this.tipos.includes(this.form.tipo)}validarCadastro(){let t=this.form.nome.trim();if(!this.tipos.includes(this.form.tipo))return"Selecione um tipo v\xE1lido para a estrutura.";if(this.form.tipo==="CUSTOM"&&!(this.form.tipoRotulo||"").trim())return"Informe o nome do tipo da estrutura personalizada.";if(!t)return"Informe o nome da estrutura.";if(t.length<2)return"O nome da estrutura precisa ter pelo menos 2 caracteres.";for(let c of this.form.parentIds)if(!this.nodes.some(p=>p.id===c))return"Uma das estruturas superiores selecionadas n\xE3o existe mais.";let e=this.form.parentIds,n=this.norm(t);if(this.nodes.some(c=>{if(c.id===this.editingId||this.norm(c.nome)!==n)return!1;let p=this.paisDe(c);return e.length===0&&p.length===0?!0:p.some(m=>e.includes(m))}))return"J\xE1 existe uma estrutura com esse nome no mesmo n\xEDvel.";let r=new Set;for(let c of this.membros){let p=String(c?.nomePessoa||"").trim();if(!p)return"Remova ou corrija membros sem nome antes de salvar.";if(this.norm(p)===this.norm(this.tbdNome)){let h=String(c?.papel||"").trim();if(!h)return"Todo TBD precisa ter um cargo informado.";if(this.norm(h)==="to be defined"||this.norm(h)===this.norm(this.tbdNome))return'O subt\xEDtulo do TBD deve ser o cargo da vaga, n\xE3o "To be defined".';continue}let m=this.norm(p);if(r.has(m))return`A pessoa "${p}" foi adicionada mais de uma vez.`;r.add(m)}return""}salvar(){let t=this.validarCadastro();if(t){this.toast.show(t,"error");return}let e=this.tipoNormalizado(this.form.tipo),n={tipo:e,tipoRotulo:e==="CUSTOM"?(this.form.tipoRotulo||"").trim():null,nome:this.form.nome.trim(),descricao:this.form.descricao.trim(),parentIds:[...this.form.parentIds],parentId:this.form.parentIds[0]||null,membros:this.membros.map(o=>({personId:o.personId,nomePessoa:o.nomePessoa,papel:o.papel,cross:!!o.cross,vinculo:o.vinculo??null,percentual:this.tipoPermiteMarcacoesDeTime(e)?o.percentual??null:null,subgrupo:o.subgrupo??null})),loIds:[...this.form.loIds],projetoIds:[...this.form.projetoIds||[]],projetosOcultos:[...this.form.projetosOcultos||[]]};this.editingId?this.update.emit($({id:this.editingId},n)):this.create.emit(n),this.cancelar()}excluir(t){this.remove.emit(t.id),this.editingId===t.id&&this.cancelar()}losDisponiveis(){return[...this.linhasOrcamentarias].sort((t,e)=>{let n=Number(e?.ano||0)-Number(t?.ano||0);return n!==0?n:String(t?.codigo||t?.nome||"").localeCompare(String(e?.codigo||e?.nome||""),"pt-BR")})}loVinculada(t){return this.form.loIds.includes(t)}toggleLo(t){this.form.loIds=this.loVinculada(t)?this.form.loIds.filter(e=>e!==t):[...this.form.loIds,t]}somaLosForm(){return this.round2(this.form.loIds.reduce((t,e)=>t+this.valorLoPorId(e),0))}loLabel(t){let e=this.linhasOrcamentarias.find(n=>n.id===t);return e&&(e.codigo||e.nome)||t}losDoNode(t){return t.loIds||[]}round2(t){return Math.round((Number(t)||0)*100)/100}valorLoPorId(t){let e=this.linhasOrcamentarias.find(r=>r.id===t);if(!e)return 0;let n=Number(e.valorTotal||0),o=(this.ajustes||[]).filter(r=>r.budgetLineId===t).reduce((r,c)=>r+(String(c?.tipo||"").toUpperCase()==="APORTE"?Number(c?.valor||0):-Number(c?.valor||0)),0);return this.round2(n+o)}loIdsSubtree(t){let e=new Set,n=o=>{(o.loIds||[]).forEach(r=>e.add(r)),this.filhosVisiveisDe(o.id).forEach(n)};return n(t),e}valorAgregado(t){let e=0;for(let n of this.loIdsSubtree(t))e+=this.valorLoPorId(n);return this.round2(e)}temValorAgregado(t){return this.loIdsSubtree(t).size>0}currency(t){return(Number(t)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}formatCompact(t){let e=Number(t)||0,n=Math.abs(e);return n>=1e6?"R$ "+(e/1e6).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1})+" MM":n>=1e3?"R$ "+(e/1e3).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1})+" k":"R$ "+e.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})}membroForaDaLo(t,e){if(!this.mostrarMarcacoesDeTime(t)||!e.personId&&this.norm(e.nomePessoa)===this.norm(this.tbdNome))return!1;let n=t.loIds||[];if(!n.length)return!1;let o=this.norm(e.nomePessoa);return!this.alocacoes.some(r=>n.includes(r.linhaOrcamentariaId)&&this.norm(r.nomePessoa)===o)}nodeQtdAlertas(t){return this.mostrarMarcacoesDeTime(t)?(t.membros||[]).filter(e=>this.membroForaDaLo(t,e)).length:0}abrirGerar(){this.gerarAberto=!0,this.gerarLoId="",this.gerarParentId=""}cancelarGerar(){this.gerarAberto=!1}pessoasDaLo(t){let e=new Set,n=[];for(let o of this.alocacoes){if(o.linhaOrcamentariaId!==t||o.draft)continue;let r=String(o.nomePessoa||"").trim();if(!r)continue;let c=this.norm(r);if(e.has(c))continue;e.add(c);let p=this.pessoas.find(m=>this.norm(m.nome)===c);n.push({personId:p?.id??null,nomePessoa:r,papel:o.perfilNome||"",cross:!1})}return n}qtdPessoasDaLo(t){return t?this.pessoasDaLo(t).length:0}gerarSquadDaLo(){let t=this.linhasOrcamentarias.find(n=>n.id===this.gerarLoId);if(!t)return;let e=this.pessoasDaLo(t.id);this.create.emit({tipo:"SQUAD",nome:t.nome||t.codigo||"Squad",descricao:"",parentId:this.gerarParentId||null,membros:e.map(n=>({personId:n.personId,nomePessoa:n.nomePessoa,papel:n.papel})),loIds:[t.id]}),this.gerarAberto=!1,this.gerarLoId="",this.gerarParentId=""}onMembroDragStart(t,e,n){this.dragOrigem={nodeId:t.id,index:e},n.dataTransfer&&(n.dataTransfer.effectAllowed="move")}onMembroDragEnd(){this.dragOrigem=null,this.dragOverNodeId=""}onNodeDragOver(t,e){if(this.dragNodeId){if(!this.podeReceberEstrutura(t.id))return;e.preventDefault(),e.dataTransfer&&(e.dataTransfer.dropEffect="move"),this.dragOverNodeId=t.id,this.dragOverRoot=!1;return}this.dragOrigem&&(e.preventDefault(),e.dataTransfer&&(e.dataTransfer.dropEffect="move"),this.dragOverNodeId=t.id)}onNodeDragLeave(t){this.dragOverNodeId===t.id&&(this.dragOverNodeId="")}onNodeDrop(t,e){e.preventDefault();if(this.dragNodeId){let s=this.nodes.find(c=>c.id===this.dragNodeId),ok=this.podeReceberEstrutura(t.id);this.dragOverNodeId="",this.dragNodeId=null;if(s&&ok)this.reparentEstrutura(s,[t.id]);return}this.dragOverNodeId="";let n=this.dragOrigem;if(this.dragOrigem=null,!n||n.nodeId===t.id)return;let o=this.nodes.find(c=>c.id===n.nodeId);if(!o)return;let r=(o.membros||[])[n.index];r&&this.moveMember.emit({fromNodeId:o.id,toNodeId:t.id,nomePessoa:r.nomePessoa})}removerMembroDoNode(t,e,n){n.stopPropagation();let o=(t.membros||[]).filter((r,c)=>c!==e);this.emitirAtualizacaoMembros(t,o)}emitirAtualizacaoMembros(t,e){let n=this.tipoNormalizado(t.tipo);this.update.emit({id:t.id,tipo:n,tipoRotulo:t.tipoRotulo||null,nome:t.nome,descricao:t.descricao||"",parentId:t.parentId||null,ordem:t.ordem,membros:e.map(o=>({personId:o.personId??null,nomePessoa:o.nomePessoa,papel:o.papel||"",cross:!!o.cross,vinculo:o.vinculo??null,percentual:this.tipoPermiteMarcacoesDeTime(n)?o.percentual??null:null,subgrupo:o.subgrupo??null})),loIds:[...t.loIds||[]],projetoIds:[...t.projetoIds||[]],projetosOcultos:[...t.projetosOcultos||[]]})}nodesParaExportar(){return this.ensureHiddenLoaded(),this.nodes.filter(t=>!this.estaEmCadeiaOculta(t)).sort((t,e)=>{let n=this.tipos.indexOf(this.tipoNormalizado(t.tipo))-this.tipos.indexOf(this.tipoNormalizado(e.tipo));return n!==0?n:this.byOrdem(t,e)})}async exportar(){let t=this.exportRootId?this.nodes.find(m=>m.id===this.exportRootId):null,e=t&&!this.estaEmCadeiaOculta(t)?[t]:this.raizesVisiveis();if(!e.length)return;let n=t?t.nome:"Hierarquia Organizacional",o=e.map(m=>this.renderNodeHtml(m)).join(""),r=new Date().toLocaleDateString("pt-BR"),c=document.createElement("div");c.innerHTML=`
+toast=U(it);tbdNome="TBD - To be defined";nodes: any[] = []; pessoas: any[] = []; perfis: any[] = []; fotos: Record<string, string> = {}; percentuais: Record<string, number> = {}; linhasOrcamentarias: any[] = []; ajustes: any[] = []; alocacoes: any[] = []; projetos: any[] = []; create = new G<any>(); update = new G<any>(); remove = new G<string>(); moveMember = new G<any>();tipos=["PRESIDENCIA","VICE_PRESIDENCIA","SUPERINTENDENCIA","DIRETORIA","GERENCIA","TRIBO","SQUAD","CUSTOM"];tipoLabels={PRESIDENCIA:"Presid\xEAncia",VICE_PRESIDENCIA:"Vice-presid\xEAncia",SUPERINTENDENCIA:"Superintend\xEAncia",DIRETORIA:"Diretoria",GERENCIA:"Ger\xEAncia",TRIBO:"Tribo",SQUAD:"Squad",CUSTOM:"Personalizado"};formAberto=!1;editingId="";form: any={tipo:"PRESIDENCIA",tipoRotulo:"",nome:"",descricao:"",parentIds:[],loIds:[],custosExtras:[],projetoIds:[],projetosOcultos:[]};membros: any[] = [];membroSel={personId:"",papel:"",cross:!1,subgrupo:""};grupoDefs=[{key:"folha",titulo:"Folha",cls:"g-folha"},{key:"terceiro",titulo:"Terceiros",cls:"g-terceiro"}];tbdVinculo="FOLHA";gerarAberto=!1;gerarLoId="";gerarParentId="";exportRootId="";ocultarValoresExport=!1;ocultarProjetos=!1;hiddenNodeIds: Set<string> | null = null;dragOrigem: any = null;dragOverNodeId="";tipoLabel(t){return this.tipoLabels[this.tipoNormalizado(t)]||this.tipoLabels[t]||t}rotuloNode(t){if(this.tipoNormalizado(t?.tipo)==="CUSTOM"&&(t?.tipoRotulo||"").trim())return t.tipoRotulo.trim();return this.tipoLabel(t?.tipo)}tipoClasse(t){return this.tipoNormalizado(t)}tipoNormalizado(t){return t}tipoPermiteMarcacoesDeTime(t){let e=this.tipoNormalizado(t);return e==="TRIBO"||e==="SQUAD"||e==="CUSTOM"}contaFtePropria(t){let e=this.tipoNormalizado(t?.tipo);return e==="SQUAD"||e==="CUSTOM"}byOrdem(t,e){let n=t.ordem??0,o=e.ordem??0;return n!==o?n-o:String(t.nome||"").localeCompare(String(e.nome||""),"pt-BR")}paisDe(t){return t?((t.parentIds&&t.parentIds.length?t.parentIds:t.parentId?[t.parentId]:[])||[]).filter(n=>!!n):[]}parentVinculado(t){return this.form.parentIds.includes(t)}toggleParent(t){let e=this.form.parentIds.indexOf(t);e>=0?this.form.parentIds.splice(e,1):this.form.parentIds.push(t)}vinculoDestacado=null;alternarVinculo(t,e,n){n?.stopPropagation(),this.vinculoAtivo(t,e)?this.vinculoDestacado=null:this.vinculoDestacado={de:t,para:e}}vinculoAtivo(t,e){return!!this.vinculoDestacado&&this.vinculoDestacado.de===t&&this.vinculoDestacado.para===e}ehOrigemDestacada(t){return this.vinculoDestacado?.de===t}ehDestinoDestacado(t){return this.vinculoDestacado?.para===t}limparVinculoDestacado(){this.vinculoDestacado=null}nomePorId(t){let e=this.nodes.find(n=>n.id===t);return e?`${this.tipoLabel(e.tipo)} \xB7 ${e.nome}`:""}raizes(){let t=new Set(this.nodes.map(e=>e.id));return this.nodes.filter(e=>this.paisDe(e).filter(n=>t.has(n)).length===0).sort((e,n)=>this.byOrdem(e,n))}raizesVisiveis(){if(this.ensureHiddenLoaded(),this.exportRootId){let t=this.nodes.find(e=>e.id===this.exportRootId);if(t&&!this.estaEmCadeiaOculta(t))return[t]}return this.raizes().filter(t=>!this.isOculto(t.id))}filhosDe(t){return this.nodes.filter(e=>this.paisDe(e).includes(t)).sort((e,n)=>this.byOrdem(e,n))}filhosVisiveisDe(t){return this.ensureHiddenLoaded(),this.filhosDe(t).filter(e=>!this.isOculto(e.id))}paiPrincipalDeRender(t){let e=new Set(this.nodes.map(o=>o.id));return this.paisDe(t).filter(o=>e.has(o)&&!this.isOculto(o))[0]||null}filhosRenderVisiveisDe(t){return this.filhosVisiveisDe(t).filter(e=>this.paiPrincipalDeRender(e)===t)}ocultosDiretosRenderDe(t){return this.filhosDe(t).filter(e=>this.isOculto(e.id)&&this.paiPrincipalDeRender(e)===t)}temMultiplosPais(t){return this.paisDe(t).filter(e=>this.nodes.some(n=>n.id===e)).length>1}paisVisiveisDoNode(t){return this.paisDe(t).map(e=>this.nodes.find(n=>n.id===e)).filter(e=>!!e).sort((e,n)=>this.byOrdem(e,n))}paisLabel(t){let e=this.paisVisiveisDoNode(t);return e.length?`Ligado a: ${e.map(n=>n.nome).join(", ")}`:""}hiddenStorageKey(){let t=(localStorage.getItem("planner_user")||"").trim().toLowerCase();return t?`planner_hierarchy_hidden_${t}`:"planner_hierarchy_hidden"}ensureHiddenLoaded(){if(!this.hiddenNodeIds)try{let t=JSON.parse(localStorage.getItem(this.hiddenStorageKey())||"[]");this.hiddenNodeIds=new Set(Array.isArray(t)?t.map(String):[])}catch{this.hiddenNodeIds=new Set}}saveHiddenState(){this.ensureHiddenLoaded();let t=[...this.hiddenNodeIds||[]].filter(e=>this.nodes.some(n=>n.id===e));this.hiddenNodeIds=new Set(t),localStorage.setItem(this.hiddenStorageKey(),JSON.stringify(t))}isOculto(t){return this.ensureHiddenLoaded(),!!this.hiddenNodeIds?.has(t)}estaEmCadeiaOculta(t){this.ensureHiddenLoaded();let e=t,n=new Set;for(;e&&!n.has(e.id);){if(this.isOculto(e.id))return!0;n.add(e.id);let o=this.paisDe(e)[0];e=o?this.nodes.find(r=>r.id===o):void 0}return!1}ocultarCadeia(t,e){e?.stopPropagation(),this.ensureHiddenLoaded(),this.hiddenNodeIds?.add(t.id),this.exportRootId===t.id&&(this.exportRootId=""),this.saveHiddenState(),this.onHierarchyLayoutChange()}mostrarCadeia(t){this.ensureHiddenLoaded(),this.hiddenNodeIds?.delete(t),this.saveHiddenState(),this.onHierarchyLayoutChange()}limparOcultos(){this.ensureHiddenLoaded(),this.hiddenNodeIds?.clear(),this.saveHiddenState(),this.onHierarchyLayoutChange()}ocultosDiretosDe(t){return this.filhosDe(t).filter(e=>this.isOculto(e.id))}raizesOcultas(){return this.raizes().filter(t=>this.isOculto(t.id))}totalOcultos(){return this.ensureHiddenLoaded(),[...this.hiddenNodeIds||[]].filter(t=>this.nodes.some(e=>e.id===t)).length}countCadeia(t){return this.subtree(t.id).size}paisDisponiveis(){if(!this.editingId)return[...this.nodes].sort((e,n)=>this.byOrdem(e,n));let t=this.subtree(this.editingId);return this.nodes.filter(e=>!t.has(e.id)).sort((e,n)=>this.byOrdem(e,n))}subtree(t){let e=new Set([t]),n=!0;for(;n;){n=!1;for(let o of this.nodes)!e.has(o.id)&&this.paisDe(o).some(r=>e.has(r))&&(e.add(o.id),n=!0)}return e}totalPessoas(){let t=new Set;for(let e of this.nodes)for(let n of e.membros||[])this.membroContaNoTotal(n)&&t.add(this.norm(n.nomePessoa));return t.size}pessoaDebitaLo(t){let e=String(t?.perfilId||"").trim();if(e){let o=this.perfis.find(r=>String(r?.id||"").trim()===e);if(o)return o.debitaLo!==!1}let n=this.norm(this.perfilNomeDaPessoa(t));if(n){let o=this.perfis.find(r=>this.norm(r?.nomePerfil||r?.nome||"")===n);if(o)return o.debitaLo!==!1}return!0}membroContaNoTotal(t){let e=this.pessoaDoMembro(t);return e?this.pessoaDebitaLo(e):!0}norm(t){return String(t||"").trim().toLowerCase()}fotoDe(t){return this.fotos?.[this.norm(t)]||""}iniciais(t){let e=String(t||"").trim().split(/\s+/).filter(Boolean);return e.length?((e[0][0]||"")+(e.length>1&&e[e.length-1][0]||"")).toUpperCase():"?"}pessoaDoMembro(t){if(t?.personId){let e=this.pessoas.find(n=>n.id===t.personId);if(e)return e}return this.pessoas.find(e=>this.norm(e?.nome||"")===this.norm(t?.nomePessoa||""))||null}mostrarMarcacoesDeTime(t){return this.tipoPermiteMarcacoesDeTime(t.tipo)}mostrarPercentual(t){return this.mostrarMarcacoesDeTime(t)&&!this.ocultarValoresExport}percentualPessoa(t){if(t?.percentual!=null)return Math.round(t.percentual*100)/100;let e=this.percentuais?.[this.norm(t.nomePessoa)];return e==null?null:Math.round(e*100)/100}corPercentual(t){let e=Math.max(0,Math.min(100,t??0))/100,n=[249,115,22],o=[37,99,235],r=n.map((c,p)=>Math.round(c+(o[p]-c)*e));return`rgb(${r[0]}, ${r[1]}, ${r[2]})`}pctEditKey=null;pctEditValue=null;pctKey(t,e){return`${t.id}|${e}`}editandoPct(t,e){return this.pctEditKey===this.pctKey(t,e)}iniciarEdicaoPct(t,e,n,o){if(!this.mostrarPercentual(t))return;o.stopPropagation(),o.preventDefault(),this.pctEditKey=this.pctKey(t,e);let r=this.percentualPessoa(n);this.pctEditValue=r??100}salvarPct(t,e){if(!this.mostrarPercentual(t)){this.cancelarEdicaoPct();return}if(this.pctEditKey!==this.pctKey(t,e))return;let n=Number(this.pctEditValue),o=Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n*100)/100)):null,r=(t.membros||[]).map((c,p)=>p===e?Y($({},c),{percentual:o}):c);this.pctEditKey=null,this.pctEditValue=null,this.emitirAtualizacaoMembros(t,r)}cancelarEdicaoPct(){this.pctEditKey=null,this.pctEditValue=null}ehTerceiro(t){let e=this.pessoaDoMembro(t);return e?String(e.tipoVinculo||"").toUpperCase()==="TERCEIRO":String(t?.vinculo||"").toUpperCase()==="TERCEIRO"}vinculoLabel(t){return this.ehTerceiro(t)?"Terceiro":"Folha"}papelDoMembro(t){if(t?.papel&&t.papel.trim())return this.primeiraPartePerfil(t.papel);let e=this.pessoaDoMembro(t);return this.primeiraPartePerfil(this.perfilNomeDaPessoa(e))}primeiraPartePerfil(t){return String(t||"").split("|")[0].trim()}perfilNomeDaPessoa(t){if(!t)return"";let e=String(t?.perfilNome||t?.perfil||"").trim();if(e)return e;let n=String(t?.perfilId||"").trim();if(!n)return"";let o=this.perfis.find(r=>String(r?.id||"").trim()===n);return String(o?.nomePerfil||o?.nome||"").trim()}areaDoMembro(t){let e=this.pessoaDoMembro(t);if(!e)return"";let n=this.perfilNomeDaPessoa(e);return this.ehTerceiro(t)?e.consultoria||this.primeiraPartePerfil(n)||"":this.primeiraPartePerfil(n)}metaDoMembro(t){let e=this.papelDoMembro(t),n=this.areaDoMembro(t);return e&&n&&this.norm(this.primeiraPartePerfil(e))===this.norm(this.primeiraPartePerfil(n))?e:[e,n].filter(Boolean).join(" \xB7 ")}ehCross(t){return!!t?.cross}membrosPorGrupo(t,e,n=null){return(t.membros||[]).map((o,r)=>({m:o,idx:r})).filter(o=>n!=null&&(o.m.subgrupo||"").trim()!==n?!1:this.ehTerceiro(o.m)===(e==="terceiro")).sort((o,r)=>this.rankPapel(t,o.m)-this.rankPapel(t,r.m)||o.idx-r.idx)}subgruposDoNode(t){let e=new Set,n=[];for(let o of t.membros||[]){let r=(o.subgrupo||"").trim();!r||e.has(r)||(e.add(r),n.push({key:r,label:r}))}return n}subgruposParaRender(t){let e=this.subgruposDoNode(t);if(!e.length)return[{key:"__flat__",label:"",filter:null}];let n=[];(t.membros||[]).some(o=>!(o.subgrupo||"").trim())&&n.push({key:"__flat__",label:"",filter:""});for(let o of e)n.push({key:o.key,label:o.label,filter:o.key});return n}subgruposSugeridos(){let t=new Set;for(let e of this.nodes)for(let n of e.membros||[]){let o=(n.subgrupo||"").trim();o&&t.add(o)}return Array.from(t).sort((e,n)=>e.localeCompare(n,"pt-BR"))}rankPapel(t,e){let n=this.norm(this.papelDoMembro(e)),o=this.tipoNormalizado(t.tipo);return o==="SUPERINTENDENCIA"?n==="superintendente"?0:n.includes("gerente")?1:2:o==="TRIBO"?n==="lpt"?0:n==="ltt"||n==="lnp"?1:2:o==="SQUAD"?n==="it lead"||n==="pm"?0:1:0}membrosPorVinculo(t,e){return this.membrosPorGrupo(t,e?"terceiro":"folha")}membroContaFte(t){let e=this.pessoaDoMembro(t);return!(e&&e.contaFte===!1)}fteMembro(t){return this.membroContaFte(t)?(this.percentualPessoa(t)??100)/100:0}fteGrupo(t,e,n=null){return this.mostrarMarcacoesDeTime(t)?this.membrosPorGrupo(t,e,n).reduce((o,r)=>o+this.fteMembro(r.m),0):0}formatFte(t){let e=Math.round(t*100)/100;return Number.isInteger(e)?String(e):e.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:2})}percentualGrupoSquad(t,e,n=null){if(!this.contaFtePropria(t)||e!=="folha"&&e!=="terceiro")return"";let o=this.fteGrupo(t,"folha",n),r=this.fteGrupo(t,"terceiro",n),c=o+r;return c?`${Math.round((e==="folha"?o:r)/c*100)}%`:""}resumoGrupoSquad(t,e,n=null){if(!this.mostrarMarcacoesDeTime(t)){let c=this.membrosPorGrupo(t,e,n).length;return c?String(c):""}if(!this.membrosPorGrupo(t,e,n).length)return"";let o=this.formatFte(this.fteGrupo(t,e,n)),r=this.percentualGrupoSquad(t,e,n);return r?`${o} \xB7 ${r}`:o}abrirNovo(t=""){this.formAberto=!0,this.editingId="",this.form={tipo:t?this.tipoSugerido(t):"PRESIDENCIA",tipoRotulo:"",nome:"",descricao:"",parentIds:t?[t]:[],loIds:[],projetoIds:[],projetosOcultos:[]},this.membros=[],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:""}}tipoSugerido(t){let e=this.nodes.find(o=>o.id===t),n=e?this.tipos.indexOf(this.tipoNormalizado(e.tipo)):-1,r=n>=0&&n<this.tipos.length-1?this.tipos[n+1]:"SQUAD";return r==="CUSTOM"?"SQUAD":r}editar(t){this.formAberto=!0,this.editingId=t.id,this.form={tipo:this.tipoNormalizado(t.tipo),tipoRotulo:t.tipoRotulo||"",nome:t.nome,descricao:t.descricao||"",parentIds:[...this.paisDe(t)],loIds:[...t.loIds||[]],projetoIds:[...t.projetoIds||[]],projetosOcultos:[...t.projetosOcultos||[]]},this.membros=(t.membros||[]).map(e=>({personId:e.personId??null,nomePessoa:e.nomePessoa,papel:e.papel||"",cross:!!e.cross,vinculo:e.vinculo??null,percentual:e.percentual??null,subgrupo:e.subgrupo??null})),this.membroSel={personId:"",papel:"",cross:!1,subgrupo:""}}cancelar(){this.formAberto=!1,this.editingId="",this.membros=[]}get nomeValido(){return(this.form.nome||"").trim().length>0}get formValido(){return this.nomeValido}adicionarMembro(){if(!this.membroSel.personId){this.toast.show("Selecione uma pessoa para adicionar \xE0 estrutura.","error");return}let t=this.pessoas.find(n=>n.id===this.membroSel.personId);if(!t){this.toast.show("Pessoa selecionada n\xE3o foi encontrada. Atualize a lista e tente novamente.","error");return}if(this.membros.some(n=>this.norm(n.nomePessoa)===this.norm(t.nome))){this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo},this.toast.show("Essa pessoa j\xE1 est\xE1 vinculada nesta estrutura.","error");return}let e=this.membroSel.subgrupo.trim();this.membros=[...this.membros,{personId:t.id,nomePessoa:t.nome,papel:this.membroSel.papel.trim(),cross:this.membroSel.cross,subgrupo:e||null}],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo}}adicionarMembroTbd(){let t=this.membroSel.papel.trim();if(!t){this.toast.show("Informe o cargo da pessoa TBD antes de adicionar.","error");return}if(this.norm(t)==="to be defined"||this.norm(t)===this.norm(this.tbdNome)){this.toast.show('O subt\xEDtulo do TBD deve ser o cargo da vaga, n\xE3o "To be defined".',"error");return}let e=this.membroSel.subgrupo.trim();this.membros=[...this.membros,{personId:null,nomePessoa:this.tbdNome,papel:t,cross:this.membroSel.cross,vinculo:this.tbdVinculo,subgrupo:e||null}],this.membroSel={personId:"",papel:"",cross:!1,subgrupo:this.membroSel.subgrupo},this.tbdVinculo="FOLHA"}removerMembro(t){this.membros=this.membros.filter((e,n)=>n!==t)}podeSalvar(){return!!this.form.nome.trim()&&this.tipos.includes(this.form.tipo)}validarCadastro(){let t=this.form.nome.trim();if(!this.tipos.includes(this.form.tipo))return"Selecione um tipo v\xE1lido para a estrutura.";if(this.form.tipo==="CUSTOM"&&!(this.form.tipoRotulo||"").trim())return"Informe o nome do tipo da estrutura personalizada.";if(!t)return"Informe o nome da estrutura.";if(t.length<2)return"O nome da estrutura precisa ter pelo menos 2 caracteres.";for(let c of this.form.parentIds)if(!this.nodes.some(p=>p.id===c))return"Uma das estruturas superiores selecionadas n\xE3o existe mais.";let e=this.form.parentIds,n=this.norm(t);if(this.nodes.some(c=>{if(c.id===this.editingId||this.norm(c.nome)!==n)return!1;let p=this.paisDe(c);return e.length===0&&p.length===0?!0:p.some(m=>e.includes(m))}))return"J\xE1 existe uma estrutura com esse nome no mesmo n\xEDvel.";let r=new Set;for(let c of this.membros){let p=String(c?.nomePessoa||"").trim();if(!p)return"Remova ou corrija membros sem nome antes de salvar.";if(this.norm(p)===this.norm(this.tbdNome)){let h=String(c?.papel||"").trim();if(!h)return"Todo TBD precisa ter um cargo informado.";if(this.norm(h)==="to be defined"||this.norm(h)===this.norm(this.tbdNome))return'O subt\xEDtulo do TBD deve ser o cargo da vaga, n\xE3o "To be defined".';continue}let m=this.norm(p);if(r.has(m))return`A pessoa "${p}" foi adicionada mais de uma vez.`;r.add(m)}return""}salvar(){let t=this.validarCadastro();if(t){this.toast.show(t,"error");return}let e=this.tipoNormalizado(this.form.tipo),n={tipo:e,tipoRotulo:e==="CUSTOM"?(this.form.tipoRotulo||"").trim():null,nome:this.form.nome.trim(),descricao:this.form.descricao.trim(),parentIds:[...this.form.parentIds],parentId:this.form.parentIds[0]||null,membros:this.membros.map(o=>({personId:o.personId,nomePessoa:o.nomePessoa,papel:o.papel,cross:!!o.cross,vinculo:o.vinculo??null,percentual:this.tipoPermiteMarcacoesDeTime(e)?o.percentual??null:null,subgrupo:o.subgrupo??null})),loIds:[...this.form.loIds],projetoIds:[...this.form.projetoIds||[]],projetosOcultos:[...this.form.projetosOcultos||[]]};this.editingId?this.update.emit($({id:this.editingId},n)):this.create.emit(n),this.cancelar()}excluir(t){this.remove.emit(t.id),this.editingId===t.id&&this.cancelar()}losDisponiveis(){return[...this.linhasOrcamentarias].sort((t,e)=>{let n=Number(e?.ano||0)-Number(t?.ano||0);return n!==0?n:String(t?.codigo||t?.nome||"").localeCompare(String(e?.codigo||e?.nome||""),"pt-BR")})}loVinculada(t){return this.form.loIds.includes(t)}toggleLo(t){this.form.loIds=this.loVinculada(t)?this.form.loIds.filter(e=>e!==t):[...this.form.loIds,t]}somaLosForm(){return this.round2(this.form.loIds.reduce((t,e)=>t+this.valorLoPorId(e),0))}loLabel(t){let e=this.linhasOrcamentarias.find(n=>n.id===t);return e&&(e.codigo||e.nome)||t}losDoNode(t){return t.loIds||[]}round2(t){return Math.round((Number(t)||0)*100)/100}valorLoPorId(t){let e=this.linhasOrcamentarias.find(r=>r.id===t);if(!e)return 0;let n=Number(e.valorTotal||0),o=(this.ajustes||[]).filter(r=>r.budgetLineId===t).reduce((r,c)=>r+(String(c?.tipo||"").toUpperCase()==="APORTE"?Number(c?.valor||0):-Number(c?.valor||0)),0);return this.round2(n+o)}loIdsSubtree(t){let e=new Set,n=o=>{(o.loIds||[]).forEach(r=>e.add(r)),this.filhosVisiveisDe(o.id).forEach(n)};return n(t),e}valorAgregado(t){let e=0;for(let n of this.loIdsSubtree(t))e+=this.valorLoPorId(n);return this.round2(e)}temValorAgregado(t){return this.loIdsSubtree(t).size>0}currency(t){return(Number(t)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}formatCompact(t){let e=Number(t)||0,n=Math.abs(e);return n>=1e6?"R$ "+(e/1e6).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1})+" MM":n>=1e3?"R$ "+(e/1e3).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1})+" k":"R$ "+e.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})}membroForaDaLo(t,e){if(!this.mostrarMarcacoesDeTime(t)||!e.personId&&this.norm(e.nomePessoa)===this.norm(this.tbdNome))return!1;let n=t.loIds||[];if(!n.length)return!1;let o=this.norm(e.nomePessoa);return!this.alocacoes.some(r=>n.includes(r.linhaOrcamentariaId)&&this.norm(r.nomePessoa)===o)}nodeQtdAlertas(t){return this.mostrarMarcacoesDeTime(t)?(t.membros||[]).filter(e=>this.membroForaDaLo(t,e)).length:0}abrirGerar(){this.gerarAberto=!0,this.gerarLoId="",this.gerarParentId=""}cancelarGerar(){this.gerarAberto=!1}pessoasDaLo(t){let e=new Set,n=[];for(let o of this.alocacoes){if(o.linhaOrcamentariaId!==t||o.draft)continue;let r=String(o.nomePessoa||"").trim();if(!r)continue;let c=this.norm(r);if(e.has(c))continue;e.add(c);let p=this.pessoas.find(m=>this.norm(m.nome)===c);n.push({personId:p?.id??null,nomePessoa:r,papel:o.perfilNome||"",cross:!1})}return n}qtdPessoasDaLo(t){return t?this.pessoasDaLo(t).length:0}gerarSquadDaLo(){let t=this.linhasOrcamentarias.find(n=>n.id===this.gerarLoId);if(!t)return;let e=this.pessoasDaLo(t.id);this.create.emit({tipo:"SQUAD",nome:t.nome||t.codigo||"Squad",descricao:"",parentId:this.gerarParentId||null,membros:e.map(n=>({personId:n.personId,nomePessoa:n.nomePessoa,papel:n.papel})),loIds:[t.id]}),this.gerarAberto=!1,this.gerarLoId="",this.gerarParentId=""}onMembroDragStart(t,e,n){this.dragOrigem={nodeId:t.id,index:e},n.dataTransfer&&(n.dataTransfer.effectAllowed="move")}onMembroDragEnd(){this.dragOrigem=null,this.dragOverNodeId=""}onNodeDragOver(t,e){if(this.dragNodeId){if(!this.podeReceberEstrutura(t.id))return;e.preventDefault(),e.dataTransfer&&(e.dataTransfer.dropEffect="move"),this.dragOverNodeId=t.id,this.dragOverRoot=!1;return}this.dragOrigem&&(e.preventDefault(),e.dataTransfer&&(e.dataTransfer.dropEffect="move"),this.dragOverNodeId=t.id)}onNodeDragLeave(t){this.dragOverNodeId===t.id&&(this.dragOverNodeId="")}onNodeDrop(t,e){e.preventDefault();if(this.dragNodeId){let s=this.nodes.find(c=>c.id===this.dragNodeId),ok=this.podeReceberEstrutura(t.id);this.dragOverNodeId="",this.dragNodeId=null;if(s&&ok)this.reparentEstrutura(s,[t.id]);return}this.dragOverNodeId="";let n=this.dragOrigem;if(this.dragOrigem=null,!n||n.nodeId===t.id)return;let o=this.nodes.find(c=>c.id===n.nodeId);if(!o)return;let r=(o.membros||[])[n.index];r&&this.moveMember.emit({fromNodeId:o.id,toNodeId:t.id,nomePessoa:r.nomePessoa})}removerMembroDoNode(t,e,n){n.stopPropagation();let o=(t.membros||[]).filter((r,c)=>c!==e);this.emitirAtualizacaoMembros(t,o)}emitirAtualizacaoMembros(t,e){let n=this.tipoNormalizado(t.tipo);this.update.emit({id:t.id,tipo:n,tipoRotulo:t.tipoRotulo||null,nome:t.nome,descricao:t.descricao||"",parentId:t.parentId||null,ordem:t.ordem,membros:e.map(o=>({personId:o.personId??null,nomePessoa:o.nomePessoa,papel:o.papel||"",cross:!!o.cross,vinculo:o.vinculo??null,percentual:this.tipoPermiteMarcacoesDeTime(n)?o.percentual??null:null,subgrupo:o.subgrupo??null})),loIds:[...t.loIds||[]],projetoIds:[...t.projetoIds||[]],projetosOcultos:[...t.projetosOcultos||[]]})}nodesParaExportar(){return this.ensureHiddenLoaded(),this.nodes.filter(t=>!this.estaEmCadeiaOculta(t)).sort((t,e)=>{let n=this.tipos.indexOf(this.tipoNormalizado(t.tipo))-this.tipos.indexOf(this.tipoNormalizado(e.tipo));return n!==0?n:this.byOrdem(t,e)})}async exportar(){let t=this.exportRootId?this.nodes.find(m=>m.id===this.exportRootId):null,e=t&&!this.estaEmCadeiaOculta(t)?[t]:this.raizesVisiveis();if(!e.length)return;let n=t?t.nome:"Hierarquia Organizacional",o=e.map(m=>this.renderNodeHtml(m)).join(""),r=new Date().toLocaleDateString("pt-BR"),c=document.createElement("div");c.innerHTML=`
 <style>
   .hierarchy-export, .hierarchy-export * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
   .hierarchy-export {
@@ -1222,4 +1223,177 @@ toast=U(it);tbdNome="TBD - To be defined";nodes: any[] = []; pessoas: any[] = []
       ${o}
     </div>`}
 
+  custoExtraForm = { nome: '', valorMensal: 0, meses: 12 };
+  custoDetalheNode: any = null;
+
+  private novoIdLocal(): string {
+    try { return crypto.randomUUID(); } catch { return `${Date.now()}_${Math.random().toString(16).slice(2)}`; }
+  }
+
+  private normalizarCustosExtras(custos: any[] = []): any[] {
+    return (custos || [])
+      .map((c: any) => ({
+        id: c?.id || this.novoIdLocal(),
+        nome: String(c?.nome || '').trim(),
+        valorMensal: Math.max(0, Number(c?.valorMensal || 0)),
+        meses: Math.max(0, Math.min(120, Math.round(Number(c?.meses ?? 12) || 0)))
+      }))
+      .filter((c: any) => c.nome);
+  }
+
+  adicionarCustoExtra(): void {
+    const item = this.normalizarCustosExtras([this.custoExtraForm])[0];
+    if (!item) {
+      this.toast.show('Informe a descrição do custo adicional.', 'error');
+      return;
+    }
+    this.form.custosExtras = [...(this.form.custosExtras || []), item];
+    this.custoExtraForm = { nome: '', valorMensal: 0, meses: 12 };
+  }
+
+  removerCustoExtra(index: number): void {
+    this.form.custosExtras = (this.form.custosExtras || []).filter((_: any, i: number) => i !== index);
+  }
+
+  totalCustoExtra(c: any): number {
+    return this.round2(Number(c?.valorMensal || 0) * Number(c?.meses || 0));
+  }
+
+  abrirNovo(t = "") {
+    this.formAberto = true;
+    this.editingId = "";
+    this.form = { tipo: t ? this.tipoSugerido(t) : "PRESIDENCIA", tipoRotulo: "", nome: "", descricao: "", parentIds: t ? [t] : [], loIds: [], custosExtras: [], projetoIds: [], projetosOcultos: [] };
+    this.custoExtraForm = { nome: '', valorMensal: 0, meses: 12 };
+    this.membros = [];
+    this.membroSel = { personId: "", papel: "", cross: false, subgrupo: "" };
+  }
+
+  editar(t: any) {
+    this.formAberto = true;
+    this.editingId = t.id;
+    this.form = {
+      tipo: this.tipoNormalizado(t.tipo), tipoRotulo: t.tipoRotulo || "", nome: t.nome, descricao: t.descricao || "",
+      parentIds: [...this.paisDe(t)], loIds: [...(t.loIds || [])], custosExtras: this.normalizarCustosExtras(t.custosExtras || []),
+      projetoIds: [...(t.projetoIds || [])], projetosOcultos: [...(t.projetosOcultos || [])]
+    };
+    this.custoExtraForm = { nome: '', valorMensal: 0, meses: 12 };
+    this.membros = (t.membros || []).map((e: any) => ({ personId: e.personId ?? null, nomePessoa: e.nomePessoa, papel: e.papel || "", cross: !!e.cross, vinculo: e.vinculo ?? null, percentual: e.percentual ?? null, subgrupo: e.subgrupo ?? null }));
+    this.membroSel = { personId: "", papel: "", cross: false, subgrupo: "" };
+  }
+
+  salvar() {
+    const t = this.validarCadastro();
+    if (t) { this.toast.show(t, "error"); return; }
+    const e = this.tipoNormalizado(this.form.tipo);
+    const n = {
+      tipo: e,
+      tipoRotulo: e === "CUSTOM" ? (this.form.tipoRotulo || "").trim() : null,
+      nome: this.form.nome.trim(),
+      descricao: this.form.descricao.trim(),
+      parentIds: [...this.form.parentIds],
+      parentId: this.form.parentIds[0] || null,
+      membros: this.membros.map((o: any) => ({ personId: o.personId, nomePessoa: o.nomePessoa, papel: o.papel, cross: !!o.cross, vinculo: o.vinculo ?? null, percentual: this.tipoPermiteMarcacoesDeTime(e) ? o.percentual ?? null : null, subgrupo: o.subgrupo ?? null })),
+      loIds: [...this.form.loIds],
+      custosExtras: this.normalizarCustosExtras(this.form.custosExtras || []),
+      projetoIds: [...(this.form.projetoIds || [])],
+      projetosOcultos: [...(this.form.projetosOcultos || [])]
+    };
+    this.editingId ? this.update.emit(Object.assign({ id: this.editingId }, n)) : this.create.emit(n);
+    this.cancelar();
+  }
+
+  emitirAtualizacaoMembros(t: any, e: any[]) {
+    const n = this.tipoNormalizado(t.tipo);
+    this.update.emit({
+      id: t.id, tipo: n, tipoRotulo: t.tipoRotulo || null, nome: t.nome, descricao: t.descricao || "",
+      parentId: t.parentId || null, parentIds: [...this.paisDe(t)], ordem: t.ordem,
+      membros: e.map((o: any) => ({ personId: o.personId ?? null, nomePessoa: o.nomePessoa, papel: o.papel || "", cross: !!o.cross, vinculo: o.vinculo ?? null, percentual: this.tipoPermiteMarcacoesDeTime(n) ? o.percentual ?? null : null, subgrupo: o.subgrupo ?? null })),
+      loIds: [...(t.loIds || [])], custosExtras: this.normalizarCustosExtras(t.custosExtras || []),
+      projetoIds: [...(t.projetoIds || [])], projetosOcultos: [...(t.projetosOcultos || [])]
+    });
+  }
+
+  mostrarCustoEstrutura(node: any): boolean {
+    const tipo = this.tipoNormalizado(node?.tipo);
+    return tipo === 'SQUAD' || tipo === 'TRIBO';
+  }
+
+  tituloCustoEstrutura(node: any): string {
+    return this.tipoNormalizado(node?.tipo) === 'TRIBO'
+      ? 'Soma mensal/anual das squads descendentes visíveis'
+      : 'Custo calculado pelas pessoas cadastradas na estrutura e custos adicionais';
+  }
+
+  private membrosFinanceirosNode(node: any): any[] {
+    if (!node || !this.ehSquad(node)) return [];
+    return (node.membros || []).filter((m: any) => this.norm(m?.nomePessoa) !== this.norm(this.tbdNome));
+  }
+
+  private valorMensalPessoaMembro(m: any): number {
+    const pessoa = this.pessoaDoMembro(m);
+    const mensal = Number(pessoa?.valorMensal || 0);
+    if (Number.isFinite(mensal) && mensal > 0) return mensal;
+    const hora = Number(pessoa?.valorHora || 0);
+    return Number.isFinite(hora) && hora > 0 ? hora * 168 : 0;
+  }
+
+  private custoMensalProprioSquad(node: any): number {
+    const pessoas = this.membrosFinanceirosNode(node).reduce((sum: number, m: any) => {
+      const pct = this.percentualPessoa(m) ?? 100;
+      return sum + this.valorMensalPessoaMembro(m) * Math.max(0, Math.min(100, Number(pct) || 0)) / 100;
+    }, 0);
+    const extras = this.normalizarCustosExtras(node?.custosExtras || []).reduce((sum: number, c: any) => sum + Number(c.valorMensal || 0), 0);
+    return this.round2(pessoas + extras);
+  }
+
+  private squadsParaCusto(node: any): any[] {
+    if (!node) return [];
+    if (this.ehSquad(node)) return [node];
+    if (this.tipoNormalizado(node.tipo) !== 'TRIBO') return [];
+    const ids = this.subtree(node.id);
+    return (this.nodes || []).filter((n: any) => ids.has(n.id) && this.ehSquad(n) && !this.estaEmCadeiaOculta(n));
+  }
+
+  valorMensalSquad(node: any): number {
+    return this.round2(this.squadsParaCusto(node).reduce((sum: number, s: any) => sum + this.custoMensalProprioSquad(s), 0));
+  }
+
+  valorAnualSquad(node: any): number {
+    return this.round2(this.squadsParaCusto(node).reduce((sum: number, s: any) => {
+      const pessoas = this.membrosFinanceirosNode(s).reduce((acc: number, m: any) => {
+        const pct = this.percentualPessoa(m) ?? 100;
+        return acc + this.valorMensalPessoaMembro(m) * Math.max(0, Math.min(100, Number(pct) || 0)) / 100 * 12;
+      }, 0);
+      const extras = this.normalizarCustosExtras(s?.custosExtras || []).reduce((acc: number, c: any) => acc + Number(c.valorMensal || 0) * Number(c.meses || 0), 0);
+      return sum + pessoas + extras;
+    }, 0));
+  }
+
+  abrirCustoDetalhe(node: any, ev?: Event): void { ev?.stopPropagation(); this.custoDetalheNode = node; }
+  fecharCustoDetalhe(): void { this.custoDetalheNode = null; }
+
+  detalheCustoEstrutura(node: any): any[] {
+    const rows: any[] = [];
+    for (const s of this.squadsParaCusto(node)) {
+      for (const m of this.membrosFinanceirosNode(s)) {
+        const base = this.valorMensalPessoaMembro(m);
+        const pct = this.percentualPessoa(m) ?? 100;
+        const mensal = this.round2(base * Math.max(0, Math.min(100, Number(pct) || 0)) / 100);
+        rows.push({ id: `${s.id}|p|${m.personId || m.nomePessoa}`, tipo: this.ehSquad(node) ? 'Pessoa' : `Pessoa · ${s.nome}`, nome: m.nomePessoa, baseMensal: base, percentual: pct, mensal, anual: this.round2(mensal * 12) });
+      }
+      for (const c of this.normalizarCustosExtras(s?.custosExtras || [])) {
+        rows.push({ id: `${s.id}|c|${c.id}`, tipo: this.ehSquad(node) ? 'Outro custo' : `Outro custo · ${s.nome}`, nome: c.nome, baseMensal: Number(c.valorMensal || 0), percentual: null, mensal: Number(c.valorMensal || 0), anual: this.round2(Number(c.valorMensal || 0) * Number(c.meses || 0)) });
+      }
+    }
+    return rows;
+  }
+
+  renderTeamCostHtml(node: any): string {
+    if (this.ocultarValoresExport || !this.mostrarCustoEstrutura(node)) return '';
+    const mensal = this.valorMensalSquad(node);
+    if (mensal <= 0) return '';
+    return `<div class="team-cost"><span>Mensal <strong>${this.escapeHtml(this.currency(mensal))}</strong></span><span>Anual <strong>${this.escapeHtml(this.currency(this.valorAnualSquad(node)))}</strong></span></div>`;
+  }
 }
+
+

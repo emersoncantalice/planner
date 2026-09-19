@@ -524,7 +524,8 @@
   gap: 6px;
   font-size: .68rem;
 }
-.node-team-cost span {
+.node-team-cost > span,
+.node-team-cost .team-cost-link {
   display: grid;
   gap: 1px;
   padding: 5px 7px;
@@ -534,9 +535,52 @@
   color: #475569;
   white-space: nowrap;
 }
+.node-team-cost .team-cost-link {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+.node-team-cost .team-cost-link:hover {
+  transform: none;
+  filter: none;
+  border-color: #86efac;
+  background: #dcfce7;
+}
 .node-team-cost strong {
   color: #047857;
   font-size: .74rem;
+}
+
+.custos-edit { margin-top: 12px; }
+.custo-add {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 130px 90px auto;
+  gap: 8px;
+  align-items: center;
+}
+.custo-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.custo-list li {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 130px 90px 110px auto;
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.custo-list span {
+  color: #0f766e;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 /* FTE Total do time — chip discreto junto ao tipo (à direita) */

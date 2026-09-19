@@ -192,7 +192,7 @@ export class PlannerApiService {
     const qs = viewId ? `?viewId=${encodeURIComponent(viewId)}` : '';
     return this.http.get<any[]>(`${this.api}/hierarchy${qs}`, { headers: this.headers(token) });
   }
-  createHierarchyNode(token: string, payload: { tipo: string; tipoRotulo?: string | null; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[]; viewId?: string | null; posX?: number | null; posY?: number | null }) {
+  createHierarchyNode(token: string, payload: { tipo: string; tipoRotulo?: string | null; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[]; custosExtras?: { id?: string; nome: string; valorMensal: number; meses: number }[]; viewId?: string | null; posX?: number | null; posY?: number | null }) {
     return this.http.post<any>(`${this.api}/hierarchy`, payload, { headers: this.headers(token) });
   }
 
@@ -212,7 +212,7 @@ export class PlannerApiService {
   deleteHierarchyView(token: string, viewId: string) {
     return this.http.delete<void>(`${this.api}/hierarchy/views/${viewId}`, { headers: this.headers(token) });
   }
-  updateHierarchyNode(token: string, nodeId: string, payload: { tipo: string; tipoRotulo?: string | null; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[]; posX?: number | null; posY?: number | null }) {
+  updateHierarchyNode(token: string, nodeId: string, payload: { tipo: string; tipoRotulo?: string | null; nome: string; descricao?: string; parentId?: string | null; parentIds?: string[] | null; ordem?: number | null; membros?: { personId: string | null; nomePessoa: string; papel: string }[]; loIds?: string[]; custosExtras?: { id?: string; nome: string; valorMensal: number; meses: number }[]; posX?: number | null; posY?: number | null }) {
     return this.http.put<any>(`${this.api}/hierarchy/${nodeId}`, payload, { headers: this.headers(token) });
   }
   deleteHierarchyNode(token: string, nodeId: string) {
