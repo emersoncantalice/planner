@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { PlannerApiService } from '../../core/planner-api.service';
 import { ToastService } from '../../core/toast.service';
 import { uid as genUid } from '../../core/uid';
+import { ExportShape, toDrawio, toExcalidraw } from './drawing-export';
 
 export type Tool =
   | 'select' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'sticky' | 'line' | 'image'
@@ -3221,6 +3222,43 @@ export class DrawingPanelComponent implements AfterViewInit, OnChanges, OnDestro
   }
 
   // ── Export / Import JSON ──────────────────────────────────────────────────
+  exportExternal(format: 'drawio' | 'excalidraw') {
+    if (!this.current) return;
+    if (!this.shapes.length) { this.toast.show('Nada para exportar.', 'info', 3000); return; }
+    const shapes: ExportShape[] = this.shapes.map(s => {
+      if (s.type === 'arrow') {
+        const { start, end } = this.arrowEndpoints(s);
+        return { ...s, x: start.x, y: start.y, w: end.x - start.x, h: end.y - start.y };
+      }
+      if (!PATH_SHAPES.includes(s.type) || ['diamond', 'roundRect'].includes(s.type)) return { ...s };
+      const b = this.shapeBounds(s);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const pad = s.lw / 2;
+      svg.setAttribute('viewBox', `${b.x - pad} ${b.y - pad} ${b.w + 2 * pad} ${b.h + 2 * pad}`);
+      svg.setAttribute('width', String(b.w + 2 * pad));
+      svg.setAttribute('height', String(b.h + 2 * pad));
+      const path = document.createElementNS(svg.namespaceURI, 'path');
+      path.setAttribute('d', this.shapePath(s));
+      path.setAttribute('fill', s.fill === 'transparent' ? 'none' : s.fill);
+      path.setAttribute('stroke', s.stroke);
+      path.setAttribute('stroke-width', String(s.lw));
+      if (s.dash === 'dashed') path.setAttribute('stroke-dasharray', '6 4');
+      if (s.dash === 'dotted') path.setAttribute('stroke-dasharray', '1 3');
+      svg.appendChild(path);
+      return { ...s, vector: new XMLSerializer().serializeToString(svg) };
+    });
+    const tabName = this.tabs.find(t => t.id === this.activeTabId)?.nome || 'Desenho';
+    const data = format === 'drawio' ? toDrawio(shapes, tabName, this.background) : toExcalidraw(shapes, this.background);
+    const blob = new Blob([data], { type: format === 'drawio' ? 'application/xml;charset=utf-8' : 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.current.nome}-${tabName}.${format}`.replace(/[<>:"/\\|?*]/g, '_');
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.toast.show('Aba exportada. Formas especiais são imagens; fontes e vínculos podem variar no destino.', 'info', 5000);
+  }
+
   exportJson() {
     if (!this.current) return;
     const payload = {

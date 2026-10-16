@@ -366,6 +366,8 @@
 
 .topbar-actions {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
