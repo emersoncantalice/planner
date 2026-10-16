@@ -184,6 +184,61 @@ describe('orcamento de projeto — frentes', () => {
     expect([cl.E2.f, cl.E2.v]).toEqual(['C2*D2', 1200]);
   });
 
+  it('conta meses do projeto a partir do inicio da primeira atividade', () => {
+    const c = painel();
+    expect(c.mesDoProjeto('2026-01-05', '2026-01-05')).toBe(1);
+    expect(c.mesDoProjeto('2026-02-04', '2026-01-05')).toBe(1);
+    expect(c.mesDoProjeto('2026-02-05', '2026-01-05')).toBe(2);
+    expect(c.mesDoProjeto('2027-01-05', '2026-01-05')).toBe(13);
+    expect(c.periodoMeses({ mesIni: 2, mesFim: 2 })).toBe('Mês 2');
+    expect(c.periodoMeses({ mesIni: 1, mesFim: 3 })).toBe('Mês 1 a Mês 3');
+    expect(c.duracaoMeses({ mesIni: 1, mesFim: 1 })).toBe('1 mês');
+    expect(c.duracaoMeses({ mesIni: 2, mesFim: 4 })).toBe('3 meses');
+  });
+
+  it('resumo executivo: por frente, quantidade, periodo em meses, valor e % (cloud a parte)', () => {
+    const c = painel();
+    // Mobile vai ate 10/03: Mes 1 a Mes 3 (14 + 20 + 6 dias uteis = 40 dias -> 320h x R$100)
+    c.orcamentos[0].atividades[2].dataFim = '2026-03-10';
+    const ex = c.resumoExecutivo();
+    expect(ex.frentes.map(f => [f.nome, f.atividades, c.periodoMeses(f.periodo), f.valor])).toEqual([
+      ['Backend', 2, 'Mês 1', 5000],
+      ['Mobile', 1, 'Mês 1 a Mês 3', c.atividadeCusto(c.orcamentos[0].atividades[2])],
+      ['Sem frente', 1, '—', 500],
+    ]);
+    expect(c.duracaoMeses(ex.projeto)).toBe('3 meses');
+    expect(ex.total).toBe(ex.totalPessoas + 1200);
+    expect(ex.frentes.reduce((s, f) => s + f.pct, 0) + c.pctDe(1200, ex.total)).toBeCloseTo(100, 6);
+  });
+
+  it('o PDF executivo nao traz datas nem horas, so meses, valores e %', async () => {
+    const { jsPDF } = await import('jspdf');
+    let conteudo = '';
+    let arquivo = '';
+    const eventos = (jsPDF.API as any).events as any[];
+    const evento = ['initialized', function (this: any) {
+      const doc = this;
+      doc.save = (nome: string) => { arquivo = nome; conteudo = doc.output(); return doc; };
+    }];
+    eventos.push(evento);
+    const c = painel();
+    c.orcamentos[0].atividades[2].dataFim = '2026-03-10';
+    try {
+      await c.exportarPDFExecutivo();
+    } finally {
+      eventos.splice(eventos.indexOf(evento), 1);
+    }
+
+    expect(arquivo).toMatch(/^orcamento-executivo-projeto-alpha-/);
+    const textos = [...conteudo.matchAll(/\(((?:[^()\\]|\\.)*)\) Tj/g)].map(m => m[1]);
+    expect(textos).toContain('Mês 1 a Mês 3');
+    expect(textos).toContain('Cronograma por frente');
+    expect(textos).toContain('Projeto completo');
+    expect(textos).toContain('Infraestrutura cloud');
+    expect(textos.some(t => /\d{2}\/\d{2}\/\d{4}/.test(t))).toBe(false); // nenhuma data
+    expect(textos.some(t => /\d\s?h\b/.test(t))).toBe(false);          // nenhuma hora
+  });
+
   it('gera o PDF com resumo por frente e uma pagina de cronograma por frente datada', async () => {
     const { jsPDF } = await import('jspdf');
     let conteudo = '';

@@ -985,10 +985,10 @@ export class ProjectBudgetPanelComponent {
 
   exportMenuOpen = false;
 
-  private nomeArquivo(orc: any, ext: string): string {
+  private nomeArquivo(orc: any, ext: string, tipo = ''): string {
     const slug = String(orc?.nome ?? 'orcamento').toLowerCase()
       .replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-');
-    return `orcamento-${slug}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    return `orcamento${tipo ? '-' + tipo : ''}-${slug}-${new Date().toISOString().slice(0, 10)}.${ext}`;
   }
 
   private hexRgb(hex: string): [number, number, number] {
@@ -1340,6 +1340,253 @@ export class ProjectBudgetPanelComponent {
         doc.text(rotulo, lx + 4, ly);
         lx += largura;
       }
+    }
+  }
+
+  // ── Relatorio executivo (PDF) ─────────────────────────────────────────────
+
+  /**
+   * Mes do projeto em que cai a data: 1 = mes iniciado no primeiro dia de atividade.
+   * Conta meses cheios a partir do inicio (inicio em 15/01 -> 15/02 abre o Mes 2).
+   */
+  mesDoProjeto(data: string, inicioProjeto: string): number {
+    const [y1, m1, d1] = inicioProjeto.split('-').map(Number);
+    const [y2, m2, d2] = data.split('-').map(Number);
+    let meses = (y2 - y1) * 12 + (m2 - m1);
+    if (d2 < d1) meses--;
+    return meses + 1;
+  }
+
+  periodoMeses(p: { mesIni: number; mesFim: number } | null): string {
+    if (!p) return '—';
+    return p.mesIni === p.mesFim ? `Mês ${p.mesIni}` : `Mês ${p.mesIni} a Mês ${p.mesFim}`;
+  }
+
+  duracaoMeses(p: { mesIni: number; mesFim: number } | null): string {
+    if (!p) return '—';
+    const n = p.mesFim - p.mesIni + 1;
+    return `${n} ${n === 1 ? 'mês' : 'meses'}`;
+  }
+
+  private pctBR(v: number): string {
+    return `${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  }
+
+  /** Visao executiva: por frente, so quantidade, periodo em meses do projeto, valor e % do total. */
+  resumoExecutivo(orc: any = this.selectedOrcamento()) {
+    const todas = this.atividades(orc);
+    const range = this.rangeDe(todas);
+    const comFrentes = this.temFrentes(orc);
+    const totalPessoas = this.totalPessoas(todas);
+    const totalCloud = this.totalCloudDe(orc);
+    const total = totalPessoas + totalCloud;
+    const periodo = (ini: string, fim: string) => range && ini && fim
+      ? { mesIni: this.mesDoProjeto(ini, range.minDate), mesFim: this.mesDoProjeto(fim, range.minDate) }
+      : null;
+    return {
+      frentes: this.gruposFrente(todas).map(g => ({
+        nome: comFrentes ? g.nome : 'Todas as atividades',
+        cor: g.cor,
+        atividades: g.atividades.length,
+        periodo: periodo(g.inicio, g.fim),
+        valor: g.custo,
+        pct: this.pctDe(g.custo, total),
+      })),
+      comFrentes,
+      atividades: todas.length,
+      projeto: range ? periodo(range.minDate, range.maxDate) : null,
+      totalPessoas,
+      totalCloud,
+      total,
+    };
+  }
+
+  /**
+   * PDF para envio: uma linha por frente (atividades, periodo em "Mes N", valor e %)
+   * e o cronograma das frentes em meses do projeto. Sem datas e sem horas.
+   */
+  async exportarPDFExecutivo() {
+    const orc = this.selectedOrcamento();
+    if (!orc || this.exportandoPDF) return;
+    this.exportandoPDF = true;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+      const ex = this.resumoExecutivo(orc);
+      const totalMeses = ex.projeto?.mesFim ?? 0;
+
+      // header
+      doc.setFillColor(15, 52, 96);
+      doc.rect(0, 0, W, 26, 'F');
+      doc.setFillColor(29, 99, 218);
+      doc.rect(0, 22, W, 4, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+      doc.text('Orçamento de Projeto — Visão Executiva', 14, 11);
+      doc.setFontSize(10);
+      doc.text(orc.nome, 14, 19);
+      if (orc.descricao) {
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+        doc.text(orc.descricao, W - 14, 11, { align: 'right', maxWidth: 110 });
+      }
+
+      // KPIs
+      const kpis: { label: string; value: string; color: [number, number, number]; money?: boolean }[] = [
+        { label: 'Valor total', value: this.currency(ex.total), color: [161, 65, 0], money: true },
+        ...(ex.comFrentes ? [{ label: 'Frentes', value: String(ex.frentes.length), color: [21, 94, 117] as [number, number, number] }] : []),
+        { label: 'Atividades', value: String(ex.atividades), color: [30, 64, 175] },
+        { label: 'Duração', value: this.duracaoMeses(ex.projeto), color: [5, 122, 85] },
+      ];
+      const kpiY = 30; const kpiW = (W - 28 - 3 * (kpis.length - 1)) / kpis.length;
+      kpis.forEach((k, i) => {
+        const x = 14 + i * (kpiW + 3);
+        doc.setFillColor(...k.color);
+        doc.roundedRect(x, kpiY, kpiW, 15, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(k.money ? 11 : 13); doc.setFont('helvetica', 'bold');
+        doc.text(k.value, x + kpiW / 2, kpiY + 7, { align: 'center' });
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+        doc.text(k.label, x + kpiW / 2, kpiY + 12.5, { align: 'center' });
+      });
+
+      // tabela por frente
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 52, 96);
+      doc.text(ex.comFrentes ? 'Resumo por Frente' : 'Resumo', 14, kpiY + 23);
+      const foot: string[][] = [];
+      if (ex.totalCloud) {
+        foot.push(['Subtotal das frentes', String(ex.atividades), '', '', this.currency(ex.totalPessoas), this.pctBR(this.pctDe(ex.totalPessoas, ex.total))]);
+        foot.push(['Infraestrutura cloud', '—', '—', '—', this.currency(ex.totalCloud), this.pctBR(this.pctDe(ex.totalCloud, ex.total))]);
+      }
+      foot.push(['Total', String(ex.atividades), this.periodoMeses(ex.projeto), this.duracaoMeses(ex.projeto), this.currency(ex.total), '100,0%']);
+      const COL_PCT = 5;
+      autoTable(doc, {
+        startY: kpiY + 26,
+        head: [['Frente', 'Atividades', 'Período', 'Duração', 'Valor', '% do total']],
+        body: ex.frentes.map(f => [f.nome, String(f.atividades), this.periodoMeses(f.periodo), this.duracaoMeses(f.periodo),
+                                   this.currency(f.valor), this.pctBR(f.pct)]),
+        foot,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 52, 96], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59], minCellHeight: 8, valign: 'middle' },
+        footStyles: { fillColor: [241, 245, 249], textColor: [15, 52, 96], fontStyle: 'bold', fontSize: 8.5 },
+        columnStyles: {
+          0: { cellWidth: 'auto', cellPadding: { left: 6, top: 2, bottom: 2, right: 2 } },
+          1: { cellWidth: 24, halign: 'center' }, 2: { cellWidth: 44, halign: 'center' }, 3: { cellWidth: 26, halign: 'center' },
+          4: { cellWidth: 38, halign: 'right' }, [COL_PCT]: { cellWidth: 54, halign: 'right' },
+        },
+        // cabecalho e rodape alinhados como o corpo (columnStyles so vale para o corpo)
+        didParseCell: (data: any) => {
+          if (data.section === 'body') return;
+          const c = data.column.index;
+          data.cell.styles.halign = c === 0 ? 'left' : c <= 3 ? 'center' : 'right';
+        },
+        didDrawCell: (data: any) => {
+          if (data.section !== 'body') return;
+          const f = ex.frentes[data.row.index];
+          if (!f) return;
+          if (data.column.index === 0) {
+            doc.setFillColor(...this.hexRgb(f.cor));
+            doc.roundedRect(data.cell.x + 2, data.cell.y + data.cell.height / 2 - 1.5, 3, 3, 0.6, 0.6, 'F');
+          }
+          // barra proporcional ao % ao lado do numero
+          if (data.column.index === COL_PCT) {
+            const trilho = data.cell.width - 22;
+            const y = data.cell.y + data.cell.height / 2 - 1.2;
+            doc.setFillColor(226, 232, 240);
+            doc.roundedRect(data.cell.x + 2, y, trilho, 2.4, 1, 1, 'F');
+            doc.setFillColor(...this.hexRgb(f.cor));
+            doc.roundedRect(data.cell.x + 2, y, Math.max(0.6, trilho * Math.min(1, f.pct / 100)), 2.4, 1, 1, 'F');
+          }
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      // cronograma das frentes em meses do projeto
+      const linhas = ex.frentes.filter(f => f.periodo);
+      if (totalMeses && linhas.length) {
+        const rowH = 8; const headerH = 7;
+        const altura = 8 + headerH + rowH * (linhas.length + 1) + 8;
+        let y = (doc as any).lastAutoTable.finalY + 10;
+        if (y + altura > H - 10) { doc.addPage(); y = 16; }
+        const tituloCrono = ex.comFrentes ? 'Cronograma por frente' : 'Cronograma';
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 52, 96);
+        doc.text(tituloCrono, 14, y);
+        const xSub = 14 + doc.getTextWidth(tituloCrono) + 3;
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+        doc.text(`em meses do projeto · ${this.duracaoMeses(ex.projeto)}`, xSub, y);
+        y += 4;
+
+        const chartX = 14; const chartW = W - 28; const labelW = 60;
+        const areaX = chartX + labelW; const areaW = chartW - labelW;
+        const colW = areaW / totalMeses;
+        const rotuloMes = (n: number) => colW >= 13 ? `Mês ${n}` : colW >= 6 ? `M${n}` : String(n);
+
+        doc.setFillColor(15, 52, 96); doc.rect(chartX, y, chartW, headerH, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text(ex.comFrentes ? 'Frente' : 'Projeto', chartX + 2, y + headerH / 2 + 1.3);
+        doc.setFontSize(colW >= 6 ? 6.5 : 5);
+        for (let m = 1; m <= totalMeses; m++) {
+          doc.text(rotuloMes(m), areaX + (m - 0.5) * colW, y + headerH / 2 + 1.3, { align: 'center' });
+        }
+        y += headerH;
+        const gridTop = y;
+
+        const itens = [
+          ...linhas.map(f => ({ nome: f.nome, cor: this.hexRgb(f.cor), p: f.periodo!, destaque: false })),
+          ...(ex.comFrentes ? [{ nome: 'Projeto completo', cor: [15, 52, 96] as [number, number, number], p: ex.projeto!, destaque: true }] : []),
+        ];
+        // 1) fundo e rotulo de cada linha
+        itens.forEach((it, i) => {
+          const yy = gridTop + i * rowH;
+          doc.setFillColor(...(it.destaque ? [219, 234, 254] as [number, number, number] : i % 2 === 0 ? [248, 250, 255] as [number, number, number] : [255, 255, 255] as [number, number, number]));
+          doc.rect(chartX, yy, chartW, rowH, 'F');
+          doc.setFillColor(...it.cor);
+          doc.roundedRect(chartX + 2, yy + rowH / 2 - 1.5, 3, 3, 0.6, 0.6, 'F');
+          doc.setTextColor(30, 41, 59); doc.setFontSize(7.5); doc.setFont('helvetica', it.destaque ? 'bold' : 'normal');
+          doc.text(it.nome.length > 34 ? it.nome.slice(0, 33) + '…' : it.nome, chartX + 7, yy + rowH / 2 + 1.2);
+        });
+        y = gridTop + itens.length * rowH;
+
+        // 2) divisoes entre os meses, por baixo das barras
+        doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.15);
+        for (let m = 0; m < totalMeses; m++) doc.line(areaX + m * colW, gridTop, areaX + m * colW, y);
+        doc.line(chartX, y, chartX + chartW, y);
+
+        // 3) barras com a duracao em meses
+        itens.forEach((it, i) => {
+          const yy = gridTop + i * rowH;
+          const bx = areaX + (it.p.mesIni - 1) * colW + 0.6;
+          const bw = (it.p.mesFim - it.p.mesIni + 1) * colW - 1.2;
+          doc.setFillColor(...it.cor);
+          doc.roundedRect(bx, yy + rowH * 0.22, bw, rowH * 0.56, 1, 1, 'F');
+          const rotulo = this.duracaoMeses(it.p);
+          doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+          if (doc.getTextWidth(rotulo) + 3 < bw) {
+            doc.setTextColor(255, 255, 255);
+            doc.text(rotulo, bx + bw / 2, yy + rowH / 2 + 1.1, { align: 'center' });
+          }
+        });
+
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+        doc.text('Mês 1 corresponde ao início da primeira atividade do projeto.', chartX, y + 5);
+      }
+
+      // footer
+      const total = (doc.internal as any).getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p);
+        doc.setFillColor(241, 245, 249); doc.rect(0, H - 7, W, 7, 'F');
+        doc.setDrawColor(203, 213, 225); doc.line(0, H - 7, W, H - 7);
+        doc.setTextColor(100, 116, 139); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+        doc.text(`Orçamento: ${orc.nome} · Visão executiva`, 14, H - 2.5);
+        doc.text(`Página ${p} de ${total}`, W - 14, H - 2.5, { align: 'right' });
+      }
+      doc.save(this.nomeArquivo(orc, 'pdf', 'executivo'));
+    } finally {
+      this.exportandoPDF = false;
     }
   }
 
